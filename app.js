@@ -594,10 +594,15 @@ TEXTE : ${sourceText}`;
       }).join('\n\n');
 
       const digest = await callGroq(
-        `Tu es un éditeur de presse senior. Tu rédiges des briefings synthétiques pour un lecteur pressé.
-Format de sortie : HTML simple, utilise <h2> pour les sections thématiques, <ul><li> pour les points clés, <p> pour les synthèses.
-Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeuse. Cite les sources entre parenthèses.`,
-        `Rédige le digest des actualités. Structure par thèmes (max 4 thèmes). Synthétise les faits essentiels à partir des résumés fournis.\n\n${articlesText}`,
+        `Tu es un éditeur de presse senior. Tu rédiges des briefings synthétiques.
+RÈGLES ABSOLUES :
+- Réponds UNIQUEMENT en HTML valide, JAMAIS en markdown
+- N'utilise JAMAIS #, ##, ###, **, *, - pour formater
+- Utilise UNIQUEMENT ces balises : <h2>, <p>, <ul>, <li>
+- Pas d'introduction, pas de conclusion, pas de titre général
+- Langue : français
+- Cite les sources entre parenthèses dans le texte`,
+        `Rédige un briefing structuré par thèmes (max 4 thèmes). Pour chaque thème : un <h2> avec le nom du thème, un <p> de synthèse, et une <ul> avec les points clés.\n\n${articlesText}`,
         800
       );
 
@@ -2085,16 +2090,43 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       }
     }
 
-    /** Nettoie et normalise le HTML du digest */
-    function cleanDigestHtml(html) {
-      return html
-        // Convertir les **texte** markdown en balises bold
-        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-        // Supprimer les balises mal fermées ou orphelines en fin
+    /** Nettoie et normalise le HTML du digest — convertit markdown → HTML */
+    function cleanDigestHtml(raw) {
+      let html = raw
+        // Supprimer les balises incomplètes en fin
         .replace(/<\/?[a-z]+>?\s*$/gi, '')
-        // Nettoyer les sauts de ligne multiples
+        .trim();
+
+      // Si l'IA a renvoyé du markdown pur (pas de balises HTML), convertir
+      if (!html.includes('<h') && !html.includes('<p') && !html.includes('<ul')) {
+        html = html
+          // ### Titre → <h2>
+          .replace(/^###\s+(.+)$/gm, '<h2>$1</h2>')
+          // ## Titre → <h2>
+          .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
+          // # Titre → <h2>
+          .replace(/^#\s+(.+)$/gm, '<h2>$1</h2>')
+          // - item ou * item → <li>
+          .replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>')
+          // Entourer les <li> consécutifs d'un <ul>
+          .replace(/(<li>.*<\/li>\n?)+/gs, '<ul>$&</ul>')
+          // Paragraphes (lignes non balisées)
+          .replace(/^(?!<[hul]|$)(.+)$/gm, '<p>$1</p>');
+      }
+
+      // Dans tous les cas, convertir le markdown résiduel
+      html = html
+        // **texte** → <strong>
+        .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+        // *texte* → <em>
+        .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+        // ### restants
+        .replace(/^###?\s*/gm, '')
+        // Lignes vides multiples
         .replace(/\n{3,}/g, '\n\n')
         .trim();
+
+      return html;
     }
 
     /** Affiche le digest avec un effet de streaming mot par mot */
