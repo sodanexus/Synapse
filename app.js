@@ -42,12 +42,12 @@
     DEDUP_THRESHOLD: 0.65,
 
     // Délai entre les requêtes Groq (ms)
-    // Groq free tier ≈ 30 req/min → 2.5s minimum pour rester dans les limites
-    GROQ_REQUEST_DELAY: 2500,
+    // Groq free tier ≈ 30 req/min → 3s minimum pour rester dans les limites
+    GROQ_REQUEST_DELAY: 3000,
 
     // Nombre max d'articles à enrichir par sync
-    // Évite de tout envoyer d'un coup et de saturer le rate limit
-    MAX_ENRICHMENT_PER_SYNC: 6,
+    // Réduit à 3 pour éviter les rafales qui déclenchent les 429
+    MAX_ENRICHMENT_PER_SYNC: 3,
 
     // Cache TTL pour les articles (ms) — 30 minutes
     CACHE_TTL: 30 * 60 * 1000,
@@ -415,10 +415,11 @@
 
     /**
      * Appel générique au relay IA du worker.
+     * Gère automatiquement le retry avec backoff exponentiel sur les erreurs 429.
      * Le worker reçoit : POST /ai { prompt, systemPrompt, model }
      * Il retourne : { text: "..." }
      */
-    async function callGroq(systemPrompt, userPrompt, maxTokens = 800) {
+    async function callGroq(systemPrompt, userPrompt, maxTokens = 800, retryCount = 0) {
       const response = await fetch(`${CONFIG.WORKER_URL}/ai`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -430,6 +431,18 @@
         }),
         signal: AbortSignal.timeout(30000),
       });
+
+      // Gestion du rate limit : retry avec backoff exponentiel
+      if (response.status === 429) {
+        if (retryCount >= 3) {
+          throw new Error('Rate limit Groq atteint après plusieurs tentatives. Réessayez dans quelques minutes.');
+        }
+        // Attendre de plus en plus longtemps : 5s, 10s, 20s
+        const waitMs = (5000) * Math.pow(2, retryCount);
+        console.warn(`Groq 429 — attente ${waitMs / 1000}s avant retry ${retryCount + 1}/3`);
+        await sleep(waitMs);
+        return callGroq(systemPrompt, userPrompt, maxTokens, retryCount + 1);
+      }
 
       if (!response.ok) {
         const err = await response.text();
@@ -1001,7 +1014,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       // Marquer comme lu
       markRead(article);
 
-      // Remplir le reader
+      // Remplir le reader avec le contenu disponible immédiatement
       populate(article);
 
       // Afficher l'overlay
@@ -1011,6 +1024,61 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
 
       // Focus trap (accessibilité)
       document.getElementById('btn-close-reader').focus();
+
+      // Enrichissement IA à la demande — uniquement si pas encore fait
+      const alreadyEnriched = article.ai_content &&
+        article.ai_content.trim() !== (article.content || '').trim() &&
+        article.ai_content.length > 50;
+
+      if (!alreadyEnriched) {
+        enrichOnOpen(article);
+      }
+    }
+
+    /**
+     * Enrichit un article avec l'IA au moment de son ouverture.
+     * Affiche un indicateur de chargement dans le reader pendant le traitement.
+     */
+    async function enrichOnOpen(article) {
+      const contentEl = document.getElementById('reader-content');
+      const toggleBtn = document.getElementById('btn-toggle-content');
+
+      // Indicateur discret de chargement IA
+      toggleBtn.textContent = '◈ IA en cours...';
+      toggleBtn.disabled = true;
+
+      try {
+        const result = await AI.enrichArticle(article);
+
+        // Mettre à jour l'article en mémoire
+        article.ai_content = result.ai_content;
+        article.importance = result.importance;
+        article.ai_tags = result.ai_tags;
+
+        // Sauvegarder en base si l'utilisateur est connecté
+        if (STATE.user && article.id) {
+          DB.updateArticleStatus(article.id, {}).catch(() => {});
+        }
+        if (STATE.user) {
+          DB.upsertArticle({
+            ...article,
+            user_id: STATE.user.id,
+          }).catch(() => {});
+        }
+
+        // Rafraîchir l'affichage uniquement si l'article est encore ouvert
+        const currentArticle = STATE.currentArticleList[STATE.currentArticleIndex];
+        if (currentArticle && currentArticle.hash === article.hash) {
+          populate(article);
+        }
+
+      } catch (err) {
+        console.warn('Enrichissement IA échoué:', err);
+        // Pas de toast pour ne pas interrompre la lecture — l'article original reste affiché
+      } finally {
+        toggleBtn.disabled = false;
+        toggleBtn.textContent = showingAI ? '◈ IA' : '◈ ORIGINAL';
+      }
     }
 
     /** Ferme le reader */
@@ -1447,81 +1515,31 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         Loader.setProgress(30);
         const { unique } = Cluster.deduplicate(rawArticles);
 
-        // 3. Identifier les nouveaux articles ET ceux mal enrichis
-        // Un article est considéré "à enrichir" si :
-        //   - il est nouveau (hash inconnu)
-        //   - OU son ai_content est identique au content brut (enrichissement échoué précédemment)
-        const existingHashes = new Set(STATE.articles.map(a => a.hash));
+        // 3. Fusionner avec les articles déjà enrichis en mémoire
+        // Le sync ne fait plus d'enrichissement IA — celui-ci se fait à la demande
+        // à l'ouverture de chaque article dans le Reader.
         const existingMap = new Map(STATE.articles.map(a => [a.hash, a]));
 
-        const newArticles = unique.filter(a => {
-          if (!existingHashes.has(a.hash)) return true; // Nouveau
+        // Pour chaque article frais, on réutilise l'enrichissement IA existant s'il est déjà en mémoire
+        let enriched = unique.map(a => {
           const old = existingMap.get(a.hash);
-          // Re-enrichir si ai_content manquant ou identique au contenu brut
-          const needsReenrich = !old.ai_content ||
-            old.ai_content.trim() === (old.content || '').trim() ||
-            old.ai_content.trim() === (old.description || '').trim();
-          return needsReenrich;
-        });
-
-        const existing = unique.filter(a => {
-          if (!existingHashes.has(a.hash)) return false;
-          const old = existingMap.get(a.hash);
-          const isEnriched = old.ai_content &&
-            old.ai_content.trim() !== (old.content || '').trim() &&
-            old.ai_content.trim() !== (old.description || '').trim();
-          return isEnriched;
-        });
-
-        let enriched = existing.map(newRaw => {
-          const old = existingMap.get(newRaw.hash);
-          return old || newRaw;
-        });
-
-        // 4. Enrichissement IA — limité à MAX_ENRICHMENT_PER_SYNC articles par sync
-        // Les articles non traités cette fois seront pris au prochain sync
-        const toEnrich = newArticles.slice(0, CONFIG.MAX_ENRICHMENT_PER_SYNC);
-        const notYetEnriched = newArticles.slice(CONFIG.MAX_ENRICHMENT_PER_SYNC);
-
-        if (toEnrich.length > 0) {
-          Loader.setStatus(`Enrichissement IA — 0/${toEnrich.length} articles...`);
-          const enrichedNew = await AI.enrichBatch(toEnrich, (current, total) => {
-            Loader.setStatus(`Enrichissement IA — ${current}/${total} articles...`);
-            Loader.setProgress(30 + Math.round((current / total) * 50));
-          });
-          // Ajouter les non-traités tels quels (sans ai_content) — traités au prochain sync
-          enriched = [...enriched, ...enrichedNew, ...notYetEnriched];
-
-          // Sauvegarder en base si connecté — uniquement les articles vraiment enrichis
-          if (STATE.user) {
-            for (const article of enrichedNew) {
-              // Ne pas sauvegarder si ai_content est vide ou identique au brut
-              const isEnriched = article.ai_content &&
-                article.ai_content.trim() !== (article.content || '').trim() &&
-                article.ai_content.length > 50;
-              if (!isEnriched) continue;
-              try {
-                await DB.upsertArticle({
-                  ...article,
-                  user_id: STATE.user.id,
-                  ai_tags: article.ai_tags,
-                });
-              } catch {}
-            }
+          if (old && old.ai_content && old.ai_content.trim() !== (old.content || '').trim()) {
+            return old; // Conserver la version déjà enrichie
           }
-        }
+          return a; // Nouvel article, sera enrichi à l'ouverture
+        });
 
-        // 5. Mise à jour du state
+        // 4. Mise à jour du state
         STATE.articles = enriched.sort((a, b) =>
           new Date(b.pub_date) - new Date(a.pub_date)
         );
 
-        // 6. Clustering
+        // 5. Clustering
         Loader.setStatus('Clustering thématique...');
         Loader.setProgress(85);
         STATE.clusters = Cluster.clusterByTopic(STATE.articles);
 
-        // 7. Rendu UI
+        // 6. Rendu UI
         Loader.setStatus('Mise à jour de l\'interface...');
         Loader.setProgress(95);
         refreshUI();
