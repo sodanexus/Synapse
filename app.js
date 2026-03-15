@@ -519,10 +519,11 @@ TEXTE : ${sourceText}`;
     async function generateDailyDigest(articles) {
       // Sélectionner les 15 articles les plus importants du jour
       const today = new Date().toISOString().split('T')[0];
+      // Sélectionner les 10 articles les plus importants (au lieu de 15)
       const topArticles = articles
         .filter(a => a.pub_date && a.pub_date.startsWith(today))
         .sort((a, b) => (b.importance || 0) - (a.importance || 0))
-        .slice(0, 15);
+        .slice(0, 10);
 
       if (topArticles.length === 0) {
         // Si aucun article du jour, prendre les 10 plus récents
@@ -532,15 +533,15 @@ TEXTE : ${sourceText}`;
       }
 
       const articlesText = topArticles.map((a, i) =>
-        `[${i + 1}] ${a.title} (${a.feed_name}, importance: ${a.importance}/5)\n${(a.ai_content || a.content).substring(0, 300)}`
-      ).join('\n\n');
+        `[${i + 1}] ${a.title} — ${a.feed_name} (importance: ${a.importance}/5)`
+      ).join('\n');
 
       const digest = await callGroq(
         `Tu es un éditeur de presse senior. Tu rédiges des briefings matinaux synthétiques pour un lecteur pressé.
 Format de sortie : HTML simple, utilise <h2> pour les sections thématiques, <ul><li> pour les points, <p> pour les paragraphes.
 Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeuse.`,
         `Rédige le digest des actualités du jour. Structure par thèmes (max 4 thèmes). Inclus les sujets les plus importants.\n\n${articlesText}`,
-        1000
+        600
       );
 
       return digest;
