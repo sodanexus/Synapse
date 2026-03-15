@@ -458,8 +458,25 @@
     }
 
     async function enrichArticle(article) {
-      // Construire le texte source — titre + description + contenu, tout ce qu'on a
-      const sourceText = [
+      // Tenter de scraper le contenu complet de la page source
+      let scrapedText = '';
+      if (article.link) {
+        try {
+          const scrapeUrl = `${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`;
+          const scrapeRes = await fetch(scrapeUrl, { signal: AbortSignal.timeout(10000) });
+          if (scrapeRes.ok) {
+            const scrapeData = await scrapeRes.json();
+            if (scrapeData.text && scrapeData.text.length > 200) {
+              scrapedText = scrapeData.text;
+            }
+          }
+        } catch {
+          // Scraping échoué — on continue avec le contenu RSS
+        }
+      }
+
+      // Construire le texte source — scraped en priorité, sinon RSS
+      const sourceText = scrapedText || [
         article.title || '',
         article.description || '',
         article.content || '',
@@ -497,10 +514,11 @@ TEXTE : ${sourceText}`;
           importance: Math.min(5, Math.max(1, parseInt(parsed.importance) || 1)),
           ai_tags: Array.isArray(parsed.ai_tags) ? parsed.ai_tags.slice(0, 5) : [],
           sentiment,
+          scraped_content: scrapedText || null,
         };
       } catch (err) {
         console.warn(`Parsing JSON échoué pour "${article.title}":`, err, '\nRaw:', raw);
-        return { ai_content: article.content, importance: 1, ai_tags: [], sentiment: 'neutral' };
+        return { ai_content: article.content, importance: 1, ai_tags: [], sentiment: 'neutral', scraped_content: scrapedText || null };
       }
     }
 
@@ -1253,6 +1271,8 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         article.importance = result.importance;
         article.ai_tags = result.ai_tags;
         article.sentiment = result.sentiment || 'neutral';
+        // Stocker le contenu scrapé comme contenu original enrichi
+        if (result.scraped_content) article.content = result.scraped_content;
 
         // Sauvegarder en base si l'utilisateur est connecté
         if (STATE.user) {
