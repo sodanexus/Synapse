@@ -1224,13 +1224,11 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
      9. UI — READER (Mode Focus)
      ================================================================ */
   const Reader = (() => {
-    let showingAI = true; // true = contenu IA, false = contenu original
 
     /** Ouvre le reader pour un article */
     function open(article, index, articleList) {
       STATE.currentArticleIndex = index;
       STATE.currentArticleList = articleList;
-      showingAI = true;
 
       // Marquer comme lu
       markRead(article);
@@ -1257,24 +1255,18 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
      * Affiche un indicateur de chargement dans le reader pendant le traitement.
      */
     async function enrichOnOpen(article) {
-      const toggleBtn = document.getElementById('btn-toggle-content');
-
-      // Indicateur discret de chargement IA
-      toggleBtn.textContent = '◈ IA en cours...';
-      toggleBtn.disabled = true;
+      // Indicateur de chargement sur le titre du reader
+      const titleEl = document.getElementById('reader-title');
+      if (titleEl) titleEl.style.opacity = '0.5';
 
       try {
         const result = await AI.enrichArticle(article);
 
-        // Mettre à jour l'article en mémoire
         article.ai_content = result.ai_content;
         article.importance = result.importance;
         article.ai_tags = result.ai_tags;
         article.sentiment = result.sentiment || 'neutral';
-        // Stocker le contenu scrapé comme contenu original enrichi
-        if (result.scraped_content) article.content = result.scraped_content;
 
-        // Sauvegarder en base si l'utilisateur est connecté
         if (STATE.user) {
           DB.upsertArticle({
             feed_id:    article.feed_id || null,
@@ -1292,21 +1284,16 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
           }).catch(err => console.warn('Sauvegarde Supabase échouée:', err));
         }
 
-        // Rafraîchir l'affichage uniquement si l'article est encore ouvert
         const currentArticle = STATE.currentArticleList[STATE.currentArticleIndex];
         if (currentArticle && currentArticle.hash === article.hash) {
-          populate(article, true); // true = animer l'apparition du texte IA
+          populate(article, true);
         }
 
       } catch (err) {
         console.warn('Enrichissement IA échoué:', err);
-        // Afficher un message discret sans interrompre la lecture
-        const toggleBtn = document.getElementById('btn-toggle-content');
-        if (toggleBtn) toggleBtn.title = `Enrichissement IA indisponible : ${err.message}`;
-        Toast.show('IA indisponible — texte original affiché', 'info');
+        Toast.show('IA indisponible — réessayez plus tard', 'info');
       } finally {
-        toggleBtn.disabled = false;
-        toggleBtn.textContent = showingAI ? '◈ IA' : '◈ ORIGINAL';
+        if (titleEl) titleEl.style.opacity = '';
       }
     }
 
@@ -1345,13 +1332,8 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         `<span class="tag">${Render.escapeHtml(t)}</span>`
       ).join('');
 
-      // Contenu (IA par défaut)
+      // Contenu IA
       setContent(article, animate);
-
-      // Bouton toggle IA/original
-      const toggleBtn = document.getElementById('btn-toggle-content');
-      toggleBtn.classList.toggle('active', showingAI);
-      toggleBtn.textContent = showingAI ? '◈ IA' : '◈ ORIGINAL';
 
       // Restaurer la taille de police préférée
       FontSize.set(localStorage.getItem('synapse_fontsize') || 'md', false);
@@ -1416,20 +1398,10 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       });
     }
 
-    /** Affiche le contenu IA ou original */
+    /** Affiche le contenu de l'article (toujours la version IA) */
     function setContent(article, animate = false) {
       const contentEl = document.getElementById('reader-content');
-
-      let text;
-      if (showingAI) {
-        text = article.ai_content || article.content || '';
-      } else {
-        const raw = (article.content || '').trim();
-        const isJustTitle = raw === (article.title || '').trim() || raw.length < 30;
-        text = isJustTitle
-          ? article.description || article.content || ''
-          : raw;
-      }
+      const text = article.ai_content || article.content || article.description || '';
 
       // Conversion texte → paragraphes HTML
       const paragraphs = text.split(/\n{2,}/).filter(p => p.trim());
@@ -1531,20 +1503,6 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       // Navigation
       document.getElementById('btn-next-article').addEventListener('click', goNext);
       document.getElementById('btn-prev-article').addEventListener('click', goPrev);
-
-      // Toggle IA / Original
-      document.getElementById('btn-toggle-content').addEventListener('click', () => {
-        showingAI = !showingAI;
-        const article = STATE.currentArticleList[STATE.currentArticleIndex];
-        if (article) {
-          setContent(article);
-          const btn = document.getElementById('btn-toggle-content');
-          btn.classList.toggle('active', showingAI);
-          btn.textContent = showingAI ? '◈ IA' : '◈ ORIGINAL';
-        }
-      });
-
-
 
       // Bookmark depuis reader
       document.getElementById('btn-bookmark').addEventListener('click', () => {
