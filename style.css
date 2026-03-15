@@ -1338,7 +1338,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
    RESPONSIVE — MOBILE
    ================================================================ */
 @media (max-width: 600px) {
-  .view { padding: 64px 20px 40px; }
+  .view { padding: 28px 20px 40px; }
   .view-title { font-size: 2.2rem; }
   .articles-grid { grid-template-columns: 1fr; gap: 12px; }
   .form-row { flex-direction: column; }
@@ -1348,6 +1348,12 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   .feed-row { grid-template-columns: 1fr auto; }
   .feed-row-category { display: none; }
   .digest-zone { padding: 28px 24px; }
+
+  /* Aligner le hamburger avec le titre de la vue */
+  .sidebar-toggle {
+    top: 28px;
+    right: 20px;
+  }
 }
 
 /* ================================================================
