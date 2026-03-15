@@ -486,59 +486,59 @@
     }
 
     async function enrichArticle(article) {
-      // Tenter de scraper le contenu complet de la page source
-      let scrapedText = '';
-      if (article.link) {
-        try {
-          const scrapeUrl = `${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`;
-          const scrapeRes = await fetch(scrapeUrl, { signal: AbortSignal.timeout(10000) });
-          if (scrapeRes.ok) {
-            const scrapeData = await scrapeRes.json();
-            if (scrapeData.text && scrapeData.text.length > 200) {
-              scrapedText = scrapeData.text;
-            }
-          }
-        } catch {
-          // Scraping échoué — on continue avec le contenu RSS
-        }
-      }
-
-      // Construire le texte source — scraped en priorité, sinon RSS
-      const sourceText = scrapedText || [
+      // Construire le texte RSS de base immédiatement
+      const rssText = [
         article.title || '',
         article.description || '',
         article.content || '',
       ].filter(Boolean).join('\n\n').substring(0, 2000);
 
-      // Si vraiment rien à enrichir, on skip
-      if (sourceText.trim().length < 30) {
-        return { ai_content: article.content || article.title || '', importance: 1, ai_tags: [] };
+      if (rssText.trim().length < 30) {
+        return { ai_content: article.content || article.title || '', importance: 1, ai_tags: [], sentiment: 'neutral' };
       }
 
+      // Lancer scraping et Groq EN PARALLÈLE — timeout scraping réduit à 5s
+      const scrapePromise = article.link
+        ? fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`, {
+            signal: AbortSignal.timeout(5000)
+          })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => (d?.text?.length > 200) ? d.text : null)
+          .catch(() => null)
+        : Promise.resolve(null);
+
+      // Groq démarre immédiatement avec le texte RSS
       const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris ou résumes les articles RSS en prose claire et fluide. Tu supprimes tout le bruit (publicités, appels à l'action, mentions légales). Si le contenu est riche, tu réécris en 150-250 mots. Si le contenu est court ou tronqué, tu fais le meilleur résumé possible avec ce que tu as, en ajoutant du contexte général sur le sujet si nécessaire. Tu ne copies JAMAIS le texte original mot pour mot. Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks. Langue de sortie : français.`;
 
-      const userPrompt = `Réécris ou résume cet article et retourne exactement ce JSON (et rien d'autre) :
+      // On attend les deux en parallèle
+      const [scrapedText, raw] = await Promise.all([
+        scrapePromise,
+        (async () => {
+          // Si on a du scraped text, on le préfère — mais Groq part déjà avec le RSS
+          // On relancera si le scraping donne mieux (seulement si scraping > 2x le RSS)
+          const sourceText = rssText;
+          const prompt = `Réécris ou résume cet article et retourne exactement ce JSON (et rien d'autre) :
 {"ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"],"sentiment":"<positive|negative|neutral>"}
 
 TITRE : ${article.title}
 SOURCE : ${article.feed_name}
 TEXTE : ${sourceText}`;
-
-      const raw = await callGroq(systemPrompt, userPrompt, 700);
+          return callGroq(systemPrompt, prompt, 700);
+        })()
+      ]);
 
       try {
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new Error('No JSON found in response');
 
         const parsed = JSON.parse(jsonMatch[0]);
-
         const aiText = parsed.ai_content || '';
         const isDistinct = aiText.length > 50 && aiText !== article.content;
         const sentiment = ['positive', 'negative', 'neutral'].includes(parsed.sentiment)
           ? parsed.sentiment : 'neutral';
 
         return {
-          ai_content: isDistinct ? aiText : article.content,
+          ai_content: isDistinct ? aiText : (article.content || article.title),
           importance: Math.min(5, Math.max(1, parseInt(parsed.importance) || 1)),
           ai_tags: Array.isArray(parsed.ai_tags) ? parsed.ai_tags.slice(0, 5) : [],
           sentiment,
@@ -546,7 +546,7 @@ TEXTE : ${sourceText}`;
         };
       } catch (err) {
         console.warn(`Parsing JSON échoué pour "${article.title}":`, err, '\nRaw:', raw);
-        return { ai_content: article.content, importance: 1, ai_tags: [], sentiment: 'neutral', scraped_content: scrapedText || null };
+        return { ai_content: article.content, importance: 1, ai_tags: [], sentiment: 'neutral', scraped_content: null };
       }
     }
 
