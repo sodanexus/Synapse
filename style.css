@@ -46,6 +46,12 @@
   /* Transitions */
   --ease:     cubic-bezier(0.25, 0.1, 0.25, 1);
   --ease-out: cubic-bezier(0.0, 0.0, 0.2, 1);
+
+  /* Transitions animation fluide */
+  --t-fast:   0.15s cubic-bezier(0.25, 0.1, 0.25, 1);
+  --t-normal: 0.25s cubic-bezier(0.25, 0.1, 0.25, 1);
+  --t-slow:   0.4s  cubic-bezier(0.25, 0.1, 0.25, 1);
+  --t-spring: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ── DARK MODE ── */
@@ -1379,13 +1385,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
    FLUIDITÉ GLOBALE — transitions sur tous les éléments interactifs
    ================================================================ */
 
-/* Toutes les transitions de base harmonisées */
-:root {
-  --t-fast:   0.15s cubic-bezier(0.25, 0.1, 0.25, 1);
-  --t-normal: 0.25s cubic-bezier(0.25, 0.1, 0.25, 1);
-  --t-slow:   0.4s  cubic-bezier(0.25, 0.1, 0.25, 1);
-  --t-spring: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
+/* Toutes les transitions de base harmonisées — variables définies dans :root */
 
 /* Cards — hover plus fluide avec shadow */
 .article-card {
