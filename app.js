@@ -1176,8 +1176,8 @@ RÈGLES ABSOLUES :
         return;
       }
 
-      // Pagination — afficher par tranches de 50
-      const PAGE_SIZE = 50;
+      // Infinite scroll — afficher par tranches de 20
+      const PAGE_SIZE = 20;
       const page = STATE.articlesPage || 0;
       const paginated = filtered.slice(0, (page + 1) * PAGE_SIZE);
 
@@ -1185,16 +1185,24 @@ RÈGLES ABSOLUES :
         container.appendChild(articleRow(article, i, filtered));
       });
 
-      // Bouton "Charger plus" si besoin
+      // Infinite scroll — sentinel en bas de liste
       if (paginated.length < filtered.length) {
-        const btn = document.createElement('button');
-        btn.className = 'btn-load-more';
-        btn.textContent = `Charger plus (${filtered.length - paginated.length} restants)`;
-        btn.addEventListener('click', () => {
-          STATE.articlesPage = (STATE.articlesPage || 0) + 1;
-          renderFeedArticles(articles, filter, query);
-        });
-        container.appendChild(btn);
+        const sentinel = document.createElement('div');
+        sentinel.className = 'scroll-sentinel';
+        sentinel.style.cssText = 'height: 40px; display: flex; align-items: center; justify-content: center;';
+        sentinel.innerHTML = '<span style="font-family:var(--font-mono);font-size:0.6rem;color:var(--grey-light);letter-spacing:0.1em;">Chargement...</span>';
+        container.appendChild(sentinel);
+
+        // Observer qui déclenche le chargement quand le sentinel est visible
+        const observer = new IntersectionObserver((entries) => {
+          if (entries[0].isIntersecting) {
+            observer.disconnect();
+            STATE.articlesPage = (STATE.articlesPage || 0) + 1;
+            renderFeedArticles(articles, filter, query);
+          }
+        }, { rootMargin: '100px' });
+
+        observer.observe(sentinel);
       }
     }
 
