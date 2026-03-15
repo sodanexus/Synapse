@@ -49,6 +49,11 @@ export default {
         return await handleAI(request, env, corsHeaders);
       }
 
+      // ── Route : GET /scrape?url=<encoded> ──
+      if (request.method === 'GET' && url.pathname === '/scrape') {
+        return await handleScrape(url, corsHeaders);
+      }
+
       // 404 pour toute autre route
       return jsonResponse({ error: 'Route not found' }, 404, corsHeaders);
 
@@ -264,6 +269,116 @@ async function handleAI(request, env, corsHeaders) {
   const text = groqData.choices?.[0]?.message?.content || '';
 
   return jsonResponse({ text }, 200, corsHeaders);
+}
+
+/* ================================================================
+   HANDLER SCRAPE — Extrait le contenu textuel d'une page article
+   ================================================================ */
+async function handleScrape(url, corsHeaders) {
+  const articleUrl = url.searchParams.get('url');
+
+  if (!articleUrl) {
+    return jsonResponse({ error: 'Missing ?url parameter' }, 400, corsHeaders);
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(articleUrl);
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Protocol not allowed');
+  } catch {
+    return jsonResponse({ error: 'Invalid URL' }, 400, corsHeaders);
+  }
+
+  const response = await fetch(articleUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,*/*',
+      'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
+    },
+    redirect: 'follow',
+    cf: { cacheTtl: 3600 },
+  });
+
+  if (!response.ok) {
+    return jsonResponse({ error: `Page responded with ${response.status}` }, response.status, corsHeaders);
+  }
+
+  const html = await response.text();
+  const text = extractArticleText(html);
+
+  if (!text || text.length < 100) {
+    return jsonResponse({ error: 'Could not extract article content' }, 422, corsHeaders);
+  }
+
+  return jsonResponse({ text, length: text.length }, 200, corsHeaders);
+}
+
+/**
+ * Extrait le texte principal d'une page HTML.
+ * Stratégie : chercher les balises sémantiques dans l'ordre de priorité,
+ * puis extraire uniquement les <p> à l'intérieur.
+ */
+function extractArticleText(html) {
+  // Supprimer scripts, styles, nav, footer, aside, header
+  let cleaned = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+    .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+    .replace(/<aside[\s\S]*?<\/aside>/gi, '')
+    .replace(/<header[\s\S]*?<\/header>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '');
+
+  // Chercher le contenu principal dans l'ordre de priorité
+  const contentPatterns = [
+    /<article[^>]*>([\s\S]*?)<\/article>/i,
+    /<main[^>]*>([\s\S]*?)<\/main>/i,
+    /<[^>]*class="[^"]*article[^"]*body[^"]*"[^>]*>([\s\S]*?)<\/[^>]+>/i,
+    /<[^>]*class="[^"]*article[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/[^>]+>/i,
+    /<[^>]*class="[^"]*story[^"]*body[^"]*"[^>]*>([\s\S]*?)<\/[^>]+>/i,
+    /<[^>]*class="[^"]*post[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/[^>]+>/i,
+    /<[^>]*itemprop="articleBody"[^>]*>([\s\S]*?)<\/[^>]+>/i,
+  ];
+
+  let articleHtml = '';
+  for (const pattern of contentPatterns) {
+    const match = cleaned.match(pattern);
+    if (match && match[1] && match[1].length > 200) {
+      articleHtml = match[1];
+      break;
+    }
+  }
+
+  // Fallback : prendre tout le body
+  if (!articleHtml) {
+    const bodyMatch = cleaned.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    articleHtml = bodyMatch ? bodyMatch[1] : cleaned;
+  }
+
+  // Extraire uniquement les paragraphes <p>
+  const paragraphs = [];
+  const pMatches = [...articleHtml.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)];
+
+  for (const match of pMatches) {
+    // Supprimer les balises HTML restantes
+    const text = match[1]
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#\d+;/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Ignorer les paragraphes trop courts (navigation, labels...)
+    if (text.length > 40) {
+      paragraphs.push(text);
+    }
+  }
+
+  return paragraphs.join('\n\n').substring(0, 8000);
 }
 
 /* ================================================================
