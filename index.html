@@ -16,7 +16,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=4" />
+  <link rel="stylesheet" href="style.css?v=5" />
+  <!-- Anti-flash dark mode : appliqué avant le rendu -->
+  <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
 <body>
 
@@ -268,12 +270,13 @@
           <button class="reader-btn" id="btn-toggle-content" title="Basculer IA / Original">
             ◈ IA
           </button>
+          <!-- Séparateur -->
+          <span style="width:1px; background:var(--grey-subtle); margin: 4px 2px;"></span>
           <!-- Taille de police -->
-          <div class="font-size-controls">
-            <button class="font-size-btn" data-size="sm">A-</button>
-            <button class="font-size-btn active" data-size="md">A</button>
-            <button class="font-size-btn" data-size="lg">A+</button>
-          </div>
+          <button class="reader-btn font-size-btn" data-size="sm" title="Petite police">A−</button>
+          <button class="reader-btn font-size-btn active" data-size="md" title="Taille normale">A</button>
+          <button class="reader-btn font-size-btn" data-size="lg" title="Grande police">A+</button>
+          <span style="width:1px; background:var(--grey-subtle); margin: 4px 2px;"></span>
           <!-- Bookmark -->
           <button class="reader-btn" id="btn-bookmark" title="Sauvegarder">
             ◧
@@ -339,6 +342,6 @@
   <!-- Scripts -->
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
