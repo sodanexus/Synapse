@@ -59,7 +59,7 @@
     clusters: [],            // Articles regroupés par sujet
     bookmarks: new Set(),    // IDs des articles bookmarkés
     readArticles: new Set(), // IDs des articles lus
-    currentView: 'home',     // Vue active
+    currentView: 'feed',     // Vue active
     currentFilter: 'all',    // Filtre actif sur la vue flux
     currentFeedFilter: null, // ID du feed sélectionné dans la sidebar (null = tous)
     currentArticleIndex: 0,  // Index de l'article ouvert dans le reader
@@ -1039,6 +1039,7 @@ RÈGLES ABSOLUES :
         <div class="row-body">
           <div class="row-source">${escapeHtml(article.feed_name || '')} · ${relativeTime(article.pub_date)}</div>
           <div class="row-title">${escapeHtml(article.ai_title || article.title || '')}</div>
+          ${(article.ai_content) ? `<div class="row-excerpt">${escapeHtml(article.ai_content.substring(0, 120))}…</div>` : ''}
           <div class="row-meta">${(article.ai_tags || []).slice(0, 3).join(' · ')}</div>
         </div>
         <div class="row-actions">
@@ -1487,6 +1488,12 @@ RÈGLES ABSOLUES :
         `<span class="tag">${Render.escapeHtml(t)}</span>`
       ).join('');
 
+      // Afficher/cacher le bouton LECTEUR selon disponibilité du lien
+      const readerModeBtn = document.getElementById('btn-reader-mode');
+      if (readerModeBtn) {
+        readerModeBtn.style.display = article.link ? '' : 'none';
+      }
+
       // Contenu IA
       setContent(article, animate);
 
@@ -1729,6 +1736,56 @@ RÈGLES ABSOLUES :
           } catch {
             Toast.show('Impossible de copier', 'error');
           }
+        }
+      });
+
+      // Mode lecteur — contenu scrapé propre
+      document.getElementById('btn-reader-mode').addEventListener('click', async () => {
+        const article = STATE.currentArticleList[STATE.currentArticleIndex];
+        if (!article?.link) return;
+
+        const overlay = document.getElementById('reader-mode-overlay');
+        const content = document.getElementById('reader-mode-content');
+        const source = document.getElementById('reader-mode-source');
+
+        source.textContent = article.feed_name || '';
+        content.innerHTML = '<div class="content-loading"><div class="spinner"></div><span>Chargement...</span></div>';
+        overlay.classList.remove('hidden');
+
+        try {
+          const res = await fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`, {
+            signal: AbortSignal.timeout(10000)
+          });
+
+          if (!res.ok) throw new Error('Impossible de charger la page');
+          const data = await res.json();
+
+          if (!data.text || data.text.length < 100) throw new Error('Contenu insuffisant');
+
+          // Afficher le titre + contenu propre
+          const paragraphs = data.text.split('\n\n').filter(p => p.trim());
+          content.innerHTML = `
+            <h1>${Render.escapeHtml(article.ai_title || article.title || '')}</h1>
+            ${paragraphs.map(p => `<p>${Render.escapeHtml(p.trim())}</p>`).join('')}
+          `;
+        } catch (err) {
+          content.innerHTML = `
+            <p style="color:var(--grey-mid);font-family:var(--font-mono);font-size:0.8rem;">
+              Impossible de charger le contenu — ce site bloque la lecture externe.<br><br>
+              <a href="${Render.escapeHtml(article.link)}" target="_blank" rel="noopener" style="color:var(--ink);">↗ Ouvrir dans le navigateur</a>
+            </p>
+          `;
+        }
+      });
+
+      document.getElementById('btn-close-reader-mode').addEventListener('click', () => {
+        document.getElementById('reader-mode-overlay').classList.add('hidden');
+      });
+
+      // Fermer en cliquant en dehors
+      document.getElementById('reader-mode-overlay').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) {
+          document.getElementById('reader-mode-overlay').classList.add('hidden');
         }
       });
 
@@ -2048,25 +2105,13 @@ RÈGLES ABSOLUES :
       btn.innerHTML = '<span class="spinner digest-spinner"></span>';
 
       try {
-        // Vérifier s'il existe déjà un digest du jour
-        if (STATE.user) {
-          const existing = await DB.getTodayDigest(STATE.user.id);
-          if (existing) {
-            renderDigest(existing.content);
-            STATE.digestGenerated = true;
-            Toast.show('Digest chargé depuis la cache', 'info');
-            return;
-          }
-        }
-
-        // Compter les articles enrichis disponibles
+        // Enrichir les articles manquants avant de générer
         const enrichedArticles = STATE.articles.filter(a => AI.isEnriched(a));
         const toEnrich = STATE.articles
           .filter(a => !AI.isEnriched(a))
           .sort((a, b) => (b.importance || 0) - (a.importance || 0))
           .slice(0, Math.max(0, 10 - enrichedArticles.length));
 
-        // Enrichir les articles manquants avant de générer
         if (toEnrich.length > 0) {
           zone.innerHTML = `<div class="content-loading"><div class="spinner"></div><span>Enrichissement IA — 0/${toEnrich.length} articles...</span></div>`;
           const statusEl = zone.querySelector('span');
@@ -2091,13 +2136,6 @@ RÈGLES ABSOLUES :
 
         const html = await AI.generateDailyDigest(STATE.articles);
         renderDigest(html);
-
-        // Sauvegarder en base
-        if (STATE.user) {
-          await DB.saveDigest(STATE.user.id, html);
-        }
-
-        STATE.digestGenerated = true;
         Toast.show('Digest généré ✓', 'success');
       } catch (err) {
         zone.innerHTML = `<div class="digest-placeholder">
@@ -3002,18 +3040,6 @@ RÈGLES ABSOLUES :
 
       Loader.setProgress(60);
       Loader.hide();
-
-      // Vérifier digest du jour
-      const existingDigest = await DB.getTodayDigest(user.id);
-      if (existingDigest) {
-        const div = document.createElement('div');
-        div.className = 'digest-content';
-        div.innerHTML = existingDigest.content;
-        document.getElementById('digest-zone').innerHTML = '';
-        document.getElementById('digest-zone').appendChild(div);
-        document.getElementById('btn-generate-digest').innerHTML = '↺';
-        STATE.digestGenerated = true;
-      }
 
       // Synchronisation automatique uniquement si nécessaire
       if (STATE.feeds.length > 0) {
