@@ -33,7 +33,7 @@
     WORKER_URL: 'https://synapse-worker.pannetier-julien.workers.dev',
 
     // Modèle Groq (peut être changé facilement ici)
-    GROQ_MODEL: 'llama-3.3-70b-versatile',
+    GROQ_MODEL: 'llama-3.1-8b-instant',
 
     // Nombre d'articles max à charger par fetch
     MAX_ARTICLES_PER_FEED: 10,
