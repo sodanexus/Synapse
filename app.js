@@ -2206,6 +2206,8 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         refreshUI();
 
         STATE.lastSyncTime = Date.now();
+        // Sauvegarder le timestamp du dernier sync pour éviter les re-fetch inutiles
+        localStorage.setItem('synapse_last_sync', STATE.lastSyncTime);
         Loader.setSyncDot('done');
 
         // Sauvegarder dans localStorage pour survie au refresh de page
@@ -2625,15 +2627,24 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         STATE.digestGenerated = true;
       }
 
-      // Synchronisation automatique en arrière-plan si des feeds existent
+      // Synchronisation automatique uniquement si nécessaire
       if (STATE.feeds.length > 0) {
-        setTimeout(() => Sync.run(), 1000);
-        // Sync auto toutes les 30 minutes
+        const lastSync = parseInt(localStorage.getItem('synapse_last_sync') || '0');
+        const minutesSinceSync = (Date.now() - lastSync) / 60000;
+        const SYNC_INTERVAL_MIN = 15; // Ne pas re-syncer si moins de 15 min
+
+        if (minutesSinceSync > SYNC_INTERVAL_MIN) {
+          setTimeout(() => Sync.run(), 1000);
+        } else {
+          const remaining = Math.round(SYNC_INTERVAL_MIN - minutesSinceSync);
+          Toast.show(`Flux à jour — prochain sync dans ${remaining} min`, 'info');
+        }
+
+        // Sync auto toutes les 30 minutes si l'onglet est actif
         setInterval(() => {
           if (!document.hidden) Sync.run();
         }, 30 * 60 * 1000);
       } else {
-        // Pas de feeds → aller direct dans settings
         Nav.switchView('settings');
         Toast.show('Bienvenue ! Commencez par ajouter des feeds RSS.', 'info');
       }
