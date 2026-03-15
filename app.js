@@ -429,33 +429,47 @@
      * Retourne { ai_content, importance, ai_tags }
      */
     async function enrichArticle(article) {
-      const systemPrompt = `Tu es un éditeur de presse expert. Tes réponses sont toujours en JSON valide uniquement, sans markdown ni backticks.
-Langue de sortie : français.`;
+      // Construire le texte source — titre + description + contenu, tout ce qu'on a
+      const sourceText = [
+        article.title || '',
+        article.description || '',
+        article.content || '',
+      ].filter(Boolean).join('\n\n').substring(0, 2000);
 
-      const userPrompt = `Analyse cet article RSS et retourne un JSON avec exactement ces champs :
-{
-  "ai_content": "Réécriture épurée de l'article, sans publicités ni bruit, en prose fluide. Max 300 mots.",
-  "importance": <entier 1-5, où 5=breaking news critique, 1=info mineure>,
-  "ai_tags": ["tag1", "tag2", "tag3"]
-}
+      // Si vraiment rien à enrichir, on skip
+      if (sourceText.trim().length < 30) {
+        return { ai_content: article.content || article.title || '', importance: 1, ai_tags: [] };
+      }
+
+      const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris les articles RSS en prose claire et fluide, en supprimant tout le bruit (publicités, appels à l'action, mentions légales, liens parasites). Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, sans texte avant ou après le JSON. Langue de sortie : français.`;
+
+      const userPrompt = `Réécris cet article et retourne exactement ce JSON (et rien d'autre) :
+{"ai_content":"<réécriture en prose fluide, 150-250 mots, conserve les faits essentiels, sans bruit>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"]}
 
 TITRE : ${article.title}
 SOURCE : ${article.feed_name}
-CONTENU : ${article.content.substring(0, 1500)}`;
+TEXTE : ${sourceText}`;
 
-      const raw = await callGroq(systemPrompt, userPrompt, 600);
+      const raw = await callGroq(systemPrompt, userPrompt, 700);
 
       try {
-        // Nettoyage robuste : supprimer éventuels backticks ou préfixes
-        const cleaned = raw.replace(/```json|```/gi, '').trim();
-        const parsed = JSON.parse(cleaned);
+        // Extraction robuste : chercher le premier { ... } dans la réponse
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('No JSON found in response');
+
+        const parsed = JSON.parse(jsonMatch[0]);
+
+        // Vérifier que la réécriture est bien différente de l'original (sinon c'est suspect)
+        const aiText = parsed.ai_content || '';
+        const isDistinct = aiText.length > 50 && aiText !== article.content;
+
         return {
-          ai_content: parsed.ai_content || article.content,
+          ai_content: isDistinct ? aiText : article.content,
           importance: Math.min(5, Math.max(1, parseInt(parsed.importance) || 1)),
           ai_tags: Array.isArray(parsed.ai_tags) ? parsed.ai_tags.slice(0, 5) : [],
         };
-      } catch {
-        // Fallback : contenu original si le parsing échoue
+      } catch (err) {
+        console.warn(`Parsing JSON échoué pour "${article.title}":`, err, '\nRaw:', raw);
         return { ai_content: article.content, importance: 1, ai_tags: [] };
       }
     }
@@ -1408,14 +1422,34 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         Loader.setProgress(30);
         const { unique } = Cluster.deduplicate(rawArticles);
 
-        // 3. Identifier les nouveaux articles (pas encore enrichis)
+        // 3. Identifier les nouveaux articles ET ceux mal enrichis
+        // Un article est considéré "à enrichir" si :
+        //   - il est nouveau (hash inconnu)
+        //   - OU son ai_content est identique au content brut (enrichissement échoué précédemment)
         const existingHashes = new Set(STATE.articles.map(a => a.hash));
-        const newArticles = unique.filter(a => !existingHashes.has(a.hash));
-        const existing = unique.filter(a => existingHashes.has(a.hash));
+        const existingMap = new Map(STATE.articles.map(a => [a.hash, a]));
+
+        const newArticles = unique.filter(a => {
+          if (!existingHashes.has(a.hash)) return true; // Nouveau
+          const old = existingMap.get(a.hash);
+          // Re-enrichir si ai_content manquant ou identique au contenu brut
+          const needsReenrich = !old.ai_content ||
+            old.ai_content.trim() === (old.content || '').trim() ||
+            old.ai_content.trim() === (old.description || '').trim();
+          return needsReenrich;
+        });
+
+        const existing = unique.filter(a => {
+          if (!existingHashes.has(a.hash)) return false;
+          const old = existingMap.get(a.hash);
+          const isEnriched = old.ai_content &&
+            old.ai_content.trim() !== (old.content || '').trim() &&
+            old.ai_content.trim() !== (old.description || '').trim();
+          return isEnriched;
+        });
 
         let enriched = existing.map(newRaw => {
-          // Mettre à jour les métadonnées si besoin
-          const old = STATE.articles.find(a => a.hash === newRaw.hash);
+          const old = existingMap.get(newRaw.hash);
           return old || newRaw;
         });
 
