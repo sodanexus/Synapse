@@ -444,10 +444,10 @@ ul { list-style: none; }
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 48px;
+  margin-bottom: 24px;
   gap: 24px;
   flex-wrap: wrap;
-  padding-bottom: 24px;
+  padding-bottom: 16px;
   border-bottom: var(--border);
 }
 
@@ -765,8 +765,8 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   align-items: center;
   gap: 12px;
   border-bottom: 1.5px solid var(--grey-subtle);
-  padding: 10px 0;
-  margin-bottom: 32px;
+  padding: 8px 0;
+  margin-bottom: 16px;
   transition: border-color 0.2s;
 }
 
