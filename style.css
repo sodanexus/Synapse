@@ -612,13 +612,7 @@ ul { list-style: none; }
   padding: 24px;
   cursor: pointer;
   position: relative;
-  transition: box-shadow 0.25s var(--ease), transform 0.25s var(--ease);
   overflow: hidden;
-}
-
-.article-card:hover {
-  box-shadow: var(--shadow-lift);
-  transform: translateY(-2px);
 }
 
 /* Ligne d'importance en haut — très fine */
@@ -714,17 +708,9 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   grid-template-columns: 3px 1fr auto;
   gap: 20px;
   align-items: center;
-  transition: background 0.15s, padding 0.15s, margin 0.15s;
 }
 
 .article-row:first-child { border-top: var(--border); }
-
-.article-row:hover {
-  background: var(--white);
-  margin: 0 -20px;
-  padding-left: 20px;
-  padding-right: 20px;
-}
 
 .row-imp-bar { height: 100%; width: 3px; min-height: 20px; border-radius: 2px; }
 .row-imp-bar.imp-1 { background: var(--imp-1); }
