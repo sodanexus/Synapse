@@ -977,6 +977,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       const card = document.createElement('div');
       card.className = `article-card${article.read ? '' : ' unread'}`;
       card.style.animationDelay = `${index * 40}ms`;
+      card.dataset.hash = article.hash || '';
 
       const score = article.importance || 1;
       const tags = (article.ai_tags || []).slice(0, 3).map(t =>
@@ -1006,6 +1007,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       const row = document.createElement('div');
       row.className = `article-row${article.read ? ' read' : ''}`;
       row.style.animationDelay = `${index * 30}ms`;
+      row.dataset.hash = article.hash || '';
 
       const score = article.importance || 1;
       const isBookmarked = STATE.bookmarks.has(article.id || article.hash);
@@ -1044,15 +1046,21 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
     async function toggleBookmark(article, btn) {
       const key = article.id || article.hash;
       const isBookmarked = STATE.bookmarks.has(key);
+      const hash = article.hash || '';
 
       if (isBookmarked) {
         STATE.bookmarks.delete(key);
-        btn.classList.remove('bookmarked');
         article.bookmarked = false;
+        // Mettre à jour tous les boutons bookmark de cet article dans le DOM
+        document.querySelectorAll(`[data-hash="${hash}"] [data-action="bookmark"]`).forEach(b => {
+          b.classList.remove('bookmarked');
+        });
       } else {
         STATE.bookmarks.add(key);
-        btn.classList.add('bookmarked');
         article.bookmarked = true;
+        document.querySelectorAll(`[data-hash="${hash}"] [data-action="bookmark"]`).forEach(b => {
+          b.classList.add('bookmarked');
+        });
       }
 
       // Sauvegarder en DB si l'article a un ID
@@ -1566,6 +1574,16 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       if (STATE.readArticles.has(key)) return;
       STATE.readArticles.add(key);
       article.read = true;
+
+      // Mettre à jour le DOM immédiatement sans re-render
+      const hash = article.hash || '';
+      document.querySelectorAll(`[data-hash="${hash}"]`).forEach(el => {
+        el.classList.add('read');
+        el.classList.remove('unread');
+      });
+
+      // Mettre à jour le badge en temps réel
+      Sync.updateBadge();
 
       if (article.id && STATE.user) {
         try {
