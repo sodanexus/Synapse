@@ -25,11 +25,11 @@
   --accent-soft: rgba(15, 15, 15, 0.06);
 
   /* Importance — échelle de gris, le 5 en noir absolu */
-  --imp-1: #d0d0d0;
-  --imp-2: #aaaaaa;
-  --imp-3: #777777;
-  --imp-4: #444444;
-  --imp-5: #0f0f0f;
+  --imp-1: #aaaaaa;
+  --imp-2: #5aaa5a;
+  --imp-3: #e6a817;
+  --imp-4: #e07020;
+  --imp-5: #cc3333;
 
   /* Typographie */
   --font-display: 'DM Serif Display', Georgia, serif;
@@ -68,11 +68,11 @@ body.dark {
   --white:       #1a1a1a;
   --accent:      #f0f0f0;
   --accent-soft: rgba(240, 240, 240, 0.06);
-  --imp-1: #444444;
-  --imp-2: #666666;
-  --imp-3: #888888;
-  --imp-4: #aaaaaa;
-  --imp-5: #f0f0f0;
+  --imp-1: #666666;
+  --imp-2: #4a9a4a;
+  --imp-3: #c8901a;
+  --imp-4: #c06020;
+  --imp-5: #bb2222;
   --shadow-soft: 0 1px 3px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2);
   --shadow-lift: 0 4px 24px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.3);
 }
