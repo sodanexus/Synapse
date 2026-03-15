@@ -1058,19 +1058,18 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         // Sauvegarder en base si l'utilisateur est connecté
         if (STATE.user) {
           DB.upsertArticle({
-            feed_id:      article.feed_id,
-            user_id:      STATE.user.id,
-            hash:         article.hash,
-            title:        article.title,
-            link:         article.link,
-            description:  article.description,
-            content:      article.content,
-            pub_date:     article.pub_date,
-            ai_content:   result.ai_content,
-            ai_tags:      result.ai_tags,
-            importance:   result.importance,
-            read:         article.read || false,
-            bookmarked:   article.bookmarked || false,
+            feed_id:    article.feed_id || null,
+            user_id:    STATE.user.id,
+            hash:       article.hash,
+            title:      article.title       || '',
+            link:       article.link        || '',
+            content:    article.content     || '',
+            ai_content: result.ai_content   || '',
+            ai_tags:    result.ai_tags      || [],
+            importance: result.importance   || 1,
+            pub_date:   article.pub_date    || new Date().toISOString(),
+            read:       article.read        || false,
+            bookmarked: article.bookmarked  || false,
           }).catch(err => console.warn('Sauvegarde Supabase échouée:', err));
         }
 
@@ -1593,7 +1592,10 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
           localStorage.setItem(`synapse_articles_${STATE.user.id}`, JSON.stringify(STATE.articles.slice(0, 100)));
         } catch {} // Silencieux si quota dépassé
 
-        const newCount = newArticles.length;
+        const existingHashes = new Set(STATE.articles.map(a => a.hash));
+        const newCount = unique.filter(a => !existingHashes.has(a.hash)).length;
+
+        const newCount2 = newCount; // alias pour le toast
         Toast.show(
           newCount > 0 ? `${newCount} nouveau${newCount > 1 ? 'x' : ''} article${newCount > 1 ? 's' : ''} chargé${newCount > 1 ? 's' : ''}` : 'Flux à jour',
           'success'
