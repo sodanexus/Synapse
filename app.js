@@ -293,7 +293,35 @@
       if (error) throw error;
     }
 
-    return { getFeeds, addFeed, deleteFeed, toggleFeed, getArticles, searchArticles, upsertArticle, updateArticleStatus, getTodayDigest, saveDigest };
+    /** Récupère tous les articles bookmarkés (sans limite de date) */
+    async function getBookmarks(userId) {
+      const { data, error } = await client()
+        .from('articles')
+        .select('*, feeds(name, category)')
+        .eq('user_id', userId)
+        .eq('bookmarked', true)
+        .order('pub_date', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data || [];
+    }
+
+    /** Récupère les articles lus récemment (30 derniers jours) */
+    async function getReadHistory(userId) {
+      const since = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+      const { data, error } = await client()
+        .from('articles')
+        .select('*, feeds(name, category)')
+        .eq('user_id', userId)
+        .eq('read', true)
+        .gte('pub_date', since)
+        .order('pub_date', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data || [];
+    }
+
+    return { getFeeds, addFeed, deleteFeed, toggleFeed, getArticles, searchArticles, getBookmarks, getReadHistory, upsertArticle, updateArticleStatus, getTodayDigest, saveDigest };
   })();
 
   /* ================================================================
@@ -713,6 +741,10 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
 
       // Scroll to top
       document.getElementById('main-content').scrollTop = 0;
+
+      // Charger les vues dynamiques à la demande
+      if (viewId === 'bookmarks') Render.renderBookmarks(STATE.articles);
+      if (viewId === 'history')   Render.renderHistory();
     }
 
     /** Initialise la navigation */
@@ -1176,11 +1208,29 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
     }
 
     /** Rendu vue BOOKMARKS */
-    function renderBookmarks(articles) {
+    async function renderBookmarks(articles) {
       const container = document.getElementById('bookmarks-articles');
-      container.innerHTML = '';
+      container.innerHTML = '<div class="content-loading"><div class="spinner"></div><span>Chargement...</span></div>';
 
-      const bookmarked = articles.filter(a => STATE.bookmarks.has(a.id || a.hash) || a.bookmarked);
+      // Charger depuis Supabase pour avoir TOUS les bookmarks sans limite de date
+      let bookmarked = [];
+      if (STATE.user) {
+        try {
+          const data = await DB.getBookmarks(STATE.user.id);
+          bookmarked = data.map(a => ({
+            ...a,
+            feed_name: a.feeds?.name || a.feed_name || '',
+            feed_category: a.feeds?.category || a.feed_category || '',
+          }));
+        } catch {
+          // Fallback sur les articles en mémoire
+          bookmarked = articles.filter(a => STATE.bookmarks.has(a.id || a.hash) || a.bookmarked);
+        }
+      } else {
+        bookmarked = articles.filter(a => STATE.bookmarks.has(a.id || a.hash) || a.bookmarked);
+      }
+
+      container.innerHTML = '';
 
       if (bookmarked.length === 0) {
         container.innerHTML = '<div class="empty-state"><span class="empty-state-icon">◧</span><p class="empty-state-text">Aucun article sauvegardé. Cliquez sur ◧ dans le lecteur ou la liste.</p></div>';
@@ -1229,9 +1279,41 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       });
     }
 
+    async function renderHistory() {
+      const container = document.getElementById('history-articles');
+      if (!container) return;
+      container.innerHTML = '<div class="content-loading"><div class="spinner"></div><span>Chargement...</span></div>';
+
+      let articles = [];
+      if (STATE.user) {
+        try {
+          const data = await DB.getReadHistory(STATE.user.id);
+          articles = data.map(a => ({
+            ...a,
+            feed_name: a.feeds?.name || a.feed_name || '',
+            feed_category: a.feeds?.category || a.feed_category || '',
+          }));
+        } catch (err) {
+          container.innerHTML = `<div class="empty-state"><p class="empty-state-text">Erreur : ${err.message}</p></div>`;
+          return;
+        }
+      }
+
+      container.innerHTML = '';
+      if (articles.length === 0) {
+        container.innerHTML = '<div class="empty-state"><span class="empty-state-icon">◷</span><p class="empty-state-text">Aucun article lu récemment.</p></div>';
+        return;
+      }
+
+      articles.forEach((article, i) => {
+        container.appendChild(articleRow(article, i, articles));
+      });
+    }
+
     return {
       articleCard, articleRow, renderHomeArticles, renderFeedArticles,
-      renderClusters, renderBookmarks, renderSidebarFeeds, escapeHtml, relativeTime, importanceBars
+      renderClusters, renderBookmarks, renderHistory, renderSidebarFeeds,
+      escapeHtml, relativeTime, importanceBars
     };
   })();
 
@@ -2287,6 +2369,70 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
     AuthUI.init();
     Theme.init();
     FontSize.init();
+
+    // Effacer l'historique
+    const clearHistoryBtn = document.getElementById('btn-clear-history');
+    if (clearHistoryBtn) {
+      clearHistoryBtn.addEventListener('click', async () => {
+        if (!confirm('Effacer tout l\'historique de lecture ?')) return;
+        try {
+          await Auth.getClient()
+            .from('articles')
+            .update({ read: false })
+            .eq('user_id', STATE.user.id)
+            .eq('read', true);
+          STATE.readArticles.clear();
+          STATE.articles.forEach(a => a.read = false);
+          Render.renderHistory();
+          Toast.show('Historique effacé', 'info');
+        } catch (err) {
+          Toast.show('Erreur : ' + err.message, 'error');
+        }
+      });
+    }
+
+    // Bouton SUGGESTIONS — liste de feeds populaires par catégorie
+    const suggestBtn = document.getElementById('btn-show-suggestions');
+    const suggestZone = document.getElementById('feed-suggestions-zone');
+    if (suggestBtn && suggestZone) {
+      const SUGGESTED_FEEDS = [
+        { name: 'Le Monde', url: 'https://www.lemonde.fr/rss/une.xml', category: 'Actualités' },
+        { name: 'France Info', url: 'https://www.francetvinfo.fr/titres.rss', category: 'Actualités' },
+        { name: 'Reuters (EN)', url: 'https://feeds.reuters.com/reuters/topNews', category: 'International' },
+        { name: 'BBC News (EN)', url: 'http://feeds.bbci.co.uk/news/rss.xml', category: 'International' },
+        { name: 'The Verge (EN)', url: 'https://www.theverge.com/rss/index.xml', category: 'Tech' },
+        { name: 'Hacker News', url: 'https://news.ycombinator.com/rss', category: 'Tech' },
+        { name: 'Numerama', url: 'https://www.numerama.com/feed/', category: 'Tech' },
+        { name: 'Arte Info', url: 'https://www.arte.tv/fr/rss/', category: 'Culture' },
+        { name: 'NASA', url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss', category: 'Science' },
+        { name: 'Eurosport', url: 'https://www.eurosport.fr/rss.xml', category: 'Sport' },
+      ];
+
+      suggestBtn.addEventListener('click', () => {
+        if (!suggestZone.classList.contains('hidden')) {
+          suggestZone.classList.add('hidden');
+          suggestZone.innerHTML = '';
+          return;
+        }
+        suggestZone.classList.remove('hidden');
+        suggestZone.innerHTML = SUGGESTED_FEEDS.map(f => `
+          <button class="rss-suggestion-btn" data-url="${f.url}" data-name="${f.name}" data-cat="${f.category}">
+            <span style="font-weight:500">${f.name}</span>
+            <span style="opacity:0.5;margin-left:6px">${f.category}</span>
+          </button>
+        `).join('');
+
+        suggestZone.querySelectorAll('.rss-suggestion-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.getElementById('feed-url').value = btn.dataset.url;
+            document.getElementById('feed-name').value = btn.dataset.name;
+            document.getElementById('feed-category').value = btn.dataset.cat;
+            suggestZone.classList.add('hidden');
+            suggestZone.innerHTML = '';
+          });
+        });
+      });
+    }
 
     // Filtres vue flux
     document.querySelectorAll('.filter-btn').forEach(btn => {
