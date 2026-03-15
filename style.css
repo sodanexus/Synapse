@@ -657,6 +657,13 @@ ul { list-style: none; }
   text-transform: uppercase;
 }
 
+/* Sentiment badges */
+.sentiment-positive { background: rgba(34, 139, 34, 0.1); color: #228b22; }
+.sentiment-negative { background: rgba(180, 40, 40, 0.1); color: #b42828; }
+.sentiment-neutral  { background: var(--grey-wash); color: var(--grey-mid); }
+body.dark .sentiment-positive { background: rgba(34, 139, 34, 0.2); color: #5cb85c; }
+body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e06060; }
+
 /* Point non lu — discret */
 .article-card.unread::after {
   content: '';
@@ -784,6 +791,17 @@ ul { list-style: none; }
 
 .filter-btn:hover { color: var(--ink); }
 .filter-btn.active { color: var(--ink); border-bottom-color: var(--ink); }
+
+.btn-mark-all-read {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--grey-light);
+  padding: 4px 6px;
+  border-radius: var(--radius);
+  transition: color 0.15s, background 0.15s;
+  cursor: pointer;
+}
+.btn-mark-all-read:hover { color: var(--ink); background: var(--grey-wash); }
 
 /* ================================================================
    CLUSTERS
