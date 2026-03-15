@@ -81,20 +81,29 @@ async function handleRSS(url, corsHeaders) {
   }
 
   // Fetch du feed RSS depuis le serveur source
+  // User-Agent réaliste de navigateur pour éviter les 403 des sites qui bloquent les bots
   const response = await fetch(feedUrl, {
     headers: {
-      'User-Agent': 'Synapse RSS Reader/1.0',
-      'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml, text/html, */*',
+      'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
     },
+    redirect: 'follow',
     cf: { cacheTtl: 300 }, // Cache Cloudflare 5 minutes
   });
 
   if (!response.ok) {
-    return jsonResponse(
-      { error: `Feed responded with ${response.status}` },
-      response.status,
-      corsHeaders
-    );
+    const statusMessages = {
+      403: 'Accès refusé par le site source (403) — le site bloque les accès automatiques',
+      404: 'Feed introuvable (404) — vérifiez l\'URL',
+      429: 'Trop de requêtes (429) — réessayez dans quelques instants',
+      500: 'Erreur serveur du site source (500)',
+    };
+    const msg = statusMessages[response.status] || `Le feed a répondu avec le code ${response.status}`;
+    return jsonResponse({ error: msg }, response.status, corsHeaders);
   }
 
   const xml = await response.text();
