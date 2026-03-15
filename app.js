@@ -1791,13 +1791,26 @@ RÈGLES ABSOLUES :
 
         // Supprimer feed
         row.querySelector('.feed-delete').addEventListener('click', async () => {
-          if (!confirm(`Supprimer "${feed.name || feed.url}" ?`)) return;
+          if (!confirm(`Supprimer "${feed.name || feed.url}" ? Les articles associés seront aussi supprimés.`)) return;
           try {
+            // Supprimer les articles du feed dans Supabase
+            await Auth.getClient()
+              .from('articles')
+              .delete()
+              .eq('user_id', STATE.user.id)
+              .eq('feed_id', feed.id);
+
+            // Supprimer le feed
             await DB.deleteFeed(feed.id);
+
+            // Mettre à jour le state en mémoire
             STATE.feeds = STATE.feeds.filter(f => f.id !== feed.id);
+            STATE.articles = STATE.articles.filter(a => a.feed_id !== feed.id);
+            STATE.clusters = Cluster.clusterByTopic(STATE.articles);
+
             row.remove();
-            Render.renderSidebarFeeds(STATE.feeds);
-            Toast.show('Feed supprimé', 'info');
+            Sync.refreshUI();
+            Toast.show('Feed et articles supprimés', 'info');
           } catch (err) {
             Toast.show('Erreur lors de la suppression', 'error');
           }
@@ -2398,12 +2411,40 @@ RÈGLES ABSOLUES :
         refreshUI();
 
         STATE.lastSyncTime = Date.now();
-        // Sauvegarder le timestamp du dernier sync pour éviter les re-fetch inutiles
         localStorage.setItem('synapse_last_sync', STATE.lastSyncTime);
         Loader.setSyncDot('done');
 
-        // Sauvegarder dans localStorage pour survie au refresh de page
+        // Sauvegarder dans localStorage
         if (STATE.user) Cache.save(STATE.user.id, STATE.articles);
+
+        // Sauvegarder tous les articles bruts dans Supabase (même non enrichis)
+        // pour qu'ils survivent aux refreshs sans avoir été ouverts
+        if (STATE.user) {
+          const newRaw = enriched.filter(a => {
+            const existing = STATE.articles.find(old => old.hash === a.hash);
+            return !existing; // seulement les vraiment nouveaux
+          });
+          // Upsert en silence, par lots de 5 pour ne pas surcharger
+          const saveNew = enriched.filter(a => !a.id); // pas encore en base
+          for (let i = 0; i < saveNew.length; i += 5) {
+            const batch = saveNew.slice(i, i + 5);
+            await Promise.allSettled(batch.map(a => DB.upsertArticle({
+              feed_id:    a.feed_id || null,
+              user_id:    STATE.user.id,
+              hash:       a.hash,
+              title:      a.title      || '',
+              link:       a.link       || '',
+              content:    a.content    || '',
+              ai_title:   a.ai_title   || null,
+              ai_content: a.ai_content || '',
+              ai_tags:    a.ai_tags    || [],
+              importance: a.importance || 1,
+              pub_date:   a.pub_date   || new Date().toISOString(),
+              read:       a.read       || false,
+              bookmarked: a.bookmarked || false,
+            })));
+          }
+        }
 
         Toast.show(
           newCount > 0 ? `${newCount} nouveau${newCount > 1 ? 'x' : ''} article${newCount > 1 ? 's' : ''} chargé${newCount > 1 ? 's' : ''}` : 'Flux à jour',
@@ -2411,7 +2452,6 @@ RÈGLES ABSOLUES :
         );
 
         // Enrichissement silencieux en arrière-plan
-        // On attend 3s que l'UI soit stable, puis on enrichit par ordre d'importance
         setTimeout(() => BackgroundEnrich.run(), 3000);
 
       } catch (err) {
