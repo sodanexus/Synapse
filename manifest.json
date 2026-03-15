@@ -1,0 +1,10 @@
+{
+  "name": "Synapse",
+  "short_name": "Synapse",
+  "description": "Lecteur RSS augmenté par l'IA",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f7f6f3",
+  "theme_color": "#0f0f0f",
+  "icons": []
+}
