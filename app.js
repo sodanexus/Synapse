@@ -25,12 +25,12 @@
      ================================================================ */
   const CONFIG = {
     // URL de votre Supabase project
-    SUPABASE_URL: 'https://xqzgflhieipakfnatziz.supabase.co',
-    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxemdmbGhpZWlwYWtmbmF0eml6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1Mzg0MDAsImV4cCI6MjA4OTExNDQwMH0.GMSzpfVmAt5471i5c6bjGlC4Vg0vuagiilbtImlbfKM',
+    SUPABASE_URL: 'https://VOTRE_PROJET.supabase.co',
+    SUPABASE_ANON_KEY: 'VOTRE_ANON_KEY',
 
     // URL de votre Cloudflare Worker
     // Le worker gère : /rss?url=... et /ai (relay Groq)
-    WORKER_URL: 'https://synapse-worker.pannetier-julien.workers.dev',
+    WORKER_URL: 'https://synapse-worker.VOTRE_COMPTE.workers.dev',
 
     // Modèle Groq (peut être changé facilement ici)
     GROQ_MODEL: 'llama-3.3-70b-versatile',
@@ -67,6 +67,63 @@
     lastSyncTime: null,      // Timestamp du dernier sync
     isLoading: false,        // Chargement en cours
   };
+
+  /* ================================================================
+     2b. CACHE LOCAL — localStorage pour survie au refresh navigateur
+     Stratégie : écriture après chaque sync réussi, lecture immédiate
+     au login avant la requête Supabase — affichage instantané.
+     Clé unique par user_id pour isoler les comptes sur le même browser.
+     ================================================================ */
+  const Cache = (() => {
+    function key(userId) { return `synapse_articles_${userId}`; }
+
+    /** Sauvegarde articles + bookmarks + lus dans localStorage */
+    function save(userId, articles, bookmarks, readArticles) {
+      try {
+        const payload = {
+          articles,
+          bookmarks: [...bookmarks],
+          readArticles: [...readArticles],
+          savedAt: Date.now(),
+        };
+        localStorage.setItem(key(userId), JSON.stringify(payload));
+      } catch (err) {
+        // Quota dépassé (~5MB) — on ignore, le fallback reste Supabase
+        console.warn('Cache write failed (quota?):', err);
+      }
+    }
+
+    /**
+     * Restaure depuis localStorage.
+     * Retourne null si absent ou plus vieux que 2h.
+     */
+    function load(userId) {
+      try {
+        const raw = localStorage.getItem(key(userId));
+        if (!raw) return null;
+        const payload = JSON.parse(raw);
+        // Cache expiré → on le supprime et on laisse Supabase prendre le relais
+        if (Date.now() - payload.savedAt > 2 * 3600 * 1000) {
+          clear(userId);
+          return null;
+        }
+        return {
+          articles:     payload.articles || [],
+          bookmarks:    new Set(payload.bookmarks || []),
+          readArticles: new Set(payload.readArticles || []),
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    /** Efface le cache d'un utilisateur (appelé au logout) */
+    function clear(userId) {
+      try { localStorage.removeItem(key(userId)); } catch {}
+    }
+
+    return { save, load, clear };
+  })();
 
   /* ================================================================
      3. SUPABASE AUTH
@@ -404,18 +461,6 @@ CONTENU : ${article.content.substring(0, 1500)}`;
     }
 
     /**
-     * Génère un résumé court d'un article à la demande
-     */
-    async function summarizeArticle(article) {
-      const text = article.ai_content || article.content;
-      return await callGroq(
-        'Tu es un assistant éditorial. Réponds uniquement avec le résumé demandé, en français, sans introduction.',
-        `Résume en 3-4 phrases clés cet article :\n\nTITRE : ${article.title}\n\n${text.substring(0, 2000)}`,
-        200
-      );
-    }
-
-    /**
      * Génère le digest du jour à partir des articles importants
      * Retourne du texte structuré (HTML simple)
      */
@@ -470,7 +515,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       return enriched;
     }
 
-    return { enrichArticle, enrichBatch, summarizeArticle, generateDailyDigest, callGroq };
+    return { enrichArticle, enrichBatch, generateDailyDigest, callGroq };
   })();
 
   /* ================================================================
@@ -935,9 +980,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       overlay.classList.add('hidden');
       document.body.style.overflow = '';
 
-      // Reset résumé
-      document.getElementById('reader-summary').classList.add('hidden');
-      document.getElementById('reader-summary-text').textContent = '';
+
     }
 
     /** Remplit le reader avec les données d'un article */
@@ -1021,30 +1064,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       }
     }
 
-    /** Génère le résumé à la demande */
-    async function requestSummary() {
-      const article = STATE.currentArticleList[STATE.currentArticleIndex];
-      if (!article) return;
 
-      const summaryEl = document.getElementById('reader-summary');
-      const summaryText = document.getElementById('reader-summary-text');
-      const btn = document.getElementById('btn-summarize');
-
-      summaryEl.classList.remove('hidden');
-      summaryText.textContent = 'Génération du résumé...';
-      btn.disabled = true;
-
-      try {
-        const summary = await AI.summarizeArticle(article);
-        article.ai_summary = summary;
-        summaryText.textContent = summary;
-      } catch (err) {
-        summaryText.textContent = 'Erreur lors de la génération du résumé.';
-        Toast.show('Erreur résumé IA', 'error');
-      } finally {
-        btn.disabled = false;
-      }
-    }
 
     /** Initialise les événements du reader */
     function init() {
@@ -1078,8 +1098,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         }
       });
 
-      // Résumé
-      document.getElementById('btn-summarize').addEventListener('click', requestSummary);
+
 
       // Bookmark depuis reader
       document.getElementById('btn-bookmark').addEventListener('click', () => {
@@ -1441,6 +1460,11 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         STATE.lastSyncTime = Date.now();
         Loader.setSyncDot('done');
 
+        // Sauvegarder dans le cache local pour survie au refresh
+        if (STATE.user) {
+          Cache.save(STATE.user.id, STATE.articles, STATE.bookmarks, STATE.readArticles);
+        }
+
         const newCount = newArticles.length;
         Toast.show(
           newCount > 0 ? `${newCount} nouveau${newCount > 1 ? 'x' : ''} article${newCount > 1 ? 's' : ''} chargé${newCount > 1 ? 's' : ''}` : 'Flux à jour',
@@ -1551,6 +1575,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
 
       // Déconnexion
       document.getElementById('btn-logout').addEventListener('click', async () => {
+        if (STATE.user) Cache.clear(STATE.user.id);
         await Auth.logout();
         showAuthOverlay();
       });
@@ -1646,6 +1671,18 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       Render.renderSidebarFeeds(STATE.feeds);
       Settings.renderFeedsManager(STATE.feeds);
       Loader.setProgress(25);
+
+      // ── Restauration depuis le cache local (instantané) ──
+      // Affiche les articles immédiatement pendant que Supabase charge
+      const localCache = Cache.load(user.id);
+      if (localCache && localCache.articles.length > 0) {
+        STATE.articles     = localCache.articles;
+        STATE.bookmarks    = localCache.bookmarks;
+        STATE.readArticles = localCache.readArticles;
+        STATE.clusters     = Cluster.clusterByTopic(STATE.articles);
+        Sync.refreshUI();
+        Loader.setStatus('Cache local restauré...');
+      }
 
       // Charger les articles en cache (Supabase)
       Loader.setStatus('Chargement des articles...');
