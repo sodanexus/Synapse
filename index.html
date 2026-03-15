@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=26" />
+  <link rel="stylesheet" href="style.css?v=27" />
   <!-- Anti-flash dark mode : appliqué avant le rendu -->
   <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
@@ -139,19 +139,16 @@
       <section class="view active" id="view-home">
         <header class="view-header">
           <div class="view-header-left">
-            <h1 class="view-title">DIGEST</h1>
+            <h1 class="view-title">DIGEST <button class="digest-refresh-btn" id="btn-generate-digest" title="Générer le digest IA">↺</button></h1>
             <span class="view-date" id="digest-date"></span>
           </div>
-          <button class="btn-primary" id="btn-generate-digest">
-            <span class="btn-icon">↺</span> GÉNÉRER DIGEST IA
-          </button>
         </header>
 
         <!-- Zone digest IA -->
         <div class="digest-zone" id="digest-zone">
           <div class="digest-placeholder">
             <span class="placeholder-icon">⬡</span>
-            <p>Cliquez sur <strong>GÉNÉRER DIGEST IA</strong> pour obtenir un résumé intelligent des actualités du jour.</p>
+            <p>Cliquez sur ↺ à côté de DIGEST pour obtenir un résumé intelligent des actualités du jour.</p>
           </div>
         </div>
 
@@ -370,6 +367,6 @@
   <!-- Scripts -->
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=30"></script>
+  <script src="app.js?v=31"></script>
 </body>
 </html>
