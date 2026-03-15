@@ -471,6 +471,8 @@
         (article.ai_tags || []).length > 0     // Tags générés
       );
     }
+
+    async function enrichArticle(article) {
       // Construire le texte source — titre + description + contenu, tout ce qu'on a
       const sourceText = [
         article.title || '',
