@@ -2413,6 +2413,7 @@ RÈGLES ABSOLUES :
         STATE.lastSyncTime = Date.now();
         localStorage.setItem('synapse_last_sync', STATE.lastSyncTime);
         Loader.setSyncDot('done');
+        updateLastSyncLabel();
 
         // Sauvegarder dans localStorage
         if (STATE.user) Cache.save(STATE.user.id, STATE.articles);
@@ -2500,7 +2501,22 @@ RÈGLES ABSOLUES :
       }
     }
 
-    return { run, refreshUI, updateBadge };
+    function updateLastSyncLabel() {
+      const label = document.getElementById('last-sync-label');
+      if (!label) return;
+      const lastSync = STATE.lastSyncTime || parseInt(localStorage.getItem('synapse_last_sync') || '0');
+      if (!lastSync) { label.textContent = ''; return; }
+      const diff = Math.floor((Date.now() - lastSync) / 60000);
+      if (diff < 1) label.textContent = 'Mis à jour à l\'instant';
+      else if (diff === 1) label.textContent = 'Mis à jour il y a 1 min';
+      else if (diff < 60) label.textContent = `Mis à jour il y a ${diff} min`;
+      else {
+        const h = Math.floor(diff / 60);
+        label.textContent = `Mis à jour il y a ${h}h`;
+      }
+    }
+
+    return { run, refreshUI, updateBadge, updateLastSyncLabel };
   })();
 
   /* ================================================================
@@ -2633,6 +2649,10 @@ RÈGLES ABSOLUES :
     AuthUI.init();
     Theme.init();
     FontSize.init();
+
+    // Initialiser le label et le mettre à jour toutes les minutes
+    Sync.updateLastSyncLabel();
+    setInterval(() => Sync.updateLastSyncLabel(), 60000);
 
     // Effacer l'historique
     const clearHistoryBtn = document.getElementById('btn-clear-history');
