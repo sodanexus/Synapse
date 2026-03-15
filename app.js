@@ -768,6 +768,8 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       // Restaurer la préférence sauvegardée
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved === 'dark') enable(false);
+      // Nettoyer la classe anti-flash
+      document.documentElement.classList.remove('dark-init');
 
       const btn = document.getElementById('btn-theme-toggle');
       if (btn) {
@@ -818,6 +820,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         SIZES.forEach(s => contentEl.classList.remove(`font-${s}`));
         contentEl.classList.add(`font-${size}`);
       }
+      // Mettre à jour l'état actif des boutons (ils sont reader-btn + font-size-btn)
       document.querySelectorAll('.font-size-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.size === size);
       });
