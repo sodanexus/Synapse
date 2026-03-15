@@ -48,7 +48,30 @@
   --ease-out: cubic-bezier(0.0, 0.0, 0.2, 1);
 }
 
-/* ── RESET & BASE ── */
+/* ── DARK MODE ── */
+body.dark {
+  --ink:         #f0f0f0;
+  --ink-2:       #e0e0e0;
+  --ink-3:       #c8c8c8;
+  --grey-deep:   #a0a0a0;
+  --grey-mid:    #707070;
+  --grey-light:  #505050;
+  --grey-subtle: #333333;
+  --grey-wash:   #1e1e1e;
+  --paper:       #111111;
+  --white:       #1a1a1a;
+  --accent:      #f0f0f0;
+  --accent-soft: rgba(240, 240, 240, 0.06);
+  --imp-1: #444444;
+  --imp-2: #666666;
+  --imp-3: #888888;
+  --imp-4: #aaaaaa;
+  --imp-5: #f0f0f0;
+  --shadow-soft: 0 1px 3px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2);
+  --shadow-lift: 0 4px 24px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.3);
+}
+
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { font-size: 16px; scroll-behavior: smooth; }
@@ -1150,6 +1173,11 @@ ul { list-style: none; }
   color: var(--ink);
   line-height: 1.4;
 }
+
+/* Tailles de police du reader */
+.reader-content.font-sm { font-size: 0.9rem; line-height: 1.7; }
+.reader-content.font-md { font-size: 1.05rem; line-height: 1.8; }
+.reader-content.font-lg { font-size: 1.25rem; line-height: 1.85; }
 
 .reader-footer {
   display: flex;
