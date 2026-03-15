@@ -2045,7 +2045,7 @@ RÈGLES ABSOLUES :
       const zone = document.getElementById('digest-zone');
 
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> GÉNÉRATION...';
+      btn.innerHTML = '<span class="spinner digest-spinner"></span>';
 
       try {
         // Vérifier s'il existe déjà un digest du jour
@@ -2107,7 +2107,7 @@ RÈGLES ABSOLUES :
         Toast.show('Erreur digest IA', 'error');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span class="btn-icon">↺</span> RÉGÉNÉRER';
+        btn.innerHTML = '↺';
       }
     }
 
@@ -3011,7 +3011,7 @@ RÈGLES ABSOLUES :
         div.innerHTML = existingDigest.content;
         document.getElementById('digest-zone').innerHTML = '';
         document.getElementById('digest-zone').appendChild(div);
-        document.getElementById('btn-generate-digest').innerHTML = '<span class="btn-icon">↺</span> RÉGÉNÉRER';
+        document.getElementById('btn-generate-digest').innerHTML = '↺';
         STATE.digestGenerated = true;
       }
 
