@@ -1359,8 +1359,10 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
     border-radius: 0;
     overflow-y: auto;
   }
-  .feed-row { grid-template-columns: 1fr auto; }
+  .feed-row { grid-template-columns: 1fr auto auto; gap: 12px; }
   .feed-row-category { display: none; }
+  .feed-delete { padding: 10px 12px; font-size: 0.9rem; }
+  .feed-toggle { flex-shrink: 0; }
   .digest-zone { padding: 28px 24px; }
 
   /* Aligner le hamburger avec le titre de la vue */
