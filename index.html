@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=29" />
+  <link rel="stylesheet" href="style.css?v=31" />
   <!-- Anti-flash dark mode : appliqué avant le rendu -->
   <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
@@ -80,11 +80,11 @@
 
       <!-- Navigation principale -->
       <nav class="sidebar-nav">
-        <a href="#" class="nav-item active" data-view="home">
+        <a href="#" class="nav-item" data-view="home">
           <span class="nav-icon">⬡</span>
           <span class="nav-label">DIGEST</span>
         </a>
-        <a href="#" class="nav-item" data-view="feed">
+        <a href="#" class="nav-item active" data-view="feed">
           <span class="nav-icon">≡</span>
           <span class="nav-label">FLUX <span class="nav-badge hidden" id="badge-feed"></span><span class="nav-badge-breaking hidden" id="badge-breaking">●</span></span>
         </a>
@@ -136,7 +136,7 @@
     <main class="main-content" id="main-content">
 
       <!-- ── VUE : HOME / DIGEST ── -->
-      <section class="view active" id="view-home">
+      <section class="view" id="view-home">
         <header class="view-header">
           <div class="view-header-left">
             <h1 class="view-title">DIGEST <button class="digest-refresh-btn" id="btn-generate-digest" title="Générer le digest IA">↺</button></h1>
@@ -162,7 +162,7 @@
       </section>
 
       <!-- ── VUE : FLUX ── -->
-      <section class="view" id="view-feed">
+      <section class="view active" id="view-feed">
         <header class="view-header">
           <div class="view-header-left">
             <h1 class="view-title">FLUX</h1>
@@ -303,10 +303,15 @@
           <button class="reader-btn" id="btn-share" title="Partager">
             ↑ PARTAGER
           </button>
+          <button class="reader-btn" id="btn-reader-mode" title="Mode lecteur">⊙ LECTEUR</button>
           <!-- Lien original -->
           <a class="reader-btn" id="reader-link" href="#" target="_blank" rel="noopener" title="Article original">
             ↗ SOURCE
           </a>
+          <!-- Mode lecteur -->
+          <button class="reader-btn" id="btn-reader-mode" title="Mode lecteur">
+            ⊙ LECTEUR
+          </button>
           <!-- Fermer -->
           <button class="reader-btn reader-close" id="btn-close-reader">✕</button>
         </div>
@@ -351,6 +356,28 @@
   <!-- Bouton retour en haut -->
   <button class="scroll-top-btn hidden" id="btn-scroll-top" title="Retour en haut">↑</button>
 
+  <!-- Mode lecteur — iframe propre -->
+  <div class="reader-mode-overlay hidden" id="reader-mode-overlay">
+    <div class="reader-mode-bar">
+      <span class="reader-mode-title" id="reader-mode-title"></span>
+      <button class="reader-mode-close" id="btn-close-reader-mode">✕</button>
+    </div>
+    <iframe class="reader-mode-frame" id="reader-mode-frame" sandbox="allow-same-origin allow-scripts" loading="lazy"></iframe>
+  </div>
+
+  <!-- Mode lecteur — page source clean -->
+  <div class="reader-mode-overlay hidden" id="reader-mode-overlay">
+    <div class="reader-mode-modal" id="reader-mode-modal">
+      <div class="reader-mode-header">
+        <span class="reader-mode-source" id="reader-mode-source"></span>
+        <button class="reader-mode-close" id="btn-close-reader-mode">✕</button>
+      </div>
+      <div class="reader-mode-content" id="reader-mode-content">
+        <div class="content-loading"><div class="spinner"></div><span>Chargement...</span></div>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-container" id="toast-container"></div>
 
   <!-- ============================================================
@@ -367,6 +394,6 @@
   <!-- Scripts -->
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=33"></script>
 </body>
 </html>
