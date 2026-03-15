@@ -473,7 +473,7 @@
       const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris ou résumes les articles RSS en prose claire et fluide. Tu supprimes tout le bruit (publicités, appels à l'action, mentions légales). Si le contenu est riche, tu réécris en 150-250 mots. Si le contenu est court ou tronqué, tu fais le meilleur résumé possible avec ce que tu as, en ajoutant du contexte général sur le sujet si nécessaire. Tu ne copies JAMAIS le texte original mot pour mot. Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks. Langue de sortie : français.`;
 
       const userPrompt = `Réécris ou résume cet article et retourne exactement ce JSON (et rien d'autre) :
-{"ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"]}
+{"ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"],"sentiment":"<positive|negative|neutral>"}
 
 TITRE : ${article.title}
 SOURCE : ${article.feed_name}
@@ -482,24 +482,25 @@ TEXTE : ${sourceText}`;
       const raw = await callGroq(systemPrompt, userPrompt, 700);
 
       try {
-        // Extraction robuste : chercher le premier { ... } dans la réponse
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new Error('No JSON found in response');
 
         const parsed = JSON.parse(jsonMatch[0]);
 
-        // Vérifier que la réécriture est bien différente de l'original (sinon c'est suspect)
         const aiText = parsed.ai_content || '';
         const isDistinct = aiText.length > 50 && aiText !== article.content;
+        const sentiment = ['positive', 'negative', 'neutral'].includes(parsed.sentiment)
+          ? parsed.sentiment : 'neutral';
 
         return {
           ai_content: isDistinct ? aiText : article.content,
           importance: Math.min(5, Math.max(1, parseInt(parsed.importance) || 1)),
           ai_tags: Array.isArray(parsed.ai_tags) ? parsed.ai_tags.slice(0, 5) : [],
+          sentiment,
         };
       } catch (err) {
         console.warn(`Parsing JSON échoué pour "${article.title}":`, err, '\nRaw:', raw);
-        return { ai_content: article.content, importance: 1, ai_tags: [] };
+        return { ai_content: article.content, importance: 1, ai_tags: [], sentiment: 'neutral' };
       }
     }
 
@@ -1248,6 +1249,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         article.ai_content = result.ai_content;
         article.importance = result.importance;
         article.ai_tags = result.ai_tags;
+        article.sentiment = result.sentiment || 'neutral';
 
         // Sauvegarder en base si l'utilisateur est connecté
         if (STATE.user) {
@@ -1310,7 +1312,13 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
 
       // Tags
       const tagsEl = document.getElementById('reader-tags');
-      tagsEl.innerHTML = (article.ai_tags || []).map(t =>
+      const sentimentIcon = { positive: '↑', negative: '↓', neutral: '→' };
+      const sentimentLabel = { positive: 'positif', negative: 'négatif', neutral: 'neutre' };
+      const s = article.sentiment || 'neutral';
+      const sentimentHtml = article.sentiment
+        ? `<span class="tag sentiment-${s}">${sentimentIcon[s]} ${sentimentLabel[s]}</span>`
+        : '';
+      tagsEl.innerHTML = sentimentHtml + (article.ai_tags || []).map(t =>
         `<span class="tag">${Render.escapeHtml(t)}</span>`
       ).join('');
 
@@ -1388,9 +1396,17 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
     /** Affiche le contenu IA ou original */
     function setContent(article, animate = false) {
       const contentEl = document.getElementById('reader-content');
-      const text = showingAI
-        ? (article.ai_content || article.content || '')
-        : (article.content || '');
+
+      let text;
+      if (showingAI) {
+        text = article.ai_content || article.content || '';
+      } else {
+        const raw = (article.content || '').trim();
+        const isJustTitle = raw === (article.title || '').trim() || raw.length < 30;
+        text = isJustTitle
+          ? article.description || article.content || ''
+          : raw;
+      }
 
       // Conversion texte → paragraphes HTML
       const paragraphs = text.split(/\n{2,}/).filter(p => p.trim());
@@ -1893,6 +1909,78 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
   })();
 
   /* ================================================================
+     BACKGROUND ENRICH — Enrichissement silencieux en arrière-plan
+     Enrichit les articles non encore traités par ordre d'importance,
+     sans bloquer l'UI et en respectant le rate limit Groq.
+     ================================================================ */
+  const BackgroundEnrich = (() => {
+    let running = false;
+
+    async function run() {
+      if (running) return;
+
+      // Trouver les articles à enrichir (pas encore traités, triés par importance desc)
+      const toEnrich = STATE.articles
+        .filter(a => !AI.isEnriched(a))
+        .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+        .slice(0, 10); // max 10 par session bg
+
+      if (toEnrich.length === 0) return;
+
+      running = true;
+      console.log(`[BG] Enrichissement arrière-plan : ${toEnrich.length} articles`);
+
+      for (const article of toEnrich) {
+        // Arrêter si l'utilisateur a ouvert un article (on lui laisse la priorité)
+        if (document.getElementById('reader-overlay')?.classList.contains('hidden') === false) {
+          console.log('[BG] Pause — reader ouvert');
+          break;
+        }
+
+        try {
+          const result = await AI.enrichArticle(article);
+          article.ai_content = result.ai_content;
+          article.importance = result.importance;
+          article.ai_tags    = result.ai_tags;
+          article.sentiment  = result.sentiment || 'neutral';
+
+          // Sauvegarder en base
+          if (STATE.user) {
+            DB.upsertArticle({
+              feed_id:    article.feed_id || null,
+              user_id:    STATE.user.id,
+              hash:       article.hash,
+              title:      article.title    || '',
+              link:       article.link     || '',
+              content:    article.content  || '',
+              ai_content: result.ai_content || '',
+              ai_tags:    result.ai_tags   || [],
+              importance: result.importance || 1,
+              pub_date:   article.pub_date || new Date().toISOString(),
+              read:       article.read     || false,
+              bookmarked: article.bookmarked || false,
+            }).catch(() => {});
+          }
+        } catch (err) {
+          // Rate limit ou erreur — on s'arrête proprement
+          if (err.message?.includes('Rate limit')) {
+            console.log('[BG] Rate limit atteint, arrêt enrichissement bg');
+            break;
+          }
+          console.warn('[BG] Erreur enrichissement:', err.message);
+        }
+
+        // Délai respectueux entre chaque appel
+        await new Promise(r => setTimeout(r, CONFIG.GROQ_REQUEST_DELAY));
+      }
+
+      running = false;
+    }
+
+    return { run };
+  })();
+
+  /* ================================================================
      13. SYNC — Chargement et enrichissement des articles
      ================================================================ */
   const Sync = (() => {
@@ -1966,6 +2054,10 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
           newCount > 0 ? `${newCount} nouveau${newCount > 1 ? 'x' : ''} article${newCount > 1 ? 's' : ''} chargé${newCount > 1 ? 's' : ''}` : 'Flux à jour',
           'success'
         );
+
+        // Enrichissement silencieux en arrière-plan
+        // On attend 3s que l'UI soit stable, puis on enrichit par ordre d'importance
+        setTimeout(() => BackgroundEnrich.run(), 3000);
 
       } catch (err) {
         console.error('Erreur de sync:', err);
