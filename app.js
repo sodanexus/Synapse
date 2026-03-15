@@ -65,9 +65,13 @@
     currentArticleIndex: 0,  // Index de l'article ouvert dans le reader
     currentArticleList: [],  // Liste courante pour la navigation reader
     searchQuery: '',         // Requête de recherche active
+    searchResults: null,     // Résultats de recherche Supabase (null = pas de recherche active)
+    articlesPage: 0,         // Page courante pour la pagination
+    articlesPerPage: 200,    // Articles par page
     digestGenerated: false,  // Digest déjà généré aujourd'hui ?
     lastSyncTime: null,      // Timestamp du dernier sync
     isLoading: false,        // Chargement en cours
+    isSearching: false,      // Recherche Supabase en cours
   };
 
   /* ================================================================
@@ -202,8 +206,8 @@
     /* ── ARTICLES ── */
 
     /** Récupère les articles d'un utilisateur (dernières 48h) */
-    async function getArticles(userId) {
-      const since = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+    async function getArticles(userId, { days = 7, limit = 200, offset = 0 } = {}) {
+      const since = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
       const { data, error } = await client()
         .from('articles')
         .select('*, feeds(name, category)')
@@ -211,7 +215,23 @@
         .gte('pub_date', since)
         .order('importance', { ascending: false })
         .order('pub_date', { ascending: false })
-        .limit(200);
+        .range(offset, offset + limit - 1);
+      if (error) throw error;
+      return data || [];
+    }
+
+    /** Recherche full-text dans Supabase — cherche dans titre et ai_content */
+    async function searchArticles(userId, query) {
+      if (!query || query.trim().length < 2) return [];
+      const q = query.trim().toLowerCase();
+      const { data, error } = await client()
+        .from('articles')
+        .select('*, feeds(name, category)')
+        .eq('user_id', userId)
+        .or(`title.ilike.%${q}%,ai_content.ilike.%${q}%,content.ilike.%${q}%`)
+        .order('importance', { ascending: false })
+        .order('pub_date', { ascending: false })
+        .limit(50);
       if (error) throw error;
       return data || [];
     }
@@ -273,7 +293,7 @@
       if (error) throw error;
     }
 
-    return { getFeeds, addFeed, deleteFeed, toggleFeed, getArticles, upsertArticle, updateArticleStatus, getTodayDigest, saveDigest };
+    return { getFeeds, addFeed, deleteFeed, toggleFeed, getArticles, searchArticles, upsertArticle, updateArticleStatus, getTodayDigest, saveDigest };
   })();
 
   /* ================================================================
@@ -1012,10 +1032,13 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       const countEl = document.getElementById('feed-count');
       container.innerHTML = '';
 
-      let filtered = [...articles];
+      // Si une recherche Supabase est active, utiliser ses résultats
+      const sourceArticles = STATE.searchResults !== null ? STATE.searchResults : articles;
 
-      // Filtre par feed sélectionné dans la sidebar
-      if (STATE.currentFeedFilter) {
+      let filtered = [...sourceArticles];
+
+      // Filtre par feed sélectionné dans la sidebar (sauf si recherche active)
+      if (STATE.currentFeedFilter && STATE.searchResults === null) {
         filtered = filtered.filter(a => a.feed_id === STATE.currentFeedFilter);
       }
 
@@ -1023,8 +1046,8 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       if (filter === 'unread') filtered = filtered.filter(a => !a.read);
       if (filter === 'important') filtered = filtered.filter(a => (a.importance || 0) >= 3);
 
-      // Recherche
-      if (query) {
+      // Recherche locale (si pas de résultats Supabase)
+      if (query && STATE.searchResults === null) {
         const q = query.toLowerCase();
         filtered = filtered.filter(a =>
           (a.title || '').toLowerCase().includes(q) ||
@@ -1033,16 +1056,45 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         );
       }
 
-      countEl.textContent = `${filtered.length} article${filtered.length !== 1 ? 's' : ''}`;
+      const totalCount = filtered.length;
+      const label = STATE.searchResults !== null
+        ? `${totalCount} résultat${totalCount !== 1 ? 's' : ''} (base complète)`
+        : `${totalCount} article${totalCount !== 1 ? 's' : ''}`;
+      countEl.textContent = label;
+      countEl.className = STATE.isSearching ? 'articles-count searching'
+        : STATE.searchResults !== null ? 'articles-count db-results'
+        : 'articles-count';
 
       if (filtered.length === 0) {
-        container.innerHTML = '<div class="empty-state"><span class="empty-state-icon">≡</span><p class="empty-state-text">Aucun article ne correspond à ce filtre.</p></div>';
+        const msg = STATE.isSearching
+          ? 'Recherche en cours...'
+          : STATE.searchResults !== null
+            ? 'Aucun résultat dans la base de données.'
+            : 'Aucun article ne correspond à ce filtre.';
+        container.innerHTML = `<div class="empty-state"><span class="empty-state-icon">≡</span><p class="empty-state-text">${msg}</p></div>`;
         return;
       }
 
-      filtered.forEach((article, i) => {
+      // Pagination — afficher par tranches de 50
+      const PAGE_SIZE = 50;
+      const page = STATE.articlesPage || 0;
+      const paginated = filtered.slice(0, (page + 1) * PAGE_SIZE);
+
+      paginated.forEach((article, i) => {
         container.appendChild(articleRow(article, i, filtered));
       });
+
+      // Bouton "Charger plus" si besoin
+      if (paginated.length < filtered.length) {
+        const btn = document.createElement('button');
+        btn.className = 'btn-load-more';
+        btn.textContent = `Charger plus (${filtered.length - paginated.length} restants)`;
+        btn.addEventListener('click', () => {
+          STATE.articlesPage = (STATE.articlesPage || 0) + 1;
+          renderFeedArticles(articles, filter, query);
+        });
+        container.appendChild(btn);
+      }
     }
 
     /** Rendu vue CLUSTERS */
@@ -1114,6 +1166,8 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       allLi.className = STATE.currentFeedFilter === null ? 'active' : '';
       allLi.addEventListener('click', () => {
         STATE.currentFeedFilter = null;
+        STATE.searchResults = null;
+        STATE.articlesPage = 0;
         document.querySelectorAll('#feeds-list li').forEach(l => l.classList.remove('active'));
         allLi.classList.add('active');
         Nav.switchView('feed');
@@ -1127,6 +1181,8 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         li.className = STATE.currentFeedFilter === feed.id ? 'active' : '';
         li.addEventListener('click', () => {
           STATE.currentFeedFilter = feed.id;
+          STATE.searchResults = null;
+          STATE.articlesPage = 0;
           document.querySelectorAll('#feeds-list li').forEach(l => l.classList.remove('active'));
           li.classList.add('active');
           Nav.switchView('feed');
@@ -2067,6 +2123,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         STATE.currentFilter = btn.dataset.filter;
+        STATE.articlesPage = 0;
         Render.renderFeedArticles(STATE.articles, STATE.currentFilter, STATE.searchQuery);
       });
     });
@@ -2093,15 +2150,67 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       });
     }
 
-    // Recherche
+    // Recherche — locale d'abord, puis Supabase si peu de résultats
     const searchInput = document.getElementById('search-input');
     let searchDebounce;
     searchInput.addEventListener('input', () => {
       clearTimeout(searchDebounce);
-      searchDebounce = setTimeout(() => {
-        STATE.searchQuery = searchInput.value.trim();
-        Render.renderFeedArticles(STATE.articles, STATE.currentFilter, STATE.searchQuery);
-      }, 300);
+      const q = searchInput.value.trim();
+
+      // Reset résultats Supabase et pagination si on efface la recherche
+      if (!q) {
+        STATE.searchQuery = '';
+        STATE.searchResults = null;
+        STATE.articlesPage = 0;
+        Render.renderFeedArticles(STATE.articles, STATE.currentFilter, '');
+        return;
+      }
+
+      STATE.searchQuery = q;
+      STATE.articlesPage = 0;
+
+      // Recherche locale immédiate
+      Render.renderFeedArticles(STATE.articles, STATE.currentFilter, q);
+
+      // Après 500ms, chercher aussi dans Supabase si l'utilisateur est connecté
+      searchDebounce = setTimeout(async () => {
+        if (!STATE.user || q.length < 2) return;
+
+        // Compter les résultats locaux
+        const localResults = STATE.articles.filter(a =>
+          (a.title || '').toLowerCase().includes(q.toLowerCase()) ||
+          (a.ai_content || a.content || '').toLowerCase().includes(q.toLowerCase())
+        );
+
+        // Si assez de résultats locaux (>= 5), pas besoin de chercher en base
+        if (localResults.length >= 5) return;
+
+        STATE.isSearching = true;
+        Render.renderFeedArticles(STATE.articles, STATE.currentFilter, q);
+
+        try {
+          const dbResults = await DB.searchArticles(STATE.user.id, q);
+          if (STATE.searchQuery !== q) return; // La query a changé entre temps
+
+          // Normaliser les résultats DB
+          const normalized = dbResults.map(a => ({
+            ...a,
+            feed_name: a.feeds?.name || a.feed_name || '',
+            feed_category: a.feeds?.category || a.feed_category || '',
+          }));
+
+          // Fusionner avec les articles déjà en mémoire (pas de doublons)
+          const inMemoryHashes = new Set(STATE.articles.map(a => a.hash));
+          const newFromDB = normalized.filter(a => !inMemoryHashes.has(a.hash));
+
+          STATE.searchResults = [...localResults, ...newFromDB];
+          STATE.isSearching = false;
+          Render.renderFeedArticles(STATE.articles, STATE.currentFilter, q);
+        } catch (err) {
+          STATE.isSearching = false;
+          console.warn('Recherche Supabase échouée:', err);
+        }
+      }, 500);
     });
 
     // Bouton refresh manuel
