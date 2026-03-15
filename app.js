@@ -580,7 +580,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       return enriched;
     }
 
-    return { enrichArticle, enrichBatch, generateDailyDigest, callGroq };
+    return { enrichArticle, enrichBatch, generateDailyDigest, callGroq, isEnriched };
   })();
 
   /* ================================================================
@@ -1039,7 +1039,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       document.getElementById('btn-close-reader').focus();
 
       // Enrichissement IA à la demande — uniquement si pas encore fait correctement
-      if (!isEnriched(article)) {
+      if (!AI.isEnriched(article)) {
         enrichOnOpen(article);
       }
     }
@@ -1204,7 +1204,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         markRead(article);
         populate(article);
         document.getElementById('reader-modal').scrollTop = 0;
-        if (!isEnriched(article)) enrichOnOpen(article);
+        if (!AI.isEnriched(article)) enrichOnOpen(article);
       }
     }
 
@@ -1216,7 +1216,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         markRead(article);
         populate(article);
         document.getElementById('reader-modal').scrollTop = 0;
-        if (!isEnriched(article)) enrichOnOpen(article);
+        if (!AI.isEnriched(article)) enrichOnOpen(article);
       }
     }
 
@@ -1598,7 +1598,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         // Pour chaque article frais, on réutilise l'enrichissement IA existant s'il est déjà correct
         let enriched = unique.map(a => {
           const old = existingMap.get(a.hash);
-          if (old && isEnriched(old)) {
+          if (old && AI.isEnriched(old)) {
             return old; // Conserver la version correctement enrichie
           }
           return a; // Nouvel article ou mal enrichi → sera re-traité à l'ouverture
