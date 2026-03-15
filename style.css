@@ -970,10 +970,15 @@ ul { list-style: none; }
   padding: 14px 28px;
   border-bottom: var(--border);
   gap: 16px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
-.reader-meta { display: flex; gap: 16px; align-items: center; }
+.reader-meta { display: flex; gap: 16px; align-items: center; min-width: 0; }
+
+.reader-meta .reader-source,
+.reader-meta .reader-date { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.reader-controls { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
 
 .reader-source {
   font-family: var(--font-mono);
@@ -985,7 +990,6 @@ ul { list-style: none; }
 
 .reader-date { font-family: var(--font-mono); font-size: 0.62rem; color: var(--grey-light); }
 
-.reader-controls { display: flex; gap: 2px; flex-wrap: wrap; }
 
 .reader-btn {
   font-family: var(--font-mono);
@@ -1003,6 +1007,9 @@ ul { list-style: none; }
 
 .reader-btn:hover { color: var(--ink); background: var(--grey-wash); }
 .reader-btn.active { background: var(--ink); color: var(--white); }
+
+/* Largeur fixe sur le bouton toggle pour éviter le layout shift IA ↔ ORIGINAL */
+#btn-toggle-content { min-width: 90px; justify-content: center; }
 
 /* Importance reader */
 .reader-importance {
@@ -1254,315 +1261,4 @@ ul { list-style: none; }
 @keyframes cardIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ================================================================
-   NOUVELLES FONCTIONNALITÉS — ajouts
-   ================================================================ */
-
-/* ── Sidebar feed actif ── */
-.feeds-list li.active {
-  color: var(--ink);
-  font-weight: 500;
-  position: relative;
-}
-.feeds-list li.active::before {
-  content: '';
-  position: absolute;
-  left: 18px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--ink);
-}
-
-/* ── Mode sombre ── */
-/* Anti-flash : appliqué immédiatement depuis le <head> avant CSS */
-html.dark-init body { background: #111111; }
-
-body.dark {
-  /* Variables de base */
-  --ink:         #efefef;
-  --ink-2:       #d8d8d8;
-  --ink-3:       #b8b8b8;
-  --grey-deep:   #999999;
-  --grey-mid:    #777777;
-  --grey-light:  #555555;
-  --grey-subtle: #2e2e2e;
-  --grey-wash:   #1e1e1e;
-  --paper:       #111111;
-  --white:       #191919;
-  --accent:      #efefef;
-  --accent-soft: rgba(239, 239, 239, 0.06);
-  --border:      1px solid #2a2a2a;
-  --shadow-soft: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
-  --shadow-lift: 0 4px 24px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.4);
-  /* Variables d'importance adaptées pour fond sombre */
-  --imp-1: #444444;
-  --imp-2: #666666;
-  --imp-3: #888888;
-  --imp-4: #aaaaaa;
-  --imp-5: #efefef;
-}
-
-/* Éléments avec couleurs hardcodées à overrider */
-body.dark .modal-overlay {
-  background: rgba(17, 17, 17, 0.92);
-}
-body.dark .article-card {
-  background: var(--white);
-  border-color: var(--grey-subtle);
-}
-body.dark .article-row {
-  border-color: var(--grey-subtle);
-}
-body.dark .add-feed-form,
-body.dark .cluster-card,
-body.dark .feed-row {
-  background: var(--white);
-  border-color: var(--grey-subtle);
-}
-body.dark .reader-modal {
-  background: var(--white);
-}
-body.dark .tag {
-  background: var(--grey-wash);
-  color: var(--grey-mid);
-}
-body.dark .btn-primary {
-  background: var(--ink);
-  color: var(--paper);
-}
-body.dark .form-input {
-  border-color: var(--grey-subtle);
-  color: var(--ink);
-}
-body.dark .form-input::placeholder {
-  color: var(--grey-light);
-}
-body.dark .toast {
-  background: var(--white);
-  color: var(--ink);
-  border: var(--border);
-}
-body.dark .global-loader {
-  background: var(--paper);
-}
-body.dark .auth-overlay {
-  background: var(--paper);
-}
-body.dark .auth-panel {
-  background: var(--white);
-}
-body.dark .sidebar {
-  background: var(--white);
-}
-body.dark .nav-badge {
-  background: var(--ink);
-  color: var(--paper);
-}
-
-/* ── Toggle dark mode ── */
-.theme-toggle {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: var(--grey-mid);
-  padding: 4px;
-  transition: color 0.15s;
-  line-height: 1;
-}
-.theme-toggle:hover { color: var(--ink); }
-
-/* ── Taille de police reader ── */
-#reader-content.font-sm { font-size: 0.88rem; line-height: 1.7; }
-#reader-content.font-md { font-size: 1rem;    line-height: 1.75; }
-#reader-content.font-lg { font-size: 1.15rem; line-height: 1.8; }
-#reader-content.font-xl { font-size: 1.3rem;  line-height: 1.85; }
-
-/* ── Swipe mobile ── */
-.reader-modal {
-  touch-action: pan-y;
-}
-
-/* ── Badge nouveaux articles ── */
-.nav-item[data-view="feed"] .nav-badge,
-.nav-item[data-view="home"] .nav-badge {
-  display: inline-block;
-  background: var(--ink);
-  color: var(--white);
-  font-size: 0.55rem;
-  font-family: var(--font-mono);
-  padding: 1px 5px;
-  border-radius: 10px;
-  margin-left: 6px;
-  vertical-align: middle;
-  line-height: 1.6;
-}
-
-/* ── Détection RSS auto — suggestions ── */
-.rss-suggestions {
-  margin-top: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.rss-suggestion-btn {
-  background: var(--accent-soft);
-  border: var(--border);
-  border-radius: var(--radius);
-  padding: 4px 10px;
-  font-size: 0.72rem;
-  font-family: var(--font-mono);
-  cursor: pointer;
-  color: var(--grey-deep);
-  transition: all 0.15s;
-}
-.rss-suggestion-btn:hover {
-  background: var(--ink);
-  color: var(--white);
-  border-color: var(--ink);
-}
-
-/* ── Stats feed ── */
-.feed-row-stats {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  color: var(--grey-light);
-  margin-top: 2px;
-}
-
-/* ── Marquer tout lu ── */
-.btn-mark-all-read {
-  background: none;
-  border: var(--border);
-  padding: 5px 12px;
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  color: var(--grey-mid);
-  border-radius: var(--radius);
-  transition: all 0.15s;
-}
-.btn-mark-all-read:hover { color: var(--ink); border-color: var(--ink); }
-
-/* ── OPML import/export ── */
-.opml-controls {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
-.btn-secondary {
-  background: none;
-  border: var(--border);
-  padding: 6px 14px;
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  color: var(--grey-mid);
-  border-radius: var(--radius);
-  transition: all 0.15s;
-}
-.btn-secondary:hover { color: var(--ink); border-color: var(--ink); }
-
-/* ── Articles similaires dans le reader ── */
-.reader-related {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: var(--border);
-}
-.reader-related-title {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--grey-light);
-  margin-bottom: 12px;
-}
-.related-item {
-  padding: 10px 0;
-  border-bottom: var(--border);
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-.related-item:hover { opacity: 0.7; }
-.related-item-source {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  color: var(--grey-light);
-  margin-bottom: 3px;
-}
-.related-item-title {
-  font-size: 0.85rem;
-  color: var(--ink);
-  line-height: 1.4;
-}
-
-/* ── Sync auto indicateur ── */
-.auto-sync-label {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  color: var(--grey-light);
-  letter-spacing: 0.06em;
-}
-
-/* ── Alerte importance 5 ── */
-@keyframes alertPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(15,15,15,0.15); }
-  50%       { box-shadow: 0 0 0 6px rgba(15,15,15,0); }
-}
-.article-card.imp-5-alert {
-  animation: alertPulse 2s ease-in-out infinite;
-}
-
-/* ================================================================
-   PAGINATION & RECHERCHE SUPABASE
-   ================================================================ */
-
-.btn-load-more {
-  display: block;
-  width: 100%;
-  padding: 14px;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.12em;
-  color: var(--grey-mid);
-  border: var(--border);
-  border-radius: var(--radius);
-  background: none;
-  cursor: pointer;
-  margin: 16px 0 8px;
-  transition: all 0.15s;
-}
-.btn-load-more:hover {
-  color: var(--ink);
-  border-color: var(--ink);
-  background: var(--accent-soft);
-}
-
-/* Indicateur recherche Supabase dans le compteur */
-#feed-count {
-  transition: opacity 0.2s;
-}
-#feed-count.searching {
-  opacity: 0.5;
-}
-#feed-count.db-results {
-  color: var(--grey-deep);
-  font-style: italic;
-}
-
-/* Fond stats feed */
-.feed-row-stats {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  color: var(--grey-light);
-  margin-top: 3px;
 }
