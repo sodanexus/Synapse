@@ -2085,16 +2085,71 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       }
     }
 
-    /** Affiche le contenu HTML du digest dans la zone */
+    /** Nettoie et normalise le HTML du digest */
+    function cleanDigestHtml(html) {
+      return html
+        // Convertir les **texte** markdown en balises bold
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        // Supprimer les balises mal fermées ou orphelines en fin
+        .replace(/<\/?[a-z]+>?\s*$/gi, '')
+        // Nettoyer les sauts de ligne multiples
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    /** Affiche le digest avec un effet de streaming mot par mot */
     function renderDigest(html) {
       const zone = document.getElementById('digest-zone');
       const div = document.createElement('div');
       div.className = 'digest-content';
-      // On utilise innerHTML ici car le contenu vient de notre propre IA
-      // et est construit de manière contrôlée
-      div.innerHTML = html;
       zone.innerHTML = '';
       zone.appendChild(div);
+
+      const cleaned = cleanDigestHtml(html);
+
+      // Insérer le HTML d'un coup mais invisible
+      div.innerHTML = cleaned;
+      div.style.opacity = '0';
+
+      // Collecter tous les noeuds texte feuilles
+      const textNodes = [];
+      const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT, null);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.textContent.trim()) textNodes.push(node);
+      }
+
+      // Découper chaque noeud texte en spans mot par mot
+      const allSpans = [];
+      textNodes.forEach(textNode => {
+        const words = textNode.textContent.split(/(\s+)/);
+        const frag = document.createDocumentFragment();
+        words.forEach(word => {
+          if (word.match(/^\s+$/)) {
+            frag.appendChild(document.createTextNode(word));
+          } else {
+            const span = document.createElement('span');
+            span.textContent = word;
+            span.style.opacity = '0';
+            span.style.transition = 'opacity 0.12s ease';
+            frag.appendChild(span);
+            allSpans.push(span);
+          }
+        });
+        textNode.replaceWith(frag);
+      });
+
+      // Rendre le conteneur visible
+      div.style.opacity = '1';
+
+      // Révéler les mots par groupes rapides
+      const GROUP = 6;
+      const DELAY = 18; // ms — assez rapide pour ne pas être frustrant
+      allSpans.forEach((span, i) => {
+        setTimeout(() => {
+          span.style.opacity = '1';
+        }, Math.floor(i / GROUP) * DELAY);
+      });
     }
 
     /** Initialise le bouton */
