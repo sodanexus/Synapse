@@ -319,6 +319,18 @@ ul { list-style: none; }
   transition: color 0.15s;
 }
 
+.feeds-list li.sidebar-category-label {
+  padding: 12px 28px 4px;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.14em;
+  color: var(--grey-light);
+  cursor: default;
+  pointer-events: none;
+}
+
+.feeds-list li.sidebar-category-label:hover { color: var(--grey-light); }
+
 .feeds-list li:hover { color: var(--ink); }
 
 .feeds-list li.has-new::after {
