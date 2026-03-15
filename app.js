@@ -1069,7 +1069,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         // Rafraîchir l'affichage uniquement si l'article est encore ouvert
         const currentArticle = STATE.currentArticleList[STATE.currentArticleIndex];
         if (currentArticle && currentArticle.hash === article.hash) {
-          populate(article);
+          populate(article, true); // true = animer l'apparition du texte IA
         }
 
       } catch (err) {
@@ -1091,7 +1091,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
     }
 
     /** Remplit le reader avec les données d'un article */
-    function populate(article) {
+    function populate(article, animate = false) {
       document.getElementById('reader-source').textContent = article.feed_name || '';
       document.getElementById('reader-date').textContent =
         new Date(article.pub_date).toLocaleDateString('fr-FR', {
@@ -1111,7 +1111,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       ).join('');
 
       // Contenu (IA par défaut)
-      setContent(article);
+      setContent(article, animate);
 
       // Bouton toggle IA/original
       const toggleBtn = document.getElementById('btn-toggle-content');
@@ -1120,7 +1120,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
     }
 
     /** Affiche le contenu IA ou original */
-    function setContent(article) {
+    function setContent(article, animate = false) {
       const contentEl = document.getElementById('reader-content');
       const text = showingAI
         ? (article.ai_content || article.content || '')
@@ -1128,9 +1128,42 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
 
       // Conversion texte → paragraphes HTML
       const paragraphs = text.split(/\n{2,}/).filter(p => p.trim());
+
+      if (!animate) {
+        contentEl.innerHTML = paragraphs.map(p =>
+          `<p>${Render.escapeHtml(p.trim())}</p>`
+        ).join('');
+        return;
+      }
+
+      // Animation streaming : les mots apparaissent un à un
       contentEl.innerHTML = paragraphs.map(p =>
         `<p>${Render.escapeHtml(p.trim())}</p>`
       ).join('');
+
+      // Récupérer tous les noeuds texte et animer mot par mot
+      const allWords = [];
+      contentEl.querySelectorAll('p').forEach(p => {
+        const words = p.textContent.split(' ');
+        p.innerHTML = '';
+        words.forEach((word, i) => {
+          const span = document.createElement('span');
+          span.textContent = word + (i < words.length - 1 ? ' ' : '');
+          span.style.opacity = '0';
+          span.style.transition = 'opacity 0.15s ease';
+          p.appendChild(span);
+          allWords.push(span);
+        });
+      });
+
+      // Révéler les mots progressivement par petits groupes
+      const GROUP = 4; // mots révélés en même temps
+      const DELAY = 30; // ms entre chaque groupe
+      allWords.forEach((span, i) => {
+        setTimeout(() => {
+          span.style.opacity = '1';
+        }, Math.floor(i / GROUP) * DELAY);
+      });
     }
 
     /** Marque un article comme lu */
