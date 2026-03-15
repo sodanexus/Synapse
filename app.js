@@ -246,11 +246,17 @@
       return data || [];
     }
 
-    /** Upsert un article (insert ou update si même hash) */
+    /** Upsert un article (insert ou update si même hash)
+     *  En cas de conflit, on ne met à jour QUE les champs non-IA
+     *  pour ne jamais écraser un ai_content déjà enrichi.
+     */
     async function upsertArticle(article) {
       const { error } = await client()
         .from('articles')
-        .upsert(article, { onConflict: 'hash' });
+        .upsert(article, {
+          onConflict: 'user_id,hash',
+          ignoreDuplicates: false,
+        });
       if (error) throw error;
     }
 
@@ -1462,9 +1468,14 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
           });
           enriched = [...enriched, ...enrichedNew];
 
-          // Sauvegarder en base si connecté
+          // Sauvegarder en base si connecté — uniquement les articles vraiment enrichis
           if (STATE.user) {
             for (const article of enrichedNew) {
+              // Ne pas sauvegarder si ai_content est vide ou identique au brut
+              const isEnriched = article.ai_content &&
+                article.ai_content.trim() !== (article.content || '').trim() &&
+                article.ai_content.length > 50;
+              if (!isEnriched) continue;
               try {
                 await DB.upsertArticle({
                   ...article,
@@ -1494,10 +1505,10 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         STATE.lastSyncTime = Date.now();
         Loader.setSyncDot('done');
 
-        // Sauvegarder dans le cache local pour survie au refresh
-        if (STATE.user) {
-          Cache.save(STATE.user.id, STATE.articles, STATE.bookmarks, STATE.readArticles);
-        }
+        // Sauvegarder dans localStorage pour survie au refresh de page
+        try {
+          localStorage.setItem(`synapse_articles_${STATE.user.id}`, JSON.stringify(STATE.articles.slice(0, 100)));
+        } catch {} // Silencieux si quota dépassé
 
         const newCount = newArticles.length;
         Toast.show(
@@ -1609,7 +1620,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
 
       // Déconnexion
       document.getElementById('btn-logout').addEventListener('click', async () => {
-        if (STATE.user) Cache.clear(STATE.user.id);
+        if (STATE.user) localStorage.removeItem(`synapse_articles_${STATE.user.id}`);
         await Auth.logout();
         showAuthOverlay();
       });
@@ -1705,18 +1716,6 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       Render.renderSidebarFeeds(STATE.feeds);
       Settings.renderFeedsManager(STATE.feeds);
       Loader.setProgress(25);
-
-      // ── Restauration depuis le cache local (instantané) ──
-      // Affiche les articles immédiatement pendant que Supabase charge
-      const localCache = Cache.load(user.id);
-      if (localCache && localCache.articles.length > 0) {
-        STATE.articles     = localCache.articles;
-        STATE.bookmarks    = localCache.bookmarks;
-        STATE.readArticles = localCache.readArticles;
-        STATE.clusters     = Cluster.clusterByTopic(STATE.articles);
-        Sync.refreshUI();
-        Loader.setStatus('Cache local restauré...');
-      }
 
       // Charger les articles en cache (Supabase)
       Loader.setStatus('Chargement des articles...');
