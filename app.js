@@ -1195,8 +1195,11 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         const article = list[STATE.currentArticleIndex];
         markRead(article);
         populate(article);
-        // Reset scroll du modal
         document.getElementById('reader-modal').scrollTop = 0;
+        const alreadyEnriched = article.ai_content &&
+          article.ai_content.trim() !== (article.content || '').trim() &&
+          article.ai_content.length > 50;
+        if (!alreadyEnriched) enrichOnOpen(article);
       }
     }
 
@@ -1208,6 +1211,10 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         markRead(article);
         populate(article);
         document.getElementById('reader-modal').scrollTop = 0;
+        const alreadyEnriched = article.ai_content &&
+          article.ai_content.trim() !== (article.content || '').trim() &&
+          article.ai_content.length > 50;
+        if (!alreadyEnriched) enrichOnOpen(article);
       }
     }
 
