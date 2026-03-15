@@ -458,6 +458,12 @@ TEXTE : ${sourceText}`;
 
       const raw = await callGroq(systemPrompt, userPrompt, 700);
 
+      // DEBUG — à retirer une fois le problème résolu
+      console.log('=== GROQ RAW RESPONSE ===');
+      console.log('Article:', article.title);
+      console.log('Raw:', raw);
+      console.log('=========================');
+
       try {
         // Extraction robuste : chercher le premier { ... } dans la réponse
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
