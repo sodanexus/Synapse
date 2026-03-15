@@ -1421,8 +1421,11 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       const overlay = document.getElementById('reader-overlay');
       overlay.classList.add('hidden');
       document.body.style.overflow = '';
-
-
+      // Réinitialiser le mode focus
+      const modal = document.getElementById('reader-modal');
+      const btn = document.getElementById('btn-focus-mode');
+      modal?.classList.remove('focus-mode');
+      if (btn) { btn.classList.remove('active'); btn.textContent = '⊡'; }
     }
 
     /** Remplit le reader avec les données d'un article */
@@ -1606,6 +1609,24 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
     /** Initialise les événements du reader */
     function init() {
       document.getElementById('btn-close-reader').addEventListener('click', close);
+
+      // Mode focus — plein écran immersif
+      document.getElementById('btn-focus-mode').addEventListener('click', () => {
+        const modal = document.getElementById('reader-modal');
+        const btn = document.getElementById('btn-focus-mode');
+        const isActive = modal.classList.toggle('focus-mode');
+        btn.classList.toggle('active', isActive);
+        btn.textContent = isActive ? '⊞' : '⊡';
+        btn.title = isActive ? 'Quitter le mode lecture' : 'Mode lecture';
+      });
+
+      // Raccourci F pour toggle focus mode
+      document.addEventListener('keydown', (e) => {
+        const readerOpen = !document.getElementById('reader-overlay')?.classList.contains('hidden');
+        if (readerOpen && (e.key === 'f' || e.key === 'F') && e.target.tagName !== 'INPUT') {
+          document.getElementById('btn-focus-mode')?.click();
+        }
+      });
 
       // Fermer en cliquant sur l'overlay
       document.getElementById('reader-overlay').addEventListener('click', (e) => {
@@ -1962,6 +1983,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
           const shortcuts = [
             ['← →', 'Article précédent / suivant'],
             ['Échap', 'Fermer le reader'],
+            ['F', 'Mode lecture plein écran'],
             ['B', 'Bookmark l\'article ouvert'],
             ['O', 'Ouvrir la source dans un onglet'],
             ['R', 'Rafraîchir les feeds'],
