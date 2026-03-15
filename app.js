@@ -1057,6 +1057,9 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         );
       }
 
+      // Tri : toujours du plus récent au plus ancien
+      filtered.sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
+
       const totalCount = filtered.length;
       const label = STATE.searchResults !== null
         ? `${totalCount} résultat${totalCount !== 1 ? 's' : ''} (base complète)`
