@@ -518,12 +518,12 @@
           // On relancera si le scraping donne mieux (seulement si scraping > 2x le RSS)
           const sourceText = rssText;
           const prompt = `Réécris ou résume cet article et retourne exactement ce JSON (et rien d'autre) :
-{"ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"],"sentiment":"<positive|negative|neutral>"}
+{"ai_title":"<titre traduit en français, concis et accrocheur, max 12 mots>","ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"],"sentiment":"<positive|negative|neutral>"}
 
 TITRE : ${article.title}
 SOURCE : ${article.feed_name}
 TEXTE : ${sourceText}`;
-          return callGroq(systemPrompt, prompt, 700);
+          return callGroq(systemPrompt, prompt, 800);
         })()
       ]);
 
@@ -538,6 +538,7 @@ TEXTE : ${sourceText}`;
           ? parsed.sentiment : 'neutral';
 
         return {
+          ai_title: parsed.ai_title || null,
           ai_content: isDistinct ? aiText : (article.content || article.title),
           importance: Math.min(5, Math.max(1, parseInt(parsed.importance) || 1)),
           ai_tags: Array.isArray(parsed.ai_tags) ? parsed.ai_tags.slice(0, 5) : [],
@@ -546,7 +547,7 @@ TEXTE : ${sourceText}`;
         };
       } catch (err) {
         console.warn(`Parsing JSON échoué pour "${article.title}":`, err, '\nRaw:', raw);
-        return { ai_content: article.content, importance: 1, ai_tags: [], sentiment: 'neutral', scraped_content: null };
+        return { ai_title: null, ai_content: article.content, importance: 1, ai_tags: [], sentiment: 'neutral', scraped_content: null };
       }
     }
 
@@ -984,7 +985,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       card.innerHTML = `
         <div class="card-imp-bar imp-${score}"></div>
         <div class="card-source">${escapeHtml(article.feed_name || '')}</div>
-        <h3 class="card-title">${escapeHtml(article.title || '')}</h3>
+        <h3 class="card-title">${escapeHtml(article.ai_title || article.title || '')}</h3>
         <p class="card-excerpt">${escapeHtml((article.ai_content || article.content || '').substring(0, 200))}</p>
         <div class="card-footer">
           <span class="card-date">${relativeTime(article.pub_date)}</span>
@@ -1012,7 +1013,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         <div class="row-imp-bar imp-${score}"></div>
         <div class="row-body">
           <div class="row-source">${escapeHtml(article.feed_name || '')} · ${relativeTime(article.pub_date)}</div>
-          <div class="row-title">${escapeHtml(article.title || '')}</div>
+          <div class="row-title">${escapeHtml(article.ai_title || article.title || '')}</div>
           <div class="row-meta">${(article.ai_tags || []).slice(0, 3).join(' · ')}</div>
         </div>
         <div class="row-actions">
@@ -1360,6 +1361,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         const result = await AI.enrichArticle(article);
 
         article.ai_content = result.ai_content;
+        article.ai_title = result.ai_title || null;
         article.importance = result.importance;
         article.ai_tags = result.ai_tags;
         article.sentiment = result.sentiment || 'neutral';
@@ -1410,7 +1412,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         new Date(article.pub_date).toLocaleDateString('fr-FR', {
           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
-      document.getElementById('reader-title').textContent = article.title || '';
+      document.getElementById('reader-title').textContent = article.ai_title || article.title || '';
       document.getElementById('reader-link').href = article.link || '#';
 
       // Barres d'importance
@@ -1633,6 +1635,34 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
 
         if (article.id && STATE.user) {
           DB.updateArticleStatus(article.id, { bookmarked: !isBookmarked }).catch(() => {});
+        }
+      });
+
+      // Bouton partager
+      document.getElementById('btn-share').addEventListener('click', async () => {
+        const article = STATE.currentArticleList[STATE.currentArticleIndex];
+        if (!article) return;
+
+        const title = article.ai_title || article.title || '';
+        const text = (article.ai_content || '').substring(0, 300) + '...';
+        const url = article.link || '';
+
+        // Web Share API — natif sur mobile, copie sur desktop
+        if (navigator.share) {
+          try {
+            await navigator.share({ title, text, url });
+          } catch (err) {
+            if (err.name !== 'AbortError') Toast.show('Erreur partage', 'error');
+          }
+        } else {
+          // Fallback desktop : copier dans le presse-papier
+          const shareText = `${title}\n\n${text}\n\n${url}`;
+          try {
+            await navigator.clipboard.writeText(shareText);
+            Toast.show('Copié dans le presse-papier ✓', 'success');
+          } catch {
+            Toast.show('Impossible de copier', 'error');
+          }
         }
       });
 
