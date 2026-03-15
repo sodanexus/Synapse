@@ -1421,11 +1421,6 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       const overlay = document.getElementById('reader-overlay');
       overlay.classList.add('hidden');
       document.body.style.overflow = '';
-      // Réinitialiser le mode focus
-      const modal = document.getElementById('reader-modal');
-      const btn = document.getElementById('btn-focus-mode');
-      modal?.classList.remove('focus-mode');
-      if (btn) { btn.classList.remove('active'); btn.textContent = '⊡'; }
     }
 
     /** Remplit le reader avec les données d'un article */
@@ -1610,24 +1605,6 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
     function init() {
       document.getElementById('btn-close-reader').addEventListener('click', close);
 
-      // Mode focus — plein écran immersif
-      document.getElementById('btn-focus-mode').addEventListener('click', () => {
-        const modal = document.getElementById('reader-modal');
-        const btn = document.getElementById('btn-focus-mode');
-        const isActive = modal.classList.toggle('focus-mode');
-        btn.classList.toggle('active', isActive);
-        btn.textContent = isActive ? '⊞' : '⊡';
-        btn.title = isActive ? 'Quitter le mode lecture' : 'Mode lecture';
-      });
-
-      // Raccourci F pour toggle focus mode
-      document.addEventListener('keydown', (e) => {
-        const readerOpen = !document.getElementById('reader-overlay')?.classList.contains('hidden');
-        if (readerOpen && (e.key === 'f' || e.key === 'F') && e.target.tagName !== 'INPUT') {
-          document.getElementById('btn-focus-mode')?.click();
-        }
-      });
-
       // Fermer en cliquant sur l'overlay
       document.getElementById('reader-overlay').addEventListener('click', (e) => {
         if (e.target === e.currentTarget) close();
@@ -1707,26 +1684,9 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         }
       });
 
-      // Swipe mobile gauche/droite
-      const modal = document.getElementById('reader-modal');
-      let touchStartX = 0;
-      let touchStartY = 0;
-      modal.addEventListener('touchstart', (e) => {
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-      }, { passive: true });
-      modal.addEventListener('touchend', (e) => {
-        const dx = e.changedTouches[0].clientX - touchStartX;
-        const dy = e.changedTouches[0].clientY - touchStartY;
-        // Swipe horizontal uniquement (éviter conflit avec scroll vertical)
-        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) {
-          if (dx < 0) goNext();
-          else goPrev();
-        }
-      }, { passive: true });
     }
 
-    return { open, close, init };
+    return { open, close, init, goNext, goPrev };
   })();
 
   /* ================================================================
@@ -1983,7 +1943,6 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
           const shortcuts = [
             ['← →', 'Article précédent / suivant'],
             ['Échap', 'Fermer le reader'],
-            ['F', 'Mode lecture plein écran'],
             ['B', 'Bookmark l\'article ouvert'],
             ['O', 'Ouvrir la source dans un onglet'],
             ['R', 'Rafraîchir les feeds'],
@@ -2326,12 +2285,20 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
     function updateBadge() {
       const unreadCount = STATE.articles.filter(a => !a.read).length;
       const badge = document.getElementById('badge-feed');
-      if (!badge) return;
-      if (unreadCount > 0) {
-        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
-        badge.classList.remove('hidden');
-      } else {
-        badge.classList.add('hidden');
+      if (badge) {
+        if (unreadCount > 0) {
+          badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+
+      // Badge breaking news — importance 5 non lus
+      const breakingBadge = document.getElementById('badge-breaking');
+      if (breakingBadge) {
+        const hasBreaking = STATE.articles.some(a => a.importance >= 5 && !a.read);
+        breakingBadge.classList.toggle('hidden', !hasBreaking);
       }
     }
 
@@ -2640,6 +2607,134 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       const readerOpen = !document.getElementById('reader-overlay')?.classList.contains('hidden');
       if (!readerOpen && (e.key === 'r' || e.key === 'R')) Sync.run();
     });
+
+    // ── RETOUR EN HAUT ──
+    const scrollTopBtn = document.getElementById('btn-scroll-top');
+    const mainContent = document.getElementById('main-content');
+    mainContent.addEventListener('scroll', () => {
+      if (mainContent.scrollTop > 400) {
+        scrollTopBtn.classList.remove('hidden');
+      } else {
+        scrollTopBtn.classList.add('hidden');
+      }
+    });
+    scrollTopBtn.addEventListener('click', () => {
+      mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // ── PULL TO REFRESH (mobile) ──
+    let pullStartY = 0;
+    let pullDist = 0;
+    let isPulling = false;
+    const PULL_THRESHOLD = 80;
+
+    // Indicateur visuel pull-to-refresh
+    const pullIndicator = document.createElement('div');
+    pullIndicator.id = 'pull-indicator';
+    pullIndicator.innerHTML = '↓ Relâcher pour rafraîchir';
+    pullIndicator.style.cssText = `
+      position: fixed; top: -50px; left: 50%; transform: translateX(-50%);
+      background: var(--ink); color: var(--white);
+      font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em;
+      padding: 8px 16px; border-radius: 20px; z-index: 500;
+      transition: top 0.2s ease, opacity 0.2s ease; opacity: 0;
+      pointer-events: none;
+    `;
+    document.body.appendChild(pullIndicator);
+
+    mainContent.addEventListener('touchstart', (e) => {
+      if (mainContent.scrollTop === 0) {
+        pullStartY = e.touches[0].clientY;
+        isPulling = true;
+      }
+    }, { passive: true });
+
+    mainContent.addEventListener('touchmove', (e) => {
+      if (!isPulling) return;
+      pullDist = e.touches[0].clientY - pullStartY;
+      if (pullDist > 0 && pullDist < 150) {
+        const progress = Math.min(pullDist / PULL_THRESHOLD, 1);
+        pullIndicator.style.top = `${Math.min(pullDist * 0.4, 20)}px`;
+        pullIndicator.style.opacity = progress.toString();
+        pullIndicator.innerHTML = pullDist > PULL_THRESHOLD
+          ? '↑ Relâcher pour rafraîchir'
+          : '↓ Tirer pour rafraîchir';
+      }
+    }, { passive: true });
+
+    mainContent.addEventListener('touchend', () => {
+      if (isPulling && pullDist > PULL_THRESHOLD) {
+        Sync.run();
+        Toast.show('Rafraîchissement...', 'info');
+      }
+      pullDist = 0;
+      isPulling = false;
+      pullIndicator.style.top = '-50px';
+      pullIndicator.style.opacity = '0';
+    }, { passive: true });
+
+    // ── ANIMATION SWIPE READER (mobile) ──
+    // Remplacer le swipe existant par une version avec animation
+    // (le listener touchstart/touchend existant dans Reader.init est remplacé)
+    const readerModal = document.getElementById('reader-modal');
+    let swipeStartX = 0;
+    let swipeStartY = 0;
+    let isSwiping = false;
+
+    readerModal.addEventListener('touchstart', (e) => {
+      swipeStartX = e.touches[0].clientX;
+      swipeStartY = e.touches[0].clientY;
+      isSwiping = true;
+    }, { passive: true });
+
+    readerModal.addEventListener('touchmove', (e) => {
+      if (!isSwiping) return;
+      const dx = e.touches[0].clientX - swipeStartX;
+      const dy = e.touches[0].clientY - swipeStartY;
+      // Uniquement swipe horizontal
+      if (Math.abs(dx) > Math.abs(dy) * 1.5 && Math.abs(dx) > 10) {
+        const resistance = 0.3;
+        readerModal.style.transform = `translateX(${dx * resistance}px)`;
+        readerModal.style.opacity = `${1 - Math.abs(dx) / 600}`;
+      }
+    }, { passive: true });
+
+    readerModal.addEventListener('touchend', (e) => {
+      if (!isSwiping) return;
+      isSwiping = false;
+      const dx = e.changedTouches[0].clientX - swipeStartX;
+      const dy = e.changedTouches[0].clientY - swipeStartY;
+
+      readerModal.style.transition = 'transform 0.3s cubic-bezier(0.25,0.1,0.25,1), opacity 0.3s ease';
+
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) {
+        // Swipe suffisant — animer vers la sortie puis changer d'article
+        const dir = dx < 0 ? 1 : -1;
+        readerModal.style.transform = `translateX(${dir * -100}vw)`;
+        readerModal.style.opacity = '0';
+
+        setTimeout(() => {
+          // Remettre de l'autre côté avant l'entrée
+          readerModal.style.transition = 'none';
+          readerModal.style.transform = `translateX(${dir * 100}vw)`;
+          readerModal.style.opacity = '0';
+
+          if (dx < 0) Reader.goNext();
+          else Reader.goPrev();
+
+          requestAnimationFrame(() => {
+            readerModal.style.transition = 'transform 0.3s cubic-bezier(0.25,0.1,0.25,1), opacity 0.3s ease';
+            readerModal.style.transform = 'translateX(0)';
+            readerModal.style.opacity = '1';
+          });
+        }, 200);
+      } else {
+        // Swipe annulé — revenir en place
+        readerModal.style.transform = 'translateX(0)';
+        readerModal.style.opacity = '1';
+        setTimeout(() => { readerModal.style.transition = ''; }, 300);
+      }
+    }, { passive: true });
 
     // Vérifier la session existante
     const session = await Auth.getSession();
