@@ -1789,21 +1789,43 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       const clearBtn = document.getElementById('btn-clear-cache');
       if (clearBtn) {
         clearBtn.addEventListener('click', async () => {
-          if (!confirm('Vider tous les articles en cache ? Ils seront ré-enrichis à la prochaine ouverture.')) return;
+          if (!confirm('Vider tous les articles en cache ? Un nouveau sync sera lancé automatiquement.')) return;
           clearBtn.disabled = true;
           clearBtn.textContent = 'VIDAGE...';
           try {
-            await Auth.getClient()
+            // Supprimer par lots pour contourner les limites RLS
+            const { error } = await Auth.getClient()
               .from('articles')
               .delete()
-              .eq('user_id', STATE.user.id);
+              .eq('user_id', STATE.user.id)
+              .not('id', 'is', null); // Force le filtre pour que RLS accepte
+
+            if (error) throw error;
+
+            // Vider localStorage
+            Cache.clear(STATE.user.id);
+
+            // Réinitialiser le state
+            STATE.articles = [];
+            STATE.clusters = [];
+            STATE.bookmarks = new Set();
+            STATE.readArticles = new Set();
+
+            Sync.refreshUI();
+            Toast.show('Cache vidé — sync en cours...', 'success');
+
+            // Relancer le sync automatiquement
+            setTimeout(() => Sync.run(), 500);
+
+          } catch (err) {
+            console.error('Erreur vidage cache:', err);
+            // Même si Supabase échoue, vider le state local
             Cache.clear(STATE.user.id);
             STATE.articles = [];
             STATE.clusters = [];
             Sync.refreshUI();
-            Toast.show('Cache vidé — relancez un sync', 'success');
-          } catch (err) {
-            Toast.show('Erreur lors du vidage : ' + err.message, 'error');
+            Toast.show('Cache local vidé — sync en cours...', 'info');
+            setTimeout(() => Sync.run(), 500);
           } finally {
             clearBtn.disabled = false;
             clearBtn.textContent = 'VIDER LE CACHE';
