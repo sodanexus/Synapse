@@ -65,6 +65,7 @@
     readArticles: new Set(), // IDs des articles lus
     currentView: 'home',     // Vue active
     currentFilter: 'all',    // Filtre actif sur la vue flux
+    currentFeedFilter: null, // ID du feed sélectionné dans la sidebar (null = tous)
     currentArticleIndex: 0,  // Index de l'article ouvert dans le reader
     currentArticleList: [],  // Liste courante pour la navigation reader
     searchQuery: '',         // Requête de recherche active
@@ -758,8 +759,150 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
   })();
 
   /* ================================================================
-     8. UI — Rendu articles
+     7b. THEME — Mode sombre / clair
      ================================================================ */
+  const Theme = (() => {
+    const STORAGE_KEY = 'synapse_theme';
+
+    function init() {
+      // Restaurer la préférence sauvegardée
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved === 'dark') enable(false);
+
+      const btn = document.getElementById('btn-theme-toggle');
+      if (btn) {
+        btn.addEventListener('click', () => {
+          document.body.classList.contains('dark') ? disable() : enable();
+        });
+      }
+    }
+
+    function enable(save = true) {
+      document.body.classList.add('dark');
+      const btn = document.getElementById('btn-theme-toggle');
+      if (btn) btn.textContent = '☀';
+      if (save) localStorage.setItem(STORAGE_KEY, 'dark');
+    }
+
+    function disable() {
+      document.body.classList.remove('dark');
+      const btn = document.getElementById('btn-theme-toggle');
+      if (btn) btn.textContent = '☽';
+      localStorage.setItem(STORAGE_KEY, 'light');
+    }
+
+    return { init };
+  })();
+
+  /* ================================================================
+     7c. FONT SIZE — Taille police dans le reader
+     ================================================================ */
+  const FontSize = (() => {
+    const SIZES = ['sm', 'md', 'lg', 'xl'];
+    const STORAGE_KEY = 'synapse_fontsize';
+    let current = 'md';
+
+    function init() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved && SIZES.includes(saved)) set(saved, false);
+
+      document.querySelectorAll('.font-size-btn').forEach(btn => {
+        btn.addEventListener('click', () => set(btn.dataset.size));
+      });
+    }
+
+    function set(size, save = true) {
+      current = size;
+      const contentEl = document.getElementById('reader-content');
+      if (contentEl) {
+        SIZES.forEach(s => contentEl.classList.remove(`font-${s}`));
+        contentEl.classList.add(`font-${size}`);
+      }
+      document.querySelectorAll('.font-size-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.size === size);
+      });
+      if (save) localStorage.setItem(STORAGE_KEY, size);
+    }
+
+    return { init, set };
+  })();
+
+  /* ================================================================
+     7d. OPML — Import / Export
+     ================================================================ */
+  const OPML = (() => {
+    function exportOPML(feeds) {
+      const items = feeds.map(f => `    <outline type="rss" text="${escXml(f.name)}" title="${escXml(f.name)}" xmlUrl="${escXml(f.url)}" category="${escXml(f.category || '')}"/>`).join('\n');
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<opml version="2.0">\n  <head><title>Synapse Feeds</title></head>\n  <body>\n${items}\n  </body>\n</opml>`;
+      const blob = new Blob([xml], { type: 'text/xml' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `synapse-feeds-${new Date().toISOString().split('T')[0]}.opml`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    async function importOPML(file, userId) {
+      const text = await file.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, 'text/xml');
+      const outlines = [...doc.querySelectorAll('outline[xmlUrl]')];
+      let added = 0;
+      for (const o of outlines) {
+        const url = o.getAttribute('xmlUrl');
+        const name = o.getAttribute('title') || o.getAttribute('text') || new URL(url).hostname;
+        const category = o.getAttribute('category') || 'Général';
+        if (!STATE.feeds.find(f => f.url === url)) {
+          try {
+            const feed = await DB.addFeed(userId, url, name, category);
+            STATE.feeds.push(feed);
+            added++;
+          } catch {}
+        }
+      }
+      return added;
+    }
+
+    function escXml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    return { exportOPML, importOPML };
+  })();
+
+  /* ================================================================
+     7e. RSS AUTO-DETECT — Détecte le flux RSS depuis une URL de site
+     ================================================================ */
+  const RSSDetect = (() => {
+    // Patterns RSS courants à tester
+    const COMMON_PATHS = ['/rss', '/feed', '/rss.xml', '/feed.xml', '/atom.xml', '/rss/all', '/feeds/posts/default'];
+
+    async function detect(inputUrl) {
+      // Normaliser l'URL
+      if (!inputUrl.startsWith('http')) inputUrl = 'https://' + inputUrl;
+      let base;
+      try { base = new URL(inputUrl); } catch { return []; }
+
+      const candidates = [];
+
+      // Si l'URL ressemble déjà à un feed RSS, la retourner directement
+      if (inputUrl.match(/\.(rss|xml|atom)$/i) || inputUrl.includes('/rss') || inputUrl.includes('/feed')) {
+        candidates.push({ url: inputUrl, label: 'Feed détecté' });
+        return candidates;
+      }
+
+      // Tester les paths courants
+      for (const path of COMMON_PATHS) {
+        candidates.push({ url: `${base.origin}${path}`, label: path });
+      }
+
+      return candidates;
+    }
+
+    return { detect };
+  })();
+
+
   const Render = (() => {
     /** Formate une date relative (il y a X heures) */
     function relativeTime(isoDate) {
@@ -910,6 +1053,11 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
 
       let filtered = [...articles];
 
+      // Filtre par feed sélectionné dans la sidebar
+      if (STATE.currentFeedFilter) {
+        filtered = filtered.filter(a => a.feed_id === STATE.currentFeedFilter);
+      }
+
       // Filtres
       if (filter === 'unread') filtered = filtered.filter(a => !a.read);
       if (filter === 'important') filtered = filtered.filter(a => (a.importance || 0) >= 3);
@@ -998,10 +1146,31 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
     function renderSidebarFeeds(feeds) {
       const list = document.getElementById('feeds-list');
       list.innerHTML = '';
+
+      // Item "Tous les feeds"
+      const allLi = document.createElement('li');
+      allLi.textContent = 'Tous les feeds';
+      allLi.className = STATE.currentFeedFilter === null ? 'active' : '';
+      allLi.addEventListener('click', () => {
+        STATE.currentFeedFilter = null;
+        document.querySelectorAll('#feeds-list li').forEach(l => l.classList.remove('active'));
+        allLi.classList.add('active');
+        Nav.switchView('feed');
+        Render.renderFeedArticles(STATE.articles, STATE.currentFilter, STATE.searchQuery);
+      });
+      list.appendChild(allLi);
+
       feeds.filter(f => f.active).forEach(feed => {
         const li = document.createElement('li');
         li.textContent = feed.name || feed.url;
-        li.addEventListener('click', () => Nav.switchView('feed'));
+        li.className = STATE.currentFeedFilter === feed.id ? 'active' : '';
+        li.addEventListener('click', () => {
+          STATE.currentFeedFilter = feed.id;
+          document.querySelectorAll('#feeds-list li').forEach(l => l.classList.remove('active'));
+          li.classList.add('active');
+          Nav.switchView('feed');
+          Render.renderFeedArticles(STATE.articles, STATE.currentFilter, STATE.searchQuery);
+        });
         list.appendChild(li);
       });
     }
@@ -1132,6 +1301,50 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       const toggleBtn = document.getElementById('btn-toggle-content');
       toggleBtn.classList.toggle('active', showingAI);
       toggleBtn.textContent = showingAI ? '◈ IA' : '◈ ORIGINAL';
+
+      // Restaurer la taille de police préférée
+      FontSize.set(localStorage.getItem('synapse_fontsize') || 'md', false);
+
+      // Articles similaires
+      renderRelated(article);
+    }
+
+    /** Affiche les articles similaires dans le reader */
+    function renderRelated(article) {
+      const relatedZone = document.getElementById('reader-related');
+      const relatedList = document.getElementById('reader-related-list');
+      if (!relatedZone || !relatedList) return;
+
+      const tags = article.ai_tags || [];
+      if (tags.length === 0) { relatedZone.style.display = 'none'; return; }
+
+      // Trouver des articles partageant au moins un tag
+      const related = STATE.articles
+        .filter(a => a.hash !== article.hash && (a.ai_tags || []).some(t => tags.includes(t)))
+        .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+        .slice(0, 4);
+
+      if (related.length === 0) { relatedZone.style.display = 'none'; return; }
+
+      relatedZone.style.display = 'block';
+      relatedList.innerHTML = '';
+      related.forEach((rel, i) => {
+        const div = document.createElement('div');
+        div.className = 'related-item';
+        div.innerHTML = `
+          <div class="related-item-source">${Render.escapeHtml(rel.feed_name || '')} · ${Render.relativeTime(rel.pub_date)}</div>
+          <div class="related-item-title">${Render.escapeHtml(rel.title || '')}</div>
+        `;
+        div.addEventListener('click', () => {
+          const idx = STATE.currentArticleList.findIndex(a => a.hash === rel.hash);
+          if (idx !== -1) {
+            Reader.open(rel, idx, STATE.currentArticleList);
+          } else {
+            Reader.open(rel, 0, [rel]);
+          }
+        });
+        relatedList.appendChild(div);
+      });
     }
 
     /** Affiche le contenu IA ou original */
@@ -1280,6 +1493,24 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
           DB.updateArticleStatus(article.id, { bookmarked: !isBookmarked }).catch(() => {});
         }
       });
+
+      // Swipe mobile gauche/droite
+      const modal = document.getElementById('reader-modal');
+      let touchStartX = 0;
+      let touchStartY = 0;
+      modal.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+      modal.addEventListener('touchend', (e) => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        // Swipe horizontal uniquement (éviter conflit avec scroll vertical)
+        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) {
+          if (dx < 0) goNext();
+          else goPrev();
+        }
+      }, { passive: true });
     }
 
     return { open, close, init };
@@ -1304,10 +1535,18 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         row.className = 'feed-row';
         row.style.animationDelay = `${i * 30}ms`;
 
+        // Calculer les stats du feed
+        const feedArticles = STATE.articles.filter(a => a.feed_id === feed.id);
+        const readCount = feedArticles.filter(a => a.read).length;
+        const avgImportance = feedArticles.length > 0
+          ? (feedArticles.reduce((s, a) => s + (a.importance || 1), 0) / feedArticles.length).toFixed(1)
+          : '—';
+
         row.innerHTML = `
           <div>
             <div class="feed-row-name">${Render.escapeHtml(feed.name || feed.url)}</div>
             <div class="feed-row-url">${Render.escapeHtml(feed.url)}</div>
+            <div class="feed-row-stats">${feedArticles.length} articles · ${readCount} lus · importance moy. ${avgImportance}</div>
           </div>
           <div class="feed-row-category">${Render.escapeHtml(feed.category || '—')}</div>
           <button class="feed-toggle${feed.active ? ' active' : ''}" data-id="${feed.id}" title="${feed.active ? 'Désactiver' : 'Activer'}"></button>
@@ -1426,6 +1665,62 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
             clearBtn.disabled = false;
             clearBtn.textContent = 'VIDER LE CACHE';
           }
+        });
+      }
+
+      // Détection RSS automatique au changement d'URL
+      const urlInput = document.getElementById('feed-url');
+      const suggestionsEl = document.getElementById('rss-suggestions');
+      let detectTimeout;
+      urlInput.addEventListener('input', () => {
+        clearTimeout(detectTimeout);
+        suggestionsEl.classList.add('hidden');
+        suggestionsEl.innerHTML = '';
+        const val = urlInput.value.trim();
+        if (val.length < 5) return;
+        detectTimeout = setTimeout(async () => {
+          const candidates = await RSSDetect.detect(val);
+          if (candidates.length === 0) return;
+          suggestionsEl.classList.remove('hidden');
+          candidates.forEach(c => {
+            const btn = document.createElement('button');
+            btn.className = 'rss-suggestion-btn';
+            btn.textContent = c.label;
+            btn.addEventListener('click', () => {
+              urlInput.value = c.url;
+              suggestionsEl.classList.add('hidden');
+            });
+            suggestionsEl.appendChild(btn);
+          });
+        }, 600);
+      });
+
+      // Export OPML
+      const exportBtn = document.getElementById('btn-export-opml');
+      if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+          if (STATE.feeds.length === 0) { Toast.show('Aucun feed à exporter', 'info'); return; }
+          OPML.exportOPML(STATE.feeds);
+          Toast.show('OPML exporté ✓', 'success');
+        });
+      }
+
+      // Import OPML
+      const importInput = document.getElementById('opml-import');
+      if (importInput) {
+        importInput.addEventListener('change', async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          Toast.show('Import en cours...', 'info');
+          try {
+            const added = await OPML.importOPML(file, STATE.user.id);
+            Render.renderSidebarFeeds(STATE.feeds);
+            renderFeedsManager(STATE.feeds);
+            Toast.show(`${added} feed${added > 1 ? 's' : ''} importé${added > 1 ? 's' : ''} ✓`, 'success');
+          } catch (err) {
+            Toast.show('Erreur import OPML : ' + err.message, 'error');
+          }
+          importInput.value = '';
         });
       }
     }
@@ -1654,9 +1949,23 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       Render.renderBookmarks(STATE.articles);
       Settings.renderFeedsManager(STATE.feeds);
       Render.renderSidebarFeeds(STATE.feeds);
+      updateBadge();
     }
 
-    return { run, refreshUI };
+    /** Met à jour le badge "non lus" dans la nav */
+    function updateBadge() {
+      const unreadCount = STATE.articles.filter(a => !a.read).length;
+      const badge = document.getElementById('badge-feed');
+      if (!badge) return;
+      if (unreadCount > 0) {
+        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    return { run, refreshUI, updateBadge };
   })();
 
   /* ================================================================
@@ -1787,6 +2096,8 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
     Settings.init();
     Digest.init();
     AuthUI.init();
+    Theme.init();
+    FontSize.init();
 
     // Filtres vue flux
     document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -1797,6 +2108,28 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         Render.renderFeedArticles(STATE.articles, STATE.currentFilter, STATE.searchQuery);
       });
     });
+
+    // Marquer tout lu
+    const markAllBtn = document.getElementById('btn-mark-all-read');
+    if (markAllBtn) {
+      markAllBtn.addEventListener('click', async () => {
+        const unread = STATE.articles.filter(a => !a.read);
+        if (unread.length === 0) { Toast.show('Tout est déjà lu', 'info'); return; }
+        unread.forEach(a => {
+          a.read = true;
+          STATE.readArticles.add(a.id || a.hash);
+        });
+        Render.renderFeedArticles(STATE.articles, STATE.currentFilter, STATE.searchQuery);
+        Sync.updateBadge();
+        Toast.show(`${unread.length} article${unread.length > 1 ? 's' : ''} marqué${unread.length > 1 ? 's' : ''} comme lu${unread.length > 1 ? 's' : ''}`, 'success');
+        // Sauvegarder en base en arrière-plan
+        if (STATE.user) {
+          for (const a of unread) {
+            if (a.id) DB.updateArticleStatus(a.id, { read: true }).catch(() => {});
+          }
+        }
+      });
+    }
 
     // Recherche
     const searchInput = document.getElementById('search-input');
@@ -1809,7 +2142,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       }, 300);
     });
 
-    // Bouton refresh
+    // Bouton refresh manuel
     document.getElementById('btn-refresh').addEventListener('click', () => {
       Sync.run();
     });
@@ -1878,6 +2211,10 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       // Synchronisation automatique en arrière-plan si des feeds existent
       if (STATE.feeds.length > 0) {
         setTimeout(() => Sync.run(), 1000);
+        // Sync auto toutes les 30 minutes
+        setInterval(() => {
+          if (!document.hidden) Sync.run();
+        }, 30 * 60 * 1000);
       } else {
         // Pas de feeds → aller direct dans settings
         Nav.switchView('settings');
