@@ -1264,20 +1264,38 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       });
       list.appendChild(allLi);
 
-      feeds.filter(f => f.active).forEach(feed => {
-        const li = document.createElement('li');
-        li.textContent = feed.name || feed.url;
-        li.className = STATE.currentFeedFilter === feed.id ? 'active' : '';
-        li.addEventListener('click', () => {
-          STATE.currentFeedFilter = feed.id;
-          STATE.searchResults = null;
-          STATE.articlesPage = 0;
-          document.querySelectorAll('#feeds-list li').forEach(l => l.classList.remove('active'));
-          li.classList.add('active');
-          Nav.switchView('feed');
-          Render.renderFeedArticles(STATE.articles, STATE.currentFilter, STATE.searchQuery);
+      // Grouper les feeds actifs par catégorie
+      const activeFeeds = feeds.filter(f => f.active);
+      const groups = {};
+      activeFeeds.forEach(feed => {
+        const cat = feed.category || 'Général';
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push(feed);
+      });
+
+      // Afficher chaque groupe avec son label
+      Object.entries(groups).forEach(([category, groupFeeds]) => {
+        // Label de catégorie
+        const catLabel = document.createElement('li');
+        catLabel.className = 'sidebar-category-label';
+        catLabel.textContent = category.toUpperCase();
+        list.appendChild(catLabel);
+
+        groupFeeds.forEach(feed => {
+          const li = document.createElement('li');
+          li.textContent = feed.name || feed.url;
+          li.className = STATE.currentFeedFilter === feed.id ? 'active' : '';
+          li.addEventListener('click', () => {
+            STATE.currentFeedFilter = feed.id;
+            STATE.searchResults = null;
+            STATE.articlesPage = 0;
+            document.querySelectorAll('#feeds-list li').forEach(l => l.classList.remove('active'));
+            li.classList.add('active');
+            Nav.switchView('feed');
+            Render.renderFeedArticles(STATE.articles, STATE.currentFilter, STATE.searchQuery);
+          });
+          list.appendChild(li);
         });
-        list.appendChild(li);
       });
     }
 
