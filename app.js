@@ -36,13 +36,18 @@
     GROQ_MODEL: 'llama-3.3-70b-versatile',
 
     // Nombre d'articles max à charger par fetch
-    MAX_ARTICLES_PER_FEED: 20,
+    MAX_ARTICLES_PER_FEED: 10,
 
     // Seuil de similarité pour déduplication (0-1)
     DEDUP_THRESHOLD: 0.65,
 
-    // Délai entre les requêtes Groq pour éviter le rate-limit (ms)
-    GROQ_REQUEST_DELAY: 800,
+    // Délai entre les requêtes Groq (ms)
+    // Groq free tier ≈ 30 req/min → 2.5s minimum pour rester dans les limites
+    GROQ_REQUEST_DELAY: 2500,
+
+    // Nombre max d'articles à enrichir par sync
+    // Évite de tout envoyer d'un coup et de saturer le rate limit
+    MAX_ENRICHMENT_PER_SYNC: 6,
 
     // Cache TTL pour les articles (ms) — 30 minutes
     CACHE_TTL: 30 * 60 * 1000,
@@ -246,18 +251,26 @@
       return data || [];
     }
 
-    /** Upsert un article (insert ou update si même hash)
-     *  En cas de conflit, on ne met à jour QUE les champs non-IA
-     *  pour ne jamais écraser un ai_content déjà enrichi.
-     */
+    /** Upsert un article — insert si nouveau, ignore si hash déjà présent pour ce user */
     async function upsertArticle(article) {
+      // On tente d'abord un insert simple
       const { error } = await client()
         .from('articles')
         .upsert(article, {
           onConflict: 'user_id,hash',
           ignoreDuplicates: false,
         });
-      if (error) throw error;
+
+      // Si la contrainte (user_id,hash) n'existe pas encore en base (400),
+      // on retombe sur onConflict: 'hash' en attendant la migration SQL
+      if (error && error.code === '42P10') {
+        const { error: error2 } = await client()
+          .from('articles')
+          .upsert(article, { onConflict: 'hash' });
+        if (error2) throw error2;
+      } else if (error) {
+        throw error;
+      }
     }
 
     /** Met à jour le statut lu/bookmark d'un article */
@@ -1465,14 +1478,19 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
           return old || newRaw;
         });
 
-        // 4. Enrichissement IA des nouveaux articles
-        if (newArticles.length > 0) {
-          Loader.setStatus(`Enrichissement IA — 0/${newArticles.length} articles...`);
-          const enrichedNew = await AI.enrichBatch(newArticles, (current, total) => {
+        // 4. Enrichissement IA — limité à MAX_ENRICHMENT_PER_SYNC articles par sync
+        // Les articles non traités cette fois seront pris au prochain sync
+        const toEnrich = newArticles.slice(0, CONFIG.MAX_ENRICHMENT_PER_SYNC);
+        const notYetEnriched = newArticles.slice(CONFIG.MAX_ENRICHMENT_PER_SYNC);
+
+        if (toEnrich.length > 0) {
+          Loader.setStatus(`Enrichissement IA — 0/${toEnrich.length} articles...`);
+          const enrichedNew = await AI.enrichBatch(toEnrich, (current, total) => {
             Loader.setStatus(`Enrichissement IA — ${current}/${total} articles...`);
             Loader.setProgress(30 + Math.round((current / total) * 50));
           });
-          enriched = [...enriched, ...enrichedNew];
+          // Ajouter les non-traités tels quels (sans ai_content) — traités au prochain sync
+          enriched = [...enriched, ...enrichedNew, ...notYetEnriched];
 
           // Sauvegarder en base si connecté — uniquement les articles vraiment enrichis
           if (STATE.user) {
