@@ -1217,7 +1217,39 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   line-height: 1.4;
 }
 
-/* Tailles de police du reader */
+/* Mode focus — plein écran immersif */
+.reader-modal.focus-mode .reader-header,
+.reader-modal.focus-mode .reader-importance,
+.reader-modal.focus-mode .reader-tags,
+.reader-modal.focus-mode .reader-related,
+.reader-modal.focus-mode .reader-footer {
+  opacity: 0;
+  pointer-events: none;
+  max-height: 0;
+  overflow: hidden;
+  transition: opacity var(--t-slow), max-height var(--t-slow);
+}
+
+.reader-modal.focus-mode .reader-content {
+  padding: 60px max(60px, 15%) 80px;
+  transition: padding var(--t-slow);
+}
+
+.reader-modal.focus-mode {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Réapparition des éléments cachés au hover en mode focus */
+.reader-modal.focus-mode:hover .reader-header {
+  opacity: 1;
+  pointer-events: auto;
+  max-height: 80px;
+}
+
+#btn-focus-mode.active { color: var(--ink); background: var(--grey-wash); }
+
 .reader-content.font-sm { font-size: 0.9rem; line-height: 1.7; }
 .reader-content.font-md { font-size: 1.05rem; line-height: 1.8; }
 .reader-content.font-lg { font-size: 1.25rem; line-height: 1.85; }
@@ -1387,21 +1419,21 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 
 /* Toutes les transitions de base harmonisées — variables définies dans :root */
 
-/* Cards — hover plus fluide avec shadow */
+/* Cards — hover très subtil */
 .article-card {
-  transition: box-shadow var(--t-normal), transform var(--t-normal), opacity var(--t-fast);
+  transition: box-shadow var(--t-slow), transform var(--t-slow), opacity var(--t-fast);
 }
 .article-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-lift);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
 }
-.article-card:active { transform: translateY(-1px); }
+.article-card:active { transform: translateY(0); }
 
-/* Rows — highlight fluide */
+/* Rows — highlight discret sans mouvement */
 .article-row {
-  transition: background var(--t-fast), padding-left var(--t-normal);
+  transition: background var(--t-normal);
 }
-.article-row:hover { padding-left: 4px; }
+.article-row:hover { background: var(--grey-wash); padding-left: 0; }
 
 /* Nav items */
 .nav-item {
