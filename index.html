@@ -65,6 +65,8 @@
         <span class="logo-s">S</span>YN
         <!-- Indicateur de sync animé -->
         <span class="sync-dot" id="sync-dot" title="Synchronisation"></span>
+        <!-- Toggle dark mode -->
+        <button class="theme-toggle" id="btn-theme-toggle" title="Mode sombre / clair" style="margin-left:auto;">☽</button>
       </div>
 
       <!-- Navigation principale -->
@@ -75,7 +77,7 @@
         </a>
         <a href="#" class="nav-item" data-view="feed">
           <span class="nav-icon">≡</span>
-          <span class="nav-label">FLUX</span>
+          <span class="nav-label">FLUX <span class="nav-badge hidden" id="badge-feed"></span></span>
         </a>
         <a href="#" class="nav-item" data-view="clusters">
           <span class="nav-icon">◈</span>
@@ -165,6 +167,7 @@
             <button class="filter-btn active" data-filter="all">TOUT</button>
             <button class="filter-btn" data-filter="unread">NON LUS</button>
             <button class="filter-btn" data-filter="important">IMPORTANT</button>
+            <button class="btn-mark-all-read" id="btn-mark-all-read">TOUT LU</button>
           </div>
         </header>
 
@@ -210,12 +213,23 @@
         <div class="add-feed-form">
           <h2 class="form-title">AJOUTER UN FEED</h2>
           <div class="form-row">
-            <input type="url" id="feed-url" class="form-input" placeholder="https://example.com/rss" />
+            <input type="url" id="feed-url" class="form-input" placeholder="https://example.com ou URL directe du RSS" />
             <input type="text" id="feed-name" class="form-input" placeholder="Nom du feed" />
             <input type="text" id="feed-category" class="form-input" placeholder="Catégorie (ex: Tech)" />
             <button class="btn-primary" id="btn-add-feed">+ AJOUTER</button>
           </div>
+          <!-- Suggestions RSS détectées automatiquement -->
+          <div class="rss-suggestions hidden" id="rss-suggestions"></div>
           <p id="feed-error" class="form-error hidden"></p>
+        </div>
+
+        <!-- Import / Export OPML -->
+        <div class="opml-controls">
+          <button class="btn-secondary" id="btn-export-opml">↓ EXPORTER OPML</button>
+          <label class="btn-secondary" style="cursor:pointer;">
+            ↑ IMPORTER OPML
+            <input type="file" id="opml-import" accept=".opml,.xml" style="display:none;" />
+          </label>
         </div>
 
         <!-- Liste des feeds enregistrés -->
@@ -254,7 +268,12 @@
           <button class="reader-btn" id="btn-toggle-content" title="Basculer IA / Original">
             ◈ IA
           </button>
-
+          <!-- Taille de police -->
+          <div class="font-size-controls">
+            <button class="font-size-btn" data-size="sm">A-</button>
+            <button class="font-size-btn active" data-size="md">A</button>
+            <button class="font-size-btn" data-size="lg">A+</button>
+          </div>
           <!-- Bookmark -->
           <button class="reader-btn" id="btn-bookmark" title="Sauvegarder">
             ◧
@@ -283,8 +302,14 @@
 
 
       <!-- Contenu de l'article -->
-      <div class="reader-content" id="reader-content">
+      <div class="reader-content font-md" id="reader-content">
         <!-- Injecté dynamiquement -->
+      </div>
+
+      <!-- Articles similaires -->
+      <div class="reader-related" id="reader-related" style="display:none;">
+        <div class="reader-related-title">ARTICLES SIMILAIRES</div>
+        <div id="reader-related-list"></div>
       </div>
 
       <!-- Footer reader -->
@@ -314,6 +339,6 @@
   <!-- Scripts -->
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>
