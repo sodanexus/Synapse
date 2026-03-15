@@ -1335,20 +1335,38 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       const relatedList = document.getElementById('reader-related-list');
       if (!relatedZone || !relatedList) return;
 
-      const tags = article.ai_tags || [];
-      if (tags.length === 0) { relatedZone.style.display = 'none'; return; }
+      // Scorer chaque article par pertinence :
+      // +2 par tag commun, +1 si similarité de titre > 0.15
+      const tags = (article.ai_tags || []).map(t => t.toLowerCase().trim());
+      const titleWords = new Set(article.title.toLowerCase()
+        .replace(/[^a-z0-9àâéèêëîïôùûü]/g, ' ')
+        .split(/\s+/).filter(w => w.length > 3));
 
-      // Trouver des articles partageant au moins un tag
-      const related = STATE.articles
-        .filter(a => a.hash !== article.hash && (a.ai_tags || []).some(t => tags.includes(t)))
-        .sort((a, b) => (b.importance || 0) - (a.importance || 0))
-        .slice(0, 4);
+      const scored = STATE.articles
+        .filter(a => a.hash !== article.hash)
+        .map(a => {
+          let score = 0;
+          // Tags communs
+          const aTags = (a.ai_tags || []).map(t => t.toLowerCase().trim());
+          score += aTags.filter(t => tags.includes(t)).length * 2;
+          // Mots du titre en commun
+          const aWords = new Set(a.title.toLowerCase()
+            .replace(/[^a-z0-9àâéèêëîïôùûü]/g, ' ')
+            .split(/\s+/).filter(w => w.length > 3));
+          const common = [...titleWords].filter(w => aWords.has(w)).length;
+          score += common;
+          return { article: a, score };
+        })
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 4)
+        .map(({ article }) => article);
 
-      if (related.length === 0) { relatedZone.style.display = 'none'; return; }
+      if (scored.length === 0) { relatedZone.style.display = 'none'; return; }
 
       relatedZone.style.display = 'block';
       relatedList.innerHTML = '';
-      related.forEach((rel) => {
+      scored.forEach((rel) => {
         const div = document.createElement('div');
         div.className = 'reader-related-item';
         div.innerHTML = `
