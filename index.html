@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>SYNAPSE — Intelligence RSS</title>
   <meta name="description" content="Lecteur RSS augmenté par l'IA" />
 
@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=19" />
+  <link rel="stylesheet" href="style.css?v=20" />
   <!-- Anti-flash dark mode : appliqué avant le rendu -->
   <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
@@ -82,7 +82,7 @@
         </a>
         <a href="#" class="nav-item" data-view="feed">
           <span class="nav-icon">≡</span>
-          <span class="nav-label">FLUX <span class="nav-badge hidden" id="badge-feed"></span></span>
+          <span class="nav-label">FLUX <span class="nav-badge hidden" id="badge-feed"></span><span class="nav-badge-breaking hidden" id="badge-breaking">●</span></span>
         </a>
         <a href="#" class="nav-item" data-view="clusters">
           <span class="nav-icon">◈</span>
@@ -310,8 +310,6 @@
           <a class="reader-btn" id="reader-link" href="#" target="_blank" rel="noopener" title="Article original">
             ↗ SOURCE
           </a>
-          <!-- Plein écran -->
-          <button class="reader-btn" id="btn-focus-mode" title="Mode lecture">⊡</button>
           <!-- Fermer -->
           <button class="reader-btn reader-close" id="btn-close-reader">✕</button>
         </div>
@@ -353,6 +351,9 @@
   <!-- ============================================================
        TOAST NOTIFICATIONS
        ============================================================ -->
+  <!-- Bouton retour en haut -->
+  <button class="scroll-top-btn hidden" id="btn-scroll-top" title="Retour en haut">↑</button>
+
   <div class="toast-container" id="toast-container"></div>
 
   <!-- ============================================================
@@ -369,6 +370,6 @@
   <!-- Scripts -->
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=20"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>
