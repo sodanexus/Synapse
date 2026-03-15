@@ -2107,7 +2107,7 @@ RÈGLES ABSOLUES :
         Toast.show('Erreur digest IA', 'error');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span class="btn-icon">⚡</span> RÉGÉNÉRER';
+        btn.innerHTML = '<span class="btn-icon">↺</span> RÉGÉNÉRER';
       }
     }
 
@@ -3011,7 +3011,7 @@ RÈGLES ABSOLUES :
         div.innerHTML = existingDigest.content;
         document.getElementById('digest-zone').innerHTML = '';
         document.getElementById('digest-zone').appendChild(div);
-        document.getElementById('btn-generate-digest').innerHTML = '<span class="btn-icon">⚡</span> RÉGÉNÉRER';
+        document.getElementById('btn-generate-digest').innerHTML = '<span class="btn-icon">↺</span> RÉGÉNÉRER';
         STATE.digestGenerated = true;
       }
 
