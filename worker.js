@@ -180,8 +180,13 @@ function parseRSSXML(xml) {
   return items;
 }
 
-/** Extrait le contenu d'une balise XML */
+/** Extrait le contenu d'une balise XML, gère CDATA */
 function extractTag(xml, tag) {
+  // Cas CDATA : <tag><![CDATA[...]]></tag>
+  const cdataMatch = xml.match(new RegExp(`<${tag}[^>]*>\\s*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>\\s*<\\/${tag}>`, 'i'));
+  if (cdataMatch) return cdataMatch[1].trim();
+
+  // Cas normal
   const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
   return match ? match[1].trim() : '';
 }
