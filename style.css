@@ -1582,3 +1582,28 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 
 .scroll-top-btn:hover { transform: translateY(-2px); }
 .scroll-top-btn:active { transform: scale(0.92); }
+
+/* Petit bouton ↺ à côté du titre DIGEST */
+.digest-refresh-btn {
+  font-family: var(--font-ui);
+  font-size: 1.2rem;
+  color: var(--grey-light);
+  cursor: pointer;
+  padding: 0 4px;
+  vertical-align: middle;
+  transition: color var(--t-fast), transform var(--t-spring);
+  line-height: 1;
+}
+.digest-refresh-btn:hover { color: var(--ink); transform: rotate(180deg); }
+.digest-refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.digest-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--grey-subtle);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+}
