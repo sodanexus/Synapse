@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SYNAPSE — Intelligence RSS</title>
+  <meta name="description" content="Lecteur RSS augmenté par l'IA" />
+
+  <!-- PWA / Mobile -->
+  <meta name="theme-color" content="#0a0a0a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <!-- Fonts : Bebas Neue (display brutaliste) + IBM Plex Mono (corps) + IBM Plex Sans (UI) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ============================================================
+       OVERLAY AUTH — affiché si l'utilisateur n'est pas connecté
+       ============================================================ -->
+  <div id="auth-overlay" class="auth-overlay hidden">
+    <div class="auth-box">
+      <div class="auth-logo">
+        <span class="logo-s">S</span>YNAPSE
+      </div>
+      <p class="auth-tagline">Intelligence RSS augmentée</p>
+
+      <!-- Tabs Login / Register -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login">CONNEXION</button>
+        <button class="auth-tab" data-tab="register">INSCRIPTION</button>
+      </div>
+
+      <div id="auth-login" class="auth-form">
+        <input type="email" id="login-email" class="auth-input" placeholder="EMAIL" autocomplete="email" />
+        <input type="password" id="login-password" class="auth-input" placeholder="MOT DE PASSE" autocomplete="current-password" />
+        <button id="btn-login" class="auth-btn">ENTRER</button>
+      </div>
+
+      <div id="auth-register" class="auth-form hidden">
+        <input type="email" id="reg-email" class="auth-input" placeholder="EMAIL" autocomplete="email" />
+        <input type="password" id="reg-password" class="auth-input" placeholder="MOT DE PASSE" autocomplete="new-password" />
+        <button id="btn-register" class="auth-btn">CRÉER UN COMPTE</button>
+      </div>
+
+      <p id="auth-error" class="auth-error hidden"></p>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       APP SHELL — structure principale (sidebar + main)
+       ============================================================ -->
+  <div id="app" class="app-shell hidden">
+
+    <!-- ── SIDEBAR ── -->
+    <aside class="sidebar" id="sidebar">
+
+      <!-- Logo -->
+      <div class="sidebar-logo">
+        <span class="logo-s">S</span>YN
+        <!-- Indicateur de sync animé -->
+        <span class="sync-dot" id="sync-dot" title="Synchronisation"></span>
+      </div>
+
+      <!-- Navigation principale -->
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-view="home">
+          <span class="nav-icon">⬡</span>
+          <span class="nav-label">DIGEST</span>
+        </a>
+        <a href="#" class="nav-item" data-view="feed">
+          <span class="nav-icon">≡</span>
+          <span class="nav-label">FLUX</span>
+        </a>
+        <a href="#" class="nav-item" data-view="clusters">
+          <span class="nav-icon">◈</span>
+          <span class="nav-label">CLUSTERS</span>
+        </a>
+        <a href="#" class="nav-item" data-view="bookmarks">
+          <span class="nav-icon">◧</span>
+          <span class="nav-label">SAUVEGARDES</span>
+        </a>
+        <a href="#" class="nav-item" data-view="settings">
+          <span class="nav-icon">⊙</span>
+          <span class="nav-label">FEEDS</span>
+        </a>
+      </nav>
+
+      <!-- Liste des feeds actifs (affichage condensé) -->
+      <div class="sidebar-feeds" id="sidebar-feeds">
+        <div class="sidebar-feeds-title">SOURCES ACTIVES</div>
+        <ul class="feeds-list" id="feeds-list">
+          <!-- Injecté dynamiquement par app.js -->
+        </ul>
+      </div>
+
+      <!-- Bouton refresh et user info -->
+      <div class="sidebar-footer">
+        <button class="btn-refresh" id="btn-refresh" title="Rafraîchir tous les feeds">
+          <span class="refresh-icon">↺</span> SYNC
+        </button>
+        <div class="user-info" id="user-info">
+          <span class="user-email" id="user-email"></span>
+          <button class="btn-logout" id="btn-logout" title="Déconnexion">✕</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Bouton toggle sidebar mobile -->
+    <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Ouvrir le menu">
+      <span></span><span></span><span></span>
+    </button>
+
+    <!-- ── MAIN CONTENT ── -->
+    <main class="main-content" id="main-content">
+
+      <!-- ── VUE : HOME / DIGEST ── -->
+      <section class="view active" id="view-home">
+        <header class="view-header">
+          <div class="view-header-left">
+            <h1 class="view-title">DIGEST</h1>
+            <span class="view-date" id="digest-date"></span>
+          </div>
+          <button class="btn-primary" id="btn-generate-digest">
+            <span class="btn-icon">⚡</span> GÉNÉRER DIGEST IA
+          </button>
+        </header>
+
+        <!-- Zone digest IA -->
+        <div class="digest-zone" id="digest-zone">
+          <div class="digest-placeholder">
+            <span class="placeholder-icon">⬡</span>
+            <p>Cliquez sur <strong>GÉNÉRER DIGEST IA</strong> pour obtenir un résumé intelligent des actualités du jour.</p>
+          </div>
+        </div>
+
+        <!-- Top articles du jour (cards condensées) -->
+        <div class="section-header">
+          <h2 class="section-title">ACTUALITÉS IMPORTANTES</h2>
+          <div class="importance-legend">
+            <span class="imp-dot imp-5"></span>CRITIQUE
+            <span class="imp-dot imp-3"></span>NOTABLE
+            <span class="imp-dot imp-1"></span>INFO
+          </div>
+        </div>
+        <div class="articles-grid" id="home-articles">
+          <!-- Injecté dynamiquement -->
+        </div>
+      </section>
+
+      <!-- ── VUE : FLUX ── -->
+      <section class="view" id="view-feed">
+        <header class="view-header">
+          <div class="view-header-left">
+            <h1 class="view-title">FLUX</h1>
+            <span class="articles-count" id="feed-count">0 articles</span>
+          </div>
+          <!-- Filtres -->
+          <div class="feed-filters">
+            <button class="filter-btn active" data-filter="all">TOUT</button>
+            <button class="filter-btn" data-filter="unread">NON LUS</button>
+            <button class="filter-btn" data-filter="important">IMPORTANT</button>
+          </div>
+        </header>
+
+        <!-- Barre de recherche -->
+        <div class="search-bar">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="search-input" class="search-input" placeholder="Rechercher dans les articles..." />
+        </div>
+
+        <div class="articles-list" id="feed-articles">
+          <!-- Injecté dynamiquement -->
+        </div>
+      </section>
+
+      <!-- ── VUE : CLUSTERS ── -->
+      <section class="view" id="view-clusters">
+        <header class="view-header">
+          <h1 class="view-title">CLUSTERS</h1>
+          <span class="view-subtitle">Articles regroupés par sujet — déduplication IA</span>
+        </header>
+        <div class="clusters-grid" id="clusters-grid">
+          <!-- Injecté dynamiquement -->
+        </div>
+      </section>
+
+      <!-- ── VUE : BOOKMARKS ── -->
+      <section class="view" id="view-bookmarks">
+        <header class="view-header">
+          <h1 class="view-title">SAUVEGARDES</h1>
+        </header>
+        <div class="articles-list" id="bookmarks-articles">
+          <!-- Injecté dynamiquement -->
+        </div>
+      </section>
+
+      <!-- ── VUE : SETTINGS / GESTION FEEDS ── -->
+      <section class="view" id="view-settings">
+        <header class="view-header">
+          <h1 class="view-title">FEEDS RSS</h1>
+        </header>
+
+        <!-- Formulaire ajout feed -->
+        <div class="add-feed-form">
+          <h2 class="form-title">AJOUTER UN FEED</h2>
+          <div class="form-row">
+            <input type="url" id="feed-url" class="form-input" placeholder="https://example.com/rss" />
+            <input type="text" id="feed-name" class="form-input" placeholder="Nom du feed" />
+            <input type="text" id="feed-category" class="form-input" placeholder="Catégorie (ex: Tech)" />
+            <button class="btn-primary" id="btn-add-feed">+ AJOUTER</button>
+          </div>
+          <p id="feed-error" class="form-error hidden"></p>
+        </div>
+
+        <!-- Liste des feeds enregistrés -->
+        <div class="feeds-manager" id="feeds-manager">
+          <!-- Injecté dynamiquement -->
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ============================================================
+       MODAL : LECTEUR D'ARTICLE (Mode Focus)
+       ============================================================ -->
+  <div class="modal-overlay hidden" id="reader-overlay">
+    <div class="reader-modal" id="reader-modal">
+
+      <!-- Header du reader -->
+      <div class="reader-header">
+        <div class="reader-meta">
+          <span class="reader-source" id="reader-source"></span>
+          <span class="reader-date" id="reader-date"></span>
+        </div>
+        <div class="reader-controls">
+          <!-- Toggle contenu IA / original -->
+          <button class="reader-btn" id="btn-toggle-content" title="Basculer IA / Original">
+            ◈ IA
+          </button>
+          <!-- Résumé rapide -->
+          <button class="reader-btn" id="btn-summarize" title="Résumé IA">
+            ≡ RÉSUMÉ
+          </button>
+          <!-- Bookmark -->
+          <button class="reader-btn" id="btn-bookmark" title="Sauvegarder">
+            ◧
+          </button>
+          <!-- Lien original -->
+          <a class="reader-btn" id="reader-link" href="#" target="_blank" rel="noopener" title="Article original">
+            ↗ SOURCE
+          </a>
+          <!-- Fermer -->
+          <button class="reader-btn reader-close" id="btn-close-reader">✕</button>
+        </div>
+      </div>
+
+      <!-- Score d'importance -->
+      <div class="reader-importance" id="reader-importance">
+        <span class="importance-label">IMPORTANCE</span>
+        <div class="importance-bars" id="reader-imp-bars"></div>
+      </div>
+
+      <!-- Tags IA -->
+      <div class="reader-tags" id="reader-tags"></div>
+
+      <!-- Titre -->
+      <h1 class="reader-title" id="reader-title"></h1>
+
+      <!-- Zone résumé (cachée par défaut) -->
+      <div class="reader-summary hidden" id="reader-summary">
+        <div class="summary-label">RÉSUMÉ IA</div>
+        <p id="reader-summary-text"></p>
+      </div>
+
+      <!-- Contenu de l'article -->
+      <div class="reader-content" id="reader-content">
+        <!-- Injecté dynamiquement -->
+      </div>
+
+      <!-- Footer reader -->
+      <div class="reader-footer">
+        <button class="reader-nav-btn" id="btn-prev-article">← PRÉCÉDENT</button>
+        <button class="reader-nav-btn" id="btn-next-article">SUIVANT →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       TOAST NOTIFICATIONS
+       ============================================================ -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- ============================================================
+       LOADING GLOBAL
+       ============================================================ -->
+  <div class="global-loader hidden" id="global-loader">
+    <div class="loader-inner">
+      <div class="loader-logo">SYN</div>
+      <div class="loader-bar"><div class="loader-progress" id="loader-progress"></div></div>
+      <div class="loader-status" id="loader-status">Initialisation...</div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
