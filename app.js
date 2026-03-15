@@ -25,8 +25,8 @@
      ================================================================ */
   const CONFIG = {
     // URL de votre Supabase project
-    SUPABASE_URL: 'https://VOTRE_PROJET.supabase.co',
-    SUPABASE_ANON_KEY: 'VOTRE_ANON_KEY',
+    SUPABASE_URL: 'https://xqzgflhieipakfnatziz.supabase.co',
+    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxemdmbGhpZWlwYWtmbmF0eml6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1Mzg0MDAsImV4cCI6MjA4OTExNDQwMH0.GMSzpfVmAt5471i5c6bjGlC4Vg0vuagiilbtImlbfKM',
 
     // URL de votre Cloudflare Worker
     // Le worker gère : /rss?url=... et /ai (relay Groq)
