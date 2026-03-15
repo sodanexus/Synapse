@@ -478,10 +478,11 @@
       const ai = (article.ai_content || '').trim();
       const raw = (article.content || article.description || '').trim();
       return (
-        ai.length > 80 &&                // Contenu substantiel
-        ai !== raw &&                    // Différent de l'original
-        ai !== (article.title || '').trim() && // Pas juste le titre
-        (article.ai_tags || []).length > 0     // Tags générés
+        ai.length > 80 &&                        // Contenu substantiel
+        ai !== raw &&                            // Différent de l'original
+        ai !== (article.title || '').trim() &&   // Pas juste le titre
+        (article.ai_tags || []).length > 0 &&    // Tags générés
+        !!article.ai_title                       // Titre traduit présent
       );
     }
 
@@ -1374,6 +1375,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
             title:      article.title       || '',
             link:       article.link        || '',
             content:    article.content     || '',
+            ai_title:   result.ai_title     || null,
             ai_content: result.ai_content   || '',
             ai_tags:    result.ai_tags      || [],
             importance: result.importance   || 1,
@@ -2144,6 +2146,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
               title:      article.title    || '',
               link:       article.link     || '',
               content:    article.content  || '',
+              ai_title:   result.ai_title  || null,
               ai_content: result.ai_content || '',
               ai_tags:    result.ai_tags   || [],
               importance: result.importance || 1,
@@ -2152,6 +2155,8 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
               bookmarked: article.bookmarked || false,
             }).catch(() => {});
           }
+          // Mettre à jour ai_title en mémoire aussi
+          article.ai_title = result.ai_title || null;
         } catch (err) {
           // Rate limit ou erreur — on s'arrête proprement
           if (err.message?.includes('Rate limit')) {
