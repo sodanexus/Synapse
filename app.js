@@ -874,29 +874,44 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
      7e. RSS AUTO-DETECT — Détecte le flux RSS depuis une URL de site
      ================================================================ */
   const RSSDetect = (() => {
-    // Patterns RSS courants à tester
     const COMMON_PATHS = ['/rss', '/feed', '/rss.xml', '/feed.xml', '/atom.xml', '/rss/all', '/feeds/posts/default'];
 
     async function detect(inputUrl) {
-      // Normaliser l'URL
       if (!inputUrl.startsWith('http')) inputUrl = 'https://' + inputUrl;
       let base;
       try { base = new URL(inputUrl); } catch { return []; }
 
-      const candidates = [];
-
-      // Si l'URL ressemble déjà à un feed RSS, la retourner directement
+      // Si l'URL ressemble déjà à un feed, la tester directement
       if (inputUrl.match(/\.(rss|xml|atom)$/i) || inputUrl.includes('/rss') || inputUrl.includes('/feed')) {
-        candidates.push({ url: inputUrl, label: 'Feed détecté' });
-        return candidates;
+        try {
+          const res = await fetch(`${CONFIG.WORKER_URL}/rss?url=${encodeURIComponent(inputUrl)}`, { signal: AbortSignal.timeout(5000) });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.items && data.items.length > 0) {
+              return [{ url: inputUrl, label: `✓ Feed valide (${data.items.length} articles)` }];
+            }
+          }
+        } catch {}
+        return [];
       }
 
-      // Tester les paths courants
-      for (const path of COMMON_PATHS) {
-        candidates.push({ url: `${base.origin}${path}`, label: path });
-      }
+      // Tester les paths courants en parallèle via le worker
+      const results = await Promise.allSettled(
+        COMMON_PATHS.map(async path => {
+          const url = `${base.origin}${path}`;
+          const res = await fetch(`${CONFIG.WORKER_URL}/rss?url=${encodeURIComponent(url)}`, {
+            signal: AbortSignal.timeout(5000)
+          });
+          if (!res.ok) throw new Error('not found');
+          const data = await res.json();
+          if (!data.items || data.items.length === 0) throw new Error('empty');
+          return { url, label: `${path} (${data.items.length} articles)` };
+        })
+      );
 
-      return candidates;
+      return results
+        .filter(r => r.status === 'fulfilled')
+        .map(r => r.value);
     }
 
     return { detect };
@@ -1498,6 +1513,16 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         if (e.key === 'Escape') close();
         if (e.key === 'ArrowRight') goNext();
         if (e.key === 'ArrowLeft') goPrev();
+        // Raccourcis actifs uniquement quand le reader est ouvert
+        const readerOpen = !document.getElementById('reader-overlay')?.classList.contains('hidden');
+        if (!readerOpen) return;
+        if (e.key === 'b' || e.key === 'B') {
+          document.getElementById('btn-bookmark')?.click();
+        }
+        if (e.key === 'o' || e.key === 'O') {
+          const article = STATE.currentArticleList[STATE.currentArticleIndex];
+          if (article?.link) window.open(article.link, '_blank', 'noopener');
+        }
       });
 
       // Navigation
@@ -1596,7 +1621,8 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
             await DB.toggleFeed(feed.id, newActive);
             feed.active = newActive;
             btn.classList.toggle('active', newActive);
-            Render.renderSidebarFeeds(STATE.feeds);
+            Sync.refreshUI();
+            Toast.show(newActive ? `${feed.name} activé` : `${feed.name} désactivé`, 'info');
           } catch (err) {
             Toast.show('Erreur lors de la mise à jour', 'error');
           }
@@ -1714,9 +1740,14 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         const val = urlInput.value.trim();
         if (val.length < 5) return;
         detectTimeout = setTimeout(async () => {
-          const candidates = await RSSDetect.detect(val);
-          if (candidates.length === 0) return;
           suggestionsEl.classList.remove('hidden');
+          suggestionsEl.innerHTML = '<span style="font-family:var(--font-mono);font-size:0.65rem;color:var(--grey-light);">Recherche de feeds...</span>';
+          const candidates = await RSSDetect.detect(val);
+          suggestionsEl.innerHTML = '';
+          if (candidates.length === 0) {
+            suggestionsEl.classList.add('hidden');
+            return;
+          }
           candidates.forEach(c => {
             const btn = document.createElement('button');
             btn.className = 'rss-suggestion-btn';
@@ -1756,6 +1787,51 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
             Toast.show('Erreur import OPML : ' + err.message, 'error');
           }
           importInput.value = '';
+        });
+      }
+
+      // Bouton raccourcis clavier
+      const shortcutsBtn = document.getElementById('btn-shortcuts-help');
+      if (shortcutsBtn) {
+        shortcutsBtn.addEventListener('click', () => {
+          const existing = document.getElementById('shortcuts-modal');
+          if (existing) { existing.remove(); return; }
+
+          const modal = document.createElement('div');
+          modal.id = 'shortcuts-modal';
+          modal.style.cssText = `
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: var(--white); border: var(--border); border-radius: 4px;
+            padding: 28px 32px; z-index: 9999; min-width: 320px;
+            box-shadow: var(--shadow-lift);
+          `;
+          const shortcuts = [
+            ['← →', 'Article précédent / suivant'],
+            ['Échap', 'Fermer le reader'],
+            ['B', 'Bookmark l\'article ouvert'],
+            ['O', 'Ouvrir la source dans un onglet'],
+            ['R', 'Rafraîchir les feeds'],
+          ];
+          modal.innerHTML = `
+            <div style="font-family:var(--font-mono);font-size:0.6rem;letter-spacing:0.15em;color:var(--grey-light);margin-bottom:16px;">RACCOURCIS CLAVIER</div>
+            ${shortcuts.map(([key, desc]) => `
+              <div style="display:flex;justify-content:space-between;gap:24px;padding:6px 0;border-bottom:1px solid var(--grey-wash);">
+                <kbd style="font-family:var(--font-mono);font-size:0.72rem;background:var(--grey-wash);padding:2px 8px;border-radius:2px;">${key}</kbd>
+                <span style="font-size:0.8rem;color:var(--grey-deep)">${desc}</span>
+              </div>
+            `).join('')}
+            <button style="margin-top:16px;font-family:var(--font-mono);font-size:0.6rem;color:var(--grey-mid);cursor:pointer;" id="close-shortcuts">FERMER</button>
+          `;
+          document.body.appendChild(modal);
+          document.getElementById('close-shortcuts').addEventListener('click', () => modal.remove());
+          setTimeout(() => {
+            document.addEventListener('click', function handler(e) {
+              if (!modal.contains(e.target) && e.target !== shortcutsBtn) {
+                modal.remove();
+                document.removeEventListener('click', handler);
+              }
+            });
+          }, 100);
         });
       }
     }
@@ -2052,10 +2128,14 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
 
     /** Rafraîchit toutes les vues UI avec l'état actuel */
     function refreshUI() {
-      Render.renderHomeArticles(STATE.articles);
-      Render.renderFeedArticles(STATE.articles, STATE.currentFilter, STATE.searchQuery);
-      Render.renderClusters(STATE.clusters);
-      Render.renderBookmarks(STATE.articles);
+      // Ne montrer que les articles des feeds actifs
+      const activeFeedIds = new Set(STATE.feeds.filter(f => f.active).map(f => f.id));
+      const visibleArticles = STATE.articles.filter(a => !a.feed_id || activeFeedIds.has(a.feed_id));
+
+      Render.renderHomeArticles(visibleArticles);
+      Render.renderFeedArticles(visibleArticles, STATE.currentFilter, STATE.searchQuery);
+      Render.renderClusters(Cluster.clusterByTopic(visibleArticles));
+      Render.renderBookmarks(visibleArticles);
       Settings.renderFeedsManager(STATE.feeds);
       Render.renderSidebarFeeds(STATE.feeds);
       updateBadge();
@@ -2307,6 +2387,13 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
     // Bouton refresh manuel
     document.getElementById('btn-refresh').addEventListener('click', () => {
       Sync.run();
+    });
+
+    // Raccourci R pour refresh (hors reader et hors champs de saisie)
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const readerOpen = !document.getElementById('reader-overlay')?.classList.contains('hidden');
+      if (!readerOpen && (e.key === 'r' || e.key === 'R')) Sync.run();
     });
 
     // Vérifier la session existante
