@@ -1520,3 +1520,49 @@ body.dark .nav-badge {
 .article-card.imp-5-alert {
   animation: alertPulse 2s ease-in-out infinite;
 }
+
+/* ================================================================
+   PAGINATION & RECHERCHE SUPABASE
+   ================================================================ */
+
+.btn-load-more {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  color: var(--grey-mid);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: none;
+  cursor: pointer;
+  margin: 16px 0 8px;
+  transition: all 0.15s;
+}
+.btn-load-more:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--accent-soft);
+}
+
+/* Indicateur recherche Supabase dans le compteur */
+#feed-count {
+  transition: opacity 0.2s;
+}
+#feed-count.searching {
+  opacity: 0.5;
+}
+#feed-count.db-results {
+  color: var(--grey-deep);
+  font-style: italic;
+}
+
+/* Fond stats feed */
+.feed-row-stats {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--grey-light);
+  margin-top: 3px;
+}
