@@ -460,7 +460,17 @@
      *   - tags thématiques
      * Retourne { ai_content, importance, ai_tags }
      */
-    async function enrichArticle(article) {
+    /** Vérifie si un article a été correctement enrichi par l'IA */
+    function isEnriched(article) {
+      const ai = (article.ai_content || '').trim();
+      const raw = (article.content || article.description || '').trim();
+      return (
+        ai.length > 80 &&                // Contenu substantiel
+        ai !== raw &&                    // Différent de l'original
+        ai !== (article.title || '').trim() && // Pas juste le titre
+        (article.ai_tags || []).length > 0     // Tags générés
+      );
+    }
       // Construire le texte source — titre + description + contenu, tout ce qu'on a
       const sourceText = [
         article.title || '',
@@ -1026,12 +1036,8 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       // Focus trap (accessibilité)
       document.getElementById('btn-close-reader').focus();
 
-      // Enrichissement IA à la demande — uniquement si pas encore fait
-      const alreadyEnriched = article.ai_content &&
-        article.ai_content.trim() !== (article.content || '').trim() &&
-        article.ai_content.length > 50;
-
-      if (!alreadyEnriched) {
+      // Enrichissement IA à la demande — uniquement si pas encore fait correctement
+      if (!isEnriched(article)) {
         enrichOnOpen(article);
       }
     }
@@ -1196,10 +1202,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         markRead(article);
         populate(article);
         document.getElementById('reader-modal').scrollTop = 0;
-        const alreadyEnriched = article.ai_content &&
-          article.ai_content.trim() !== (article.content || '').trim() &&
-          article.ai_content.length > 50;
-        if (!alreadyEnriched) enrichOnOpen(article);
+        if (!isEnriched(article)) enrichOnOpen(article);
       }
     }
 
@@ -1211,10 +1214,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         markRead(article);
         populate(article);
         document.getElementById('reader-modal').scrollTop = 0;
-        const alreadyEnriched = article.ai_content &&
-          article.ai_content.trim() !== (article.content || '').trim() &&
-          article.ai_content.length > 50;
-        if (!alreadyEnriched) enrichOnOpen(article);
+        if (!isEnriched(article)) enrichOnOpen(article);
       }
     }
 
@@ -1400,6 +1400,32 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
           btn.textContent = '+ AJOUTER';
         }
       });
+
+      // Bouton vider le cache articles
+      const clearBtn = document.getElementById('btn-clear-cache');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', async () => {
+          if (!confirm('Vider tous les articles en cache ? Ils seront ré-enrichis à la prochaine ouverture.')) return;
+          clearBtn.disabled = true;
+          clearBtn.textContent = 'VIDAGE...';
+          try {
+            await Auth.getClient()
+              .from('articles')
+              .delete()
+              .eq('user_id', STATE.user.id);
+            localStorage.removeItem(`synapse_articles_${STATE.user.id}`);
+            STATE.articles = [];
+            STATE.clusters = [];
+            Sync.refreshUI();
+            Toast.show('Cache vidé — relancez un sync', 'success');
+          } catch (err) {
+            Toast.show('Erreur lors du vidage : ' + err.message, 'error');
+          } finally {
+            clearBtn.disabled = false;
+            clearBtn.textContent = 'VIDER LE CACHE';
+          }
+        });
+      }
     }
 
     return { renderFeedsManager, init };
@@ -1567,13 +1593,13 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         // à l'ouverture de chaque article dans le Reader.
         const existingMap = new Map(STATE.articles.map(a => [a.hash, a]));
 
-        // Pour chaque article frais, on réutilise l'enrichissement IA existant s'il est déjà en mémoire
+        // Pour chaque article frais, on réutilise l'enrichissement IA existant s'il est déjà correct
         let enriched = unique.map(a => {
           const old = existingMap.get(a.hash);
-          if (old && old.ai_content && old.ai_content.trim() !== (old.content || '').trim()) {
-            return old; // Conserver la version déjà enrichie
+          if (old && isEnriched(old)) {
+            return old; // Conserver la version correctement enrichie
           }
-          return a; // Nouvel article, sera enrichi à l'ouverture
+          return a; // Nouvel article ou mal enrichi → sera re-traité à l'ouverture
         });
 
         // 4. Mise à jour du state
