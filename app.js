@@ -30,7 +30,7 @@
 
     // URL de votre Cloudflare Worker
     // Le worker gère : /rss?url=... et /ai (relay Groq)
-    WORKER_URL: 'https://synapse-worker.VOTRE_COMPTE.workers.dev',
+    WORKER_URL: 'https://synapse-worker.pannetier-julien.workers.dev',
 
     // Modèle Groq (peut être changé facilement ici)
     GROQ_MODEL: 'llama-3.3-70b-versatile',
