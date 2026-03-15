@@ -557,31 +557,48 @@ TEXTE : ${sourceText}`;
      * Retourne du texte structuré (HTML simple)
      */
     async function generateDailyDigest(articles) {
-      // Sélectionner les 15 articles les plus importants du jour
       const today = new Date().toISOString().split('T')[0];
-      // Sélectionner les 10 articles les plus importants (au lieu de 15)
-      const topArticles = articles
-        .filter(a => a.pub_date && a.pub_date.startsWith(today))
+
+      // Articles du jour triés par importance
+      let topArticles = articles
+        .filter(a => a.pub_date && a.pub_date.startsWith(today) && isEnriched(a))
         .sort((a, b) => (b.importance || 0) - (a.importance || 0))
         .slice(0, 10);
 
-      if (topArticles.length === 0) {
-        // Si aucun article du jour, prendre les 10 plus récents
-        topArticles.push(
-          ...articles.sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date)).slice(0, 10)
-        );
+      // Fallback : articles enrichis des 48h si pas assez du jour
+      if (topArticles.length < 3) {
+        const since = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+        topArticles = articles
+          .filter(a => a.pub_date && a.pub_date >= since && isEnriched(a))
+          .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+          .slice(0, 10);
       }
 
-      const articlesText = topArticles.map((a, i) =>
-        `[${i + 1}] ${a.title} — ${a.feed_name} (importance: ${a.importance}/5)`
-      ).join('\n');
+      // Dernier fallback : tous les articles enrichis
+      if (topArticles.length === 0) {
+        topArticles = articles
+          .filter(a => isEnriched(a))
+          .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
+          .slice(0, 10);
+      }
+
+      if (topArticles.length === 0) {
+        throw new Error('Aucun article enrichi disponible. Ouvrez quelques articles d\'abord.');
+      }
+
+      // Envoyer ai_content si disponible, sinon le titre
+      const articlesText = topArticles.map((a, i) => {
+        const titre = a.ai_title || a.title || '';
+        const contenu = (a.ai_content || '').substring(0, 400);
+        return `[${i + 1}] ${titre} (${a.feed_name}, importance: ${a.importance}/5)\n${contenu}`;
+      }).join('\n\n');
 
       const digest = await callGroq(
-        `Tu es un éditeur de presse senior. Tu rédiges des briefings matinaux synthétiques pour un lecteur pressé.
-Format de sortie : HTML simple, utilise <h2> pour les sections thématiques, <ul><li> pour les points, <p> pour les paragraphes.
-Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeuse.`,
-        `Rédige le digest des actualités du jour. Structure par thèmes (max 4 thèmes). Inclus les sujets les plus importants.\n\n${articlesText}`,
-        600
+        `Tu es un éditeur de presse senior. Tu rédiges des briefings synthétiques pour un lecteur pressé.
+Format de sortie : HTML simple, utilise <h2> pour les sections thématiques, <ul><li> pour les points clés, <p> pour les synthèses.
+Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeuse. Cite les sources entre parenthèses.`,
+        `Rédige le digest des actualités. Structure par thèmes (max 4 thèmes). Synthétise les faits essentiels à partir des résumés fournis.\n\n${articlesText}`,
+        800
       );
 
       return digest;
@@ -2004,8 +2021,6 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span> GÉNÉRATION...';
 
-      zone.innerHTML = '<div class="content-loading"><div class="spinner"></div><span>L\'IA analyse vos actualités...</span></div>';
-
       try {
         // Vérifier s'il existe déjà un digest du jour
         if (STATE.user) {
@@ -2017,6 +2032,36 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
             return;
           }
         }
+
+        // Compter les articles enrichis disponibles
+        const enrichedArticles = STATE.articles.filter(a => AI.isEnriched(a));
+        const toEnrich = STATE.articles
+          .filter(a => !AI.isEnriched(a))
+          .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+          .slice(0, Math.max(0, 10 - enrichedArticles.length));
+
+        // Enrichir les articles manquants avant de générer
+        if (toEnrich.length > 0) {
+          zone.innerHTML = `<div class="content-loading"><div class="spinner"></div><span>Enrichissement IA — 0/${toEnrich.length} articles...</span></div>`;
+          const statusEl = zone.querySelector('span');
+
+          for (let i = 0; i < toEnrich.length; i++) {
+            try {
+              const result = await AI.enrichArticle(toEnrich[i]);
+              toEnrich[i].ai_content = result.ai_content;
+              toEnrich[i].ai_title = result.ai_title || null;
+              toEnrich[i].importance = result.importance;
+              toEnrich[i].ai_tags = result.ai_tags;
+              toEnrich[i].sentiment = result.sentiment || 'neutral';
+              if (statusEl) statusEl.textContent = `Enrichissement IA — ${i + 1}/${toEnrich.length} articles...`;
+            } catch (err) {
+              console.warn('Enrichissement échoué pour digest:', err);
+            }
+            if (i < toEnrich.length - 1) await new Promise(r => setTimeout(r, CONFIG.GROQ_REQUEST_DELAY));
+          }
+        }
+
+        zone.innerHTML = '<div class="content-loading"><div class="spinner"></div><span>Génération du digest...</span></div>';
 
         const html = await AI.generateDailyDigest(STATE.articles);
         renderDigest(html);
