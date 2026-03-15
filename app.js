@@ -485,10 +485,10 @@
         return { ai_content: article.content || article.title || '', importance: 1, ai_tags: [] };
       }
 
-      const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris les articles RSS en prose claire et fluide, en supprimant tout le bruit (publicités, appels à l'action, mentions légales, liens parasites). Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, sans texte avant ou après le JSON. Langue de sortie : français.`;
+      const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris ou résumes les articles RSS en prose claire et fluide. Tu supprimes tout le bruit (publicités, appels à l'action, mentions légales). Si le contenu est riche, tu réécris en 150-250 mots. Si le contenu est court ou tronqué, tu fais le meilleur résumé possible avec ce que tu as, en ajoutant du contexte général sur le sujet si nécessaire. Tu ne copies JAMAIS le texte original mot pour mot. Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks. Langue de sortie : français.`;
 
-      const userPrompt = `Réécris cet article et retourne exactement ce JSON (et rien d'autre) :
-{"ai_content":"<réécriture en prose fluide, 150-250 mots, conserve les faits essentiels, sans bruit>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"]}
+      const userPrompt = `Réécris ou résume cet article et retourne exactement ce JSON (et rien d'autre) :
+{"ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"]}
 
 TITRE : ${article.title}
 SOURCE : ${article.feed_name}
