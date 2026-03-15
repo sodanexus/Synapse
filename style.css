@@ -357,6 +357,14 @@ ul { list-style: none; }
   gap: 8px;
 }
 
+.last-sync-label {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  color: var(--grey-light);
+  padding-left: 2px;
+}
+
 .btn-refresh {
   padding: 8px 0;
   font-size: 0.72rem;
