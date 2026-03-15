@@ -1352,7 +1352,13 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   .form-row { flex-direction: column; }
   .form-input { min-width: unset; width: 100%; }
   .modal-overlay { padding: 0; align-items: flex-end; }
-  .reader-modal { max-height: 92vh; overflow-y: auto; }
+  .reader-modal {
+    max-height: 100vh;
+    height: 100vh;
+    width: 100vw;
+    border-radius: 0;
+    overflow-y: auto;
+  }
   .feed-row { grid-template-columns: 1fr auto; }
   .feed-row-category { display: none; }
   .digest-zone { padding: 28px 24px; }
