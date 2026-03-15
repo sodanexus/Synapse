@@ -45,10 +45,6 @@
     // Groq free tier ≈ 30 req/min → 3s minimum pour rester dans les limites
     GROQ_REQUEST_DELAY: 3000,
 
-    // Nombre max d'articles à enrichir par sync
-    // Réduit à 3 pour éviter les rafales qui déclenchent les 429
-    MAX_ENRICHMENT_PER_SYNC: 3,
-
     // Cache TTL pour les articles (ms) — 30 minutes
     CACHE_TTL: 30 * 60 * 1000,
   };
@@ -76,59 +72,27 @@
 
   /* ================================================================
      2b. CACHE LOCAL — localStorage pour survie au refresh navigateur
-     Stratégie : écriture après chaque sync réussi, lecture immédiate
-     au login avant la requête Supabase — affichage instantané.
-     Clé unique par user_id pour isoler les comptes sur le même browser.
+     Utilisé dans le sync pour persister les articles entre sessions.
      ================================================================ */
   const Cache = (() => {
     function key(userId) { return `synapse_articles_${userId}`; }
 
-    /** Sauvegarde articles + bookmarks + lus dans localStorage */
-    function save(userId, articles, bookmarks, readArticles) {
+    function save(userId, articles) {
       try {
-        const payload = {
-          articles,
-          bookmarks: [...bookmarks],
-          readArticles: [...readArticles],
+        localStorage.setItem(key(userId), JSON.stringify({
+          articles: articles.slice(0, 100),
           savedAt: Date.now(),
-        };
-        localStorage.setItem(key(userId), JSON.stringify(payload));
+        }));
       } catch (err) {
-        // Quota dépassé (~5MB) — on ignore, le fallback reste Supabase
         console.warn('Cache write failed (quota?):', err);
       }
     }
 
-    /**
-     * Restaure depuis localStorage.
-     * Retourne null si absent ou plus vieux que 2h.
-     */
-    function load(userId) {
-      try {
-        const raw = localStorage.getItem(key(userId));
-        if (!raw) return null;
-        const payload = JSON.parse(raw);
-        // Cache expiré → on le supprime et on laisse Supabase prendre le relais
-        if (Date.now() - payload.savedAt > 2 * 3600 * 1000) {
-          clear(userId);
-          return null;
-        }
-        return {
-          articles:     payload.articles || [],
-          bookmarks:    new Set(payload.bookmarks || []),
-          readArticles: new Set(payload.readArticles || []),
-        };
-      } catch {
-        return null;
-      }
-    }
-
-    /** Efface le cache d'un utilisateur (appelé au logout) */
     function clear(userId) {
       try { localStorage.removeItem(key(userId)); } catch {}
     }
 
-    return { save, load, clear };
+    return { save, clear };
   })();
 
   /* ================================================================
@@ -496,12 +460,6 @@ SOURCE : ${article.feed_name}
 TEXTE : ${sourceText}`;
 
       const raw = await callGroq(systemPrompt, userPrompt, 700);
-
-      // DEBUG — à retirer une fois le problème résolu
-      console.log('=== GROQ RAW RESPONSE ===');
-      console.log('Article:', article.title);
-      console.log('Raw:', raw);
-      console.log('=========================');
 
       try {
         // Extraction robuste : chercher le premier { ... } dans la réponse
@@ -1261,7 +1219,10 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
 
       } catch (err) {
         console.warn('Enrichissement IA échoué:', err);
-        // Pas de toast pour ne pas interrompre la lecture — l'article original reste affiché
+        // Afficher un message discret sans interrompre la lecture
+        const toggleBtn = document.getElementById('btn-toggle-content');
+        if (toggleBtn) toggleBtn.title = `Enrichissement IA indisponible : ${err.message}`;
+        Toast.show('IA indisponible — texte original affiché', 'info');
       } finally {
         toggleBtn.disabled = false;
         toggleBtn.textContent = showingAI ? '◈ IA' : '◈ ORIGINAL';
@@ -1657,7 +1618,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
               .from('articles')
               .delete()
               .eq('user_id', STATE.user.id);
-            localStorage.removeItem(`synapse_articles_${STATE.user.id}`);
+            Cache.clear(STATE.user.id);
             STATE.articles = [];
             STATE.clusters = [];
             Sync.refreshUI();
@@ -1892,6 +1853,10 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         // Le sync ne fait plus d'enrichissement IA — celui-ci se fait à la demande
         // à l'ouverture de chaque article dans le Reader.
         const existingMap = new Map(STATE.articles.map(a => [a.hash, a]));
+        const existingHashes = new Set(STATE.articles.map(a => a.hash));
+
+        // Compter les vrais nouveaux articles AVANT de mettre à jour le state
+        const newCount = unique.filter(a => !existingHashes.has(a.hash)).length;
 
         // Pour chaque article frais, on réutilise l'enrichissement IA existant s'il est déjà correct
         let enriched = unique.map(a => {
@@ -1921,14 +1886,8 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         Loader.setSyncDot('done');
 
         // Sauvegarder dans localStorage pour survie au refresh de page
-        try {
-          localStorage.setItem(`synapse_articles_${STATE.user.id}`, JSON.stringify(STATE.articles.slice(0, 100)));
-        } catch {} // Silencieux si quota dépassé
+        if (STATE.user) Cache.save(STATE.user.id, STATE.articles);
 
-        const existingHashes = new Set(STATE.articles.map(a => a.hash));
-        const newCount = unique.filter(a => !existingHashes.has(a.hash)).length;
-
-        const newCount2 = newCount; // alias pour le toast
         Toast.show(
           newCount > 0 ? `${newCount} nouveau${newCount > 1 ? 'x' : ''} article${newCount > 1 ? 's' : ''} chargé${newCount > 1 ? 's' : ''}` : 'Flux à jour',
           'success'
@@ -2052,7 +2011,7 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
 
       // Déconnexion
       document.getElementById('btn-logout').addEventListener('click', async () => {
-        if (STATE.user) localStorage.removeItem(`synapse_articles_${STATE.user.id}`);
+        if (STATE.user) Cache.clear(STATE.user.id);
         await Auth.logout();
         showAuthOverlay();
       });
