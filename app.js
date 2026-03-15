@@ -1041,7 +1041,6 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
      * Affiche un indicateur de chargement dans le reader pendant le traitement.
      */
     async function enrichOnOpen(article) {
-      const contentEl = document.getElementById('reader-content');
       const toggleBtn = document.getElementById('btn-toggle-content');
 
       // Indicateur discret de chargement IA
@@ -1057,14 +1056,22 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
         article.ai_tags = result.ai_tags;
 
         // Sauvegarder en base si l'utilisateur est connecté
-        if (STATE.user && article.id) {
-          DB.updateArticleStatus(article.id, {}).catch(() => {});
-        }
         if (STATE.user) {
           DB.upsertArticle({
-            ...article,
-            user_id: STATE.user.id,
-          }).catch(() => {});
+            feed_id:      article.feed_id,
+            user_id:      STATE.user.id,
+            hash:         article.hash,
+            title:        article.title,
+            link:         article.link,
+            description:  article.description,
+            content:      article.content,
+            pub_date:     article.pub_date,
+            ai_content:   result.ai_content,
+            ai_tags:      result.ai_tags,
+            importance:   result.importance,
+            read:         article.read || false,
+            bookmarked:   article.bookmarked || false,
+          }).catch(err => console.warn('Sauvegarde Supabase échouée:', err));
         }
 
         // Rafraîchir l'affichage uniquement si l'article est encore ouvert
