@@ -1279,22 +1279,89 @@ ul { list-style: none; }
 }
 
 /* ── Mode sombre ── */
+/* Anti-flash : appliqué immédiatement depuis le <head> avant CSS */
+html.dark-init body { background: #111111; }
+
 body.dark {
-  --ink:         #f0f0f0;
-  --ink-2:       #e0e0e0;
-  --ink-3:       #c8c8c8;
-  --grey-deep:   #aaaaaa;
-  --grey-mid:    #888888;
-  --grey-light:  #666666;
-  --grey-subtle: #333333;
-  --grey-wash:   #222222;
+  /* Variables de base */
+  --ink:         #efefef;
+  --ink-2:       #d8d8d8;
+  --ink-3:       #b8b8b8;
+  --grey-deep:   #999999;
+  --grey-mid:    #777777;
+  --grey-light:  #555555;
+  --grey-subtle: #2e2e2e;
+  --grey-wash:   #1e1e1e;
   --paper:       #111111;
-  --white:       #1a1a1a;
-  --accent:      #f0f0f0;
-  --accent-soft: rgba(240, 240, 240, 0.06);
+  --white:       #191919;
+  --accent:      #efefef;
+  --accent-soft: rgba(239, 239, 239, 0.06);
   --border:      1px solid #2a2a2a;
-  --shadow-soft: 0 1px 3px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2);
-  --shadow-lift: 0 4px 24px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.3);
+  --shadow-soft: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
+  --shadow-lift: 0 4px 24px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.4);
+  /* Variables d'importance adaptées pour fond sombre */
+  --imp-1: #444444;
+  --imp-2: #666666;
+  --imp-3: #888888;
+  --imp-4: #aaaaaa;
+  --imp-5: #efefef;
+}
+
+/* Éléments avec couleurs hardcodées à overrider */
+body.dark .modal-overlay {
+  background: rgba(17, 17, 17, 0.92);
+}
+body.dark .article-card {
+  background: var(--white);
+  border-color: var(--grey-subtle);
+}
+body.dark .article-row {
+  border-color: var(--grey-subtle);
+}
+body.dark .add-feed-form,
+body.dark .cluster-card,
+body.dark .feed-row {
+  background: var(--white);
+  border-color: var(--grey-subtle);
+}
+body.dark .reader-modal {
+  background: var(--white);
+}
+body.dark .tag {
+  background: var(--grey-wash);
+  color: var(--grey-mid);
+}
+body.dark .btn-primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+body.dark .form-input {
+  border-color: var(--grey-subtle);
+  color: var(--ink);
+}
+body.dark .form-input::placeholder {
+  color: var(--grey-light);
+}
+body.dark .toast {
+  background: var(--white);
+  color: var(--ink);
+  border: var(--border);
+}
+body.dark .global-loader {
+  background: var(--paper);
+}
+body.dark .auth-overlay {
+  background: var(--paper);
+}
+body.dark .auth-panel {
+  background: var(--white);
+}
+body.dark .sidebar {
+  background: var(--white);
+}
+body.dark .nav-badge {
+  background: var(--ink);
+  color: var(--paper);
 }
 
 /* ── Toggle dark mode ── */
@@ -1311,30 +1378,10 @@ body.dark {
 .theme-toggle:hover { color: var(--ink); }
 
 /* ── Taille de police reader ── */
-#reader-content.font-sm { font-size: 0.9rem; }
-#reader-content.font-md { font-size: 1rem; }
-#reader-content.font-lg { font-size: 1.15rem; }
-#reader-content.font-xl { font-size: 1.3rem; }
-
-.font-size-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.font-size-btn {
-  background: none;
-  border: var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
-  color: var(--grey-mid);
-  padding: 3px 7px;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  transition: all 0.15s;
-  line-height: 1.4;
-}
-.font-size-btn:hover,
-.font-size-btn.active { color: var(--ink); border-color: var(--ink); }
+#reader-content.font-sm { font-size: 0.88rem; line-height: 1.7; }
+#reader-content.font-md { font-size: 1rem;    line-height: 1.75; }
+#reader-content.font-lg { font-size: 1.15rem; line-height: 1.8; }
+#reader-content.font-xl { font-size: 1.3rem;  line-height: 1.85; }
 
 /* ── Swipe mobile ── */
 .reader-modal {
