@@ -654,16 +654,23 @@ ul { list-style: none; }
 
 .card-footer {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 8px;
   margin-top: 16px;
   padding-top: 12px;
   border-top: var(--border);
 }
 
-.card-date { font-family: var(--font-mono); font-size: 0.62rem; color: var(--grey-light); }
+.card-date {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--grey-light);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
-.card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.card-tags { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 
 .tag {
   font-family: var(--font-mono);
