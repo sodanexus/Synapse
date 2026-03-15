@@ -236,6 +236,12 @@ ul { list-style: none; }
   gap: 10px;
 }
 
+.sidebar-logo .logo-wordmark { display: inline; }
+.sidebar-logo .logo-s {
+  font-style: italic;
+  letter-spacing: 0;
+}
+
 /* Sync dot — très discret */
 .sync-dot {
   width: 6px;
