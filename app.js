@@ -1348,12 +1348,12 @@ Langue : français. Sois direct, factuel, sans introduction ni conclusion verbeu
 
       relatedZone.style.display = 'block';
       relatedList.innerHTML = '';
-      related.forEach((rel, i) => {
+      related.forEach((rel) => {
         const div = document.createElement('div');
-        div.className = 'related-item';
+        div.className = 'reader-related-item';
         div.innerHTML = `
-          <div class="related-item-source">${Render.escapeHtml(rel.feed_name || '')} · ${Render.relativeTime(rel.pub_date)}</div>
-          <div class="related-item-title">${Render.escapeHtml(rel.title || '')}</div>
+          <div class="reader-related-source">${Render.escapeHtml(rel.feed_name || '')} · ${Render.relativeTime(rel.pub_date)}</div>
+          <div class="reader-related-headline">${Render.escapeHtml(rel.title || '')}</div>
         `;
         div.addEventListener('click', () => {
           const idx = STATE.currentArticleList.findIndex(a => a.hash === rel.hash);
