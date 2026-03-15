@@ -1104,6 +1104,53 @@ ul { list-style: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Footer reader */
+/* Articles similaires */
+.reader-related {
+  margin: 0 28px 32px;
+  padding: 24px;
+  background: var(--grey-wash);
+  border-radius: var(--radius);
+}
+
+.reader-related-title {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  color: var(--grey-light);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.reader-related-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-color, rgba(0,0,0,0.08));
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.reader-related-item:first-child { border-top: none; padding-top: 0; }
+.reader-related-item:last-child { padding-bottom: 0; }
+.reader-related-item:hover { opacity: 0.6; }
+
+.reader-related-source {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  color: var(--grey-light);
+  text-transform: uppercase;
+}
+
+.reader-related-headline {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
 .reader-footer {
   display: flex;
   justify-content: space-between;
