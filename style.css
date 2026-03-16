@@ -1888,6 +1888,52 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   color: var(--grey-light);
 }
 
+
+/* ================================================================
+   TTS PROGRESS BAR — Reader & Digest
+   ================================================================ */
+.tts-btn-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.tts-progress-track {
+  width: 28px;
+  height: 2px;
+  background: var(--grey-wash);
+  border-radius: 1px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Visible seulement quand le TTS est actif */
+.tts-btn-wrap:has(.active) .tts-progress-track,
+.tts-btn-wrap:has(.tts-loading) .tts-progress-track {
+  opacity: 1;
+}
+
+.tts-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--ink);
+  border-radius: 1px;
+  transition: width 0.5s linear;
+}
+
+/* Loading animation — barre qui pulse */
+.tts-btn-wrap:has(.tts-loading) .tts-progress-fill {
+  width: 40% !important;
+  animation: ttsLoadingPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes ttsLoadingPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
 /* Modale digest plein écran */
 .digest-fullscreen-overlay {
   position: fixed;
@@ -2140,6 +2186,114 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   .digest-fullscreen-body { padding: 24px 16px; }
   .digest-fullscreen-footer { padding: 10px 16px; }
   .digest-fullscreen-date { display: none; }
+}
+
+
+/* ================================================================
+   DIGEST TIMELINE CHRONOLOGIQUE
+   ================================================================ */
+.digest-timeline {
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: var(--border);
+}
+
+.digest-timeline-header {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  color: var(--grey-light);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.digest-timeline-item {
+  display: grid;
+  grid-template-columns: 48px 12px 1fr;
+  gap: 0 12px;
+  align-items: start;
+  padding: 8px 0;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background var(--t-fast);
+  position: relative;
+}
+
+.digest-timeline-item:hover {
+  background: var(--grey-wash);
+  padding-left: 6px;
+  margin-left: -6px;
+}
+
+/* Ligne verticale continue entre les points */
+.digest-timeline-item:not(:last-child) .digest-timeline-dot::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 0;
+  width: 1px;
+  height: calc(100% + 8px);
+  background: var(--grey-wash);
+}
+
+.digest-timeline-time {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+  color: var(--grey-light);
+  padding-top: 2px;
+  text-align: right;
+}
+
+.digest-timeline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 3px;
+  flex-shrink: 0;
+  position: relative;
+  justify-self: center;
+  background: var(--grey-light);
+}
+
+.digest-timeline-dot.imp-4,
+.digest-timeline-dot.imp-5 { background: var(--imp-4); }
+.digest-timeline-dot.imp-3 { background: var(--imp-3); }
+.digest-timeline-dot.imp-1,
+.digest-timeline-dot.imp-2 { background: var(--grey-wash); border: 1px solid var(--grey-light); }
+
+.digest-timeline-content {
+  min-width: 0;
+}
+
+.digest-timeline-source {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  color: var(--grey-light);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.digest-timeline-title {
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+.digest-timeline-item:hover .digest-timeline-title {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .digest-timeline-item {
+    grid-template-columns: 40px 10px 1fr;
+    gap: 0 8px;
+  }
 }
 
 /* ================================================================
