@@ -56,6 +56,9 @@
 
     // Cache TTL pour les articles (ms) — 30 minutes
     CACHE_TTL: 30 * 60 * 1000,
+
+    // Délai entre requêtes Groq pour le digest (ms) — modèle différent, limites différentes
+    GROQ_DIGEST_DELAY: 1000,
   };
 
   /* ================================================================
@@ -745,12 +748,13 @@ RÈGLES ABSOLUES :
       if (toggleSettings)  toggleSettings.addEventListener('click', toggleSidebar);
 
       // Fermer sidebar en cliquant en dehors
+      // On exclut tous les boutons hamburger pour éviter le bubbling qui referme immédiatement
+      const allToggles = [toggle, inlineToggle, toggleBookmarks, toggleSettings].filter(Boolean);
       document.addEventListener('click', (e) => {
         if (window.innerWidth <= 900 &&
           sidebar.classList.contains('open') &&
           !sidebar.contains(e.target) &&
-          !(toggle && toggle.contains(e.target)) &&
-          !(inlineToggle && inlineToggle.contains(e.target))) {
+          !allToggles.some(t => t.contains(e.target))) {
           sidebar.classList.remove('open');
         }
       });
@@ -1650,6 +1654,16 @@ RÈGLES ABSOLUES :
         `<p>${Render.escapeHtml(p.trim())}</p>`
       ).join('');
 
+      // Brider l'animation aux articles courts — évite le freeze sur mobile
+      const totalWords = text.split(/\s+/).filter(Boolean).length;
+      if (totalWords > 300) {
+        // Article long → affichage direct, pas d'animation
+        contentEl.innerHTML = paragraphs.map(p =>
+          `<p>${Render.escapeHtml(p.trim())}</p>`
+        ).join('');
+        return;
+      }
+
       // Récupérer tous les noeuds texte et animer mot par mot
       const allWords = [];
       contentEl.querySelectorAll('p').forEach(p => {
@@ -1666,8 +1680,8 @@ RÈGLES ABSOLUES :
       });
 
       // Révéler les mots progressivement par petits groupes
-      const GROUP = 4; // mots révélés en même temps
-      const DELAY = 30; // ms entre chaque groupe
+      const GROUP = 5; // mots révélés en même temps
+      const DELAY = 25; // ms entre chaque groupe
       allWords.forEach((span, i) => {
         setTimeout(() => {
           span.style.opacity = '1';
@@ -1895,7 +1909,17 @@ RÈGLES ABSOLUES :
       };
       document.getElementById('btn-share-menu').addEventListener('click', shareAction);
 
-      // Ouvrir l'article — nouvel onglet sur tous les appareils
+      // Ouvrir l'article — bouton direct dans la toolbar
+      const openSourceDirect = document.getElementById('btn-open-source-direct');
+      if (openSourceDirect) {
+        openSourceDirect.addEventListener('click', () => {
+          const article = STATE.currentArticleList[STATE.currentArticleIndex];
+          if (!article?.link) return;
+          window.open(article.link, '_blank', 'noopener');
+        });
+      }
+
+      // Ouvrir l'article — entrée dans le menu ···
       document.getElementById('btn-open-source').addEventListener('click', () => {
         const article = STATE.currentArticleList[STATE.currentArticleIndex];
         if (!article?.link) return;
@@ -2400,12 +2424,13 @@ RÈGLES ABSOLUES :
         const score = a.importance || 1;
         const item = document.createElement('div');
         item.className = 'digest-timeline-item';
+        const isRead = a.read || STATE.readArticles.has(a.id || a.hash);
         item.innerHTML = `
-          <div class="digest-timeline-time">${time}</div>
-          <div class="digest-timeline-dot imp-${score}"></div>
+          <div class="digest-timeline-time${isRead ? ' timeline-read' : ''}">${time}</div>
+          <div class="digest-timeline-dot imp-${score}${isRead ? ' timeline-dot-read' : ''}"></div>
           <div class="digest-timeline-content">
             <div class="digest-timeline-source">${a.feed_name || ''}</div>
-            <div class="digest-timeline-title">${a.ai_title || a.title || ''}</div>
+            <div class="digest-timeline-title${isRead ? ' timeline-title-read' : ''}">${a.ai_title || a.title || ''}</div>
           </div>
         `;
         item.addEventListener('click', () => {
@@ -2537,7 +2562,7 @@ RÈGLES ABSOLUES :
             toEnrich[i].ai_tags = result.ai_tags;
             toEnrich[i].sentiment = result.sentiment || 'neutral';
           } catch {}
-          if (i < toEnrich.length - 1) await new Promise(r => setTimeout(r, CONFIG.GROQ_REQUEST_DELAY));
+          if (i < toEnrich.length - 1) await new Promise(r => setTimeout(r, CONFIG.GROQ_DIGEST_DELAY));
         }
 
         const html = await AI.generateDailyDigest(STATE.articles);
@@ -2906,6 +2931,8 @@ RÈGLES ABSOLUES :
           }
           // Mettre à jour ai_title en mémoire aussi
           article.ai_title = result.ai_title || null;
+          // Mettre à jour la row dans le feed sans re-render complet
+          Reader._updateFeedRow(article);
         } catch (err) {
           // Rate limit ou quota épuisé — on s'arrête proprement
           if (err.message === 'QUOTA_EXHAUSTED' || err.message?.includes('Rate limit')) {
@@ -2946,7 +2973,6 @@ RÈGLES ABSOLUES :
     async function run() {
       if (STATE.isLoading) return;
       STATE.isLoading = true;
-      Loader.show('Synchronisation...');
       Loader.setSyncDot('syncing');
 
       const syncBtn = document.getElementById('btn-refresh');
@@ -2954,13 +2980,9 @@ RÈGLES ABSOLUES :
 
       try {
         // 1. Fetch RSS
-        Loader.setStatus('Récupération des feeds RSS...');
-        Loader.setProgress(15);
         const rawArticles = await RSS.fetchAllFeeds(STATE.feeds);
 
         // 2. Déduplication
-        Loader.setStatus('Déduplication...');
-        Loader.setProgress(30);
         const { unique } = Cluster.deduplicate(rawArticles);
 
         // 3. Fusionner avec les articles déjà enrichis en mémoire
@@ -2986,13 +3008,7 @@ RÈGLES ABSOLUES :
           new Date(b.pub_date) - new Date(a.pub_date)
         );
 
-        // 5. Clustering
-        Loader.setStatus('Clustering thématique...');
-        Loader.setProgress(85);
-
-        // 6. Rendu UI
-        Loader.setStatus('Mise à jour de l\'interface...');
-        Loader.setProgress(95);
+        // 5. Clustering + Rendu UI
         refreshUI();
 
         STATE.lastSyncTime = Date.now();
@@ -3053,7 +3069,8 @@ RÈGLES ABSOLUES :
       Render.renderFeedArticles(visibleArticles, STATE.currentFilter, STATE.searchQuery);
       // Bookmarks : re-render uniquement si la vue est active (évite un appel Supabase à chaque sync)
       if (STATE.currentView === 'bookmarks') Render.renderBookmarks(visibleArticles);
-      Settings.renderFeedsManager(STATE.feeds);
+      // Settings : re-render uniquement si la vue est active (évite de recalculer toute la liste à chaque sync)
+      if (STATE.currentView === 'settings') Settings.renderFeedsManager(STATE.feeds);
       Render.renderSidebarFeeds(STATE.feeds);
       updateBadge();
       Render.renderWelcome();
@@ -3214,6 +3231,11 @@ RÈGLES ABSOLUES :
     `;
     offlineBanner.textContent = '⚠ HORS LIGNE — Les articles en cache restent disponibles';
     document.body.appendChild(offlineBanner);
+
+    // Afficher le banner immédiatement si déjà hors ligne au démarrage
+    if (!navigator.onLine) {
+      offlineBanner.style.display = 'block';
+    }
 
     window.addEventListener('offline', () => { offlineBanner.style.display = 'block'; });
     window.addEventListener('online', () => {
