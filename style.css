@@ -1121,6 +1121,57 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   line-height: 1.15;
   padding: 32px 36px 22px;
   color: var(--ink);
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Hero image — fond du reader derrière le titre ── */
+.reader-title-area {
+  position: relative;
+  overflow: hidden;
+  transition: background-image 0.3s ease;
+}
+
+.reader-title-area.has-hero {
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+}
+
+/* Dégradé light mode — fond vers #f7f6f3 */
+.reader-title-area.has-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(247, 246, 243, 0.1) 0%,
+    rgba(247, 246, 243, 0.5) 40%,
+    rgba(247, 246, 243, 0.88) 72%,
+    rgba(247, 246, 243, 1.0) 100%
+  );
+  z-index: 0;
+}
+
+/* Légère désaturation de l'image pour ne pas écraser le texte */
+.reader-title-area.has-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  backdrop-filter: saturate(0.65) brightness(0.95);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Dark mode — fond vers #1c1a18 */
+body.dark .reader-title-area.has-hero::before {
+  background: linear-gradient(
+    to bottom,
+    rgba(28, 26, 24, 0.1) 0%,
+    rgba(28, 26, 24, 0.5) 40%,
+    rgba(28, 26, 24, 0.88) 72%,
+    rgba(28, 26, 24, 1.0) 100%
+  );
 }
 
 /* Zone résumé */
