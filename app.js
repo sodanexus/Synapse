@@ -1809,7 +1809,7 @@ RÈGLES ABSOLUES :
           if (!article) return;
           const text = article.ai_content || article.content || article.title || '';
           const lang = (typeof summaryLang !== 'undefined' && summaryLang === 'en') ? 'en-US' : 'fr-FR';
-          TTS.toggle(text, lang);
+          TTS.toggle(text);
         });
       }
 
@@ -2204,28 +2204,19 @@ RÈGLES ABSOLUES :
   })();
 
   /* ================================================================
-     TTS — Text-to-Speech via Google Cloud (proxy Cloudflare Worker)
-     Voix FR WaveNet de qualité, fallback Web Speech API si erreur.
+     TTS — ElevenLabs Text-to-Speech (via Cloudflare Worker proxy)
+     Voix : Lily — féminine, velvety, parfaite pour news/narration
+     Modèle : eleven_flash_v2_5 — rapide, économe en quota
      État : idle | loading | playing | paused
      ================================================================ */
   const TTS = (() => {
     let _audio    = null;   // HTMLAudioElement courant
+    let _blobUrl  = null;   // URL blob à révoquer au stop
     let _state    = 'idle'; // idle | loading | playing | paused
-    let _btn      = null;   // Référence au bouton dans le reader
+    let _abortCtrl = null;  // AbortController pour annuler le fetch en cours
 
-    // Voix disponibles FR WaveNet (qualité) + fallback
-    // Voix Microsoft Edge TTS — Neural, gratuit, sans clé API
-    // FR féminine : DeniseNeural (naturelle), EloiseNeural (douce)
-    // EN féminine : JennyNeural, AriaNeural
-    const VOICES = {
-      'fr-FR': { voice: 'fr-FR-DeniseNeural' },
-      'en-US': { voice: 'en-US-JennyNeural'  },
-    };
-
-    /** Lance ou met en pause la lecture de l'article courant */
-    async function toggle(text, lang = 'fr-FR') {
-      _btn = document.getElementById('btn-listen');
-
+    /** Lance, met en pause ou stoppe selon l'état */
+    async function toggle(text) {
       // Si en lecture → pause
       if (_state === 'playing' && _audio) {
         _audio.pause();
@@ -2240,27 +2231,24 @@ RÈGLES ABSOLUES :
         return;
       }
 
-      // Si loading → annuler
+      // Si loading → annuler le fetch en cours
       if (_state === 'loading') {
-        stop();
+        _abortCtrl?.abort();
+        _setState('idle');
         return;
       }
 
       // Nouvelle lecture
       if (!text || text.trim().length === 0) return;
       _setState('loading');
+      _abortCtrl = new AbortController();
 
       try {
-        const voiceConfig = VOICES[lang] || VOICES['fr-FR'];
         const res = await fetch(`${CONFIG.WORKER_URL}/tts`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text:  text.slice(0, 4500),
-            voice: voiceConfig.voice,
-            rate:  '+0%',
-          }),
-          signal: AbortSignal.timeout(20000),
+          body: JSON.stringify({ text: text.slice(0, 2400) }),
+          signal: _abortCtrl.signal,
         });
 
         if (!res.ok) throw new Error(`TTS error ${res.status}`);
@@ -2272,85 +2260,62 @@ RÈGLES ABSOLUES :
         const binary = atob(data.audioBase64);
         const bytes  = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        const blob   = new Blob([bytes], { type: 'audio/mpeg' });
-        const url    = URL.createObjectURL(blob);
+        const blob = new Blob([bytes], { type: 'audio/mpeg' });
 
-        // Créer et jouer l'audio
-        _audio = new Audio(url);
-        _audio.onended = () => {
-          URL.revokeObjectURL(url);
-          _setState('idle');
-        };
-        _audio.onerror = () => {
-          URL.revokeObjectURL(url);
-          _fallbackWebSpeech(text, lang);
-        };
+        _cleanup(); // nettoyer l'éventuel audio précédent
+        _blobUrl = URL.createObjectURL(blob);
+        _audio   = new Audio(_blobUrl);
+
+        _audio.onended = () => { _cleanup(); _setState('idle'); };
+        _audio.onerror = () => { _cleanup(); _setState('idle'); Toast.show('Erreur audio', 'error'); };
 
         await _audio.play();
         _setState('playing');
 
       } catch (err) {
-        console.warn('TTS Google échoué, fallback Web Speech:', err);
-        _fallbackWebSpeech(text, lang);
-      }
-    }
-
-    /** Arrête complètement la lecture */
-    function stop() {
-      if (_audio) {
-        _audio.pause();
-        _audio.src = '';
-        _audio = null;
-      }
-      window.speechSynthesis?.cancel();
-      _setState('idle');
-    }
-
-    /** Fallback Web Speech API si Google TTS échoue */
-    function _fallbackWebSpeech(text, lang) {
-      if (!window.speechSynthesis) {
-        Toast.show('Audio non disponible', 'error');
+        if (err.name === 'AbortError') {
+          _setState('idle');
+          return;
+        }
+        console.warn('ElevenLabs TTS échoué:', err);
+        Toast.show('Audio indisponible — réessayez', 'error');
         _setState('idle');
-        return;
       }
-      const utt = new SpeechSynthesisUtterance(text.slice(0, 3000));
-      utt.lang = lang;
-      utt.rate = 0.95;
+    }
 
-      // Chercher une voix FR de qualité
-      const voices = window.speechSynthesis.getVoices();
-      const frVoice = voices.find(v => v.lang.startsWith(lang) && v.localService);
-      if (frVoice) utt.voice = frVoice;
+    /** Nettoie l'audio courant sans changer l'état */
+    function _cleanup() {
+      if (_audio) { _audio.pause(); _audio.src = ''; _audio = null; }
+      if (_blobUrl) { URL.revokeObjectURL(_blobUrl); _blobUrl = null; }
+    }
 
-      utt.onend   = () => _setState('idle');
-      utt.onerror = () => _setState('idle');
-
-      window.speechSynthesis.speak(utt);
-      _setState('playing');
-      Toast.show('Lecture via synthèse locale', 'info');
+    /** Arrête complètement — appelé au changement d'article ou fermeture reader */
+    function stop() {
+      _abortCtrl?.abort();
+      _cleanup();
+      _setState('idle');
     }
 
     /** Met à jour l'état et le bouton */
     function _setState(state) {
       _state = state;
-      _btn = document.getElementById('btn-listen');
-      if (!_btn) return;
+      const btn = document.getElementById('btn-listen');
+      if (!btn) return;
 
-      const icons = { idle: '▶', loading: '···', playing: '■', paused: '▶' };
+      const icons  = { idle: '▶', loading: '···', playing: '■', paused: '▶' };
       const titles = {
         idle:    "Écouter l'article",
-        loading: 'Chargement audio...',
+        loading: 'Chargement...',
         playing: 'Pause',
         paused:  'Reprendre',
       };
 
-      _btn.textContent = icons[state] || '▶';
-      _btn.title       = titles[state] || '';
-      _btn.classList.toggle('active', state === 'playing');
-      _btn.classList.toggle('tts-loading', state === 'loading');
+      btn.textContent = icons[state]  || '▶';
+      btn.title       = titles[state] || '';
+      btn.classList.toggle('active',      state === 'playing');
+      btn.classList.toggle('tts-loading', state === 'loading');
     }
 
-    /** Vérifie si une lecture est en cours (pour stopper au changement d'article) */
     function isActive() { return _state !== 'idle'; }
 
     return { toggle, stop, isActive };
