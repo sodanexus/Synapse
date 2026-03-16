@@ -1417,22 +1417,24 @@ RÈGLES ABSOLUES :
         article.importance = result.importance;
         article.ai_tags = result.ai_tags;
         article.sentiment = result.sentiment || 'neutral';
+        if (result.scraped_content) article.scraped_content = result.scraped_content;
 
         if (STATE.user) {
           DB.upsertArticle({
-            feed_id:    article.feed_id || null,
-            user_id:    STATE.user.id,
-            hash:       article.hash,
-            title:      article.title       || '',
-            link:       article.link        || '',
-            content:    article.content     || '',
-            ai_title:   result.ai_title     || null,
-            ai_content: result.ai_content   || '',
-            ai_tags:    result.ai_tags      || [],
-            importance: result.importance   || 1,
-            pub_date:   article.pub_date    || new Date().toISOString(),
-            read:       article.read        || false,
-            bookmarked: article.bookmarked  || false,
+            feed_id:          article.feed_id || null,
+            user_id:          STATE.user.id,
+            hash:             article.hash,
+            title:            article.title          || '',
+            link:             article.link           || '',
+            content:          article.content        || '',
+            ai_title:         result.ai_title        || null,
+            ai_content:       result.ai_content      || '',
+            ai_tags:          result.ai_tags         || [],
+            importance:       result.importance      || 1,
+            pub_date:         article.pub_date       || new Date().toISOString(),
+            read:             article.read           || false,
+            bookmarked:       article.bookmarked     || false,
+            scraped_content:  result.scraped_content || null,
           }).catch(err => console.warn('Sauvegarde Supabase échouée:', err));
         }
 
@@ -1782,32 +1784,65 @@ RÈGLES ABSOLUES :
       // Mode lecteur (dans le menu)
       const readerModeAction = async () => {
         const article = STATE.currentArticleList[STATE.currentArticleIndex];
-        if (!article?.link) return;
+        if (!article) return;
         moreMenu.classList.add('hidden');
+
         const overlay = document.getElementById('reader-mode-overlay');
         const content = document.getElementById('reader-mode-content');
         const source = document.getElementById('reader-mode-source');
         source.textContent = article.feed_name || '';
-        content.innerHTML = '<div class="content-loading"><div class="spinner"></div><span>Chargement...</span></div>';
         overlay.classList.remove('hidden');
-        try {
-          const res = await fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`, {
-            signal: AbortSignal.timeout(10000)
-          });
-          if (!res.ok) throw new Error();
-          const data = await res.json();
-          if (!data.text || data.text.length < 100) throw new Error();
-          const paragraphs = data.text.split('\n\n').filter(p => p.trim());
-          content.innerHTML = `
-            <h1>${Render.escapeHtml(article.ai_title || article.title || '')}</h1>
-            ${paragraphs.map(p => `<p>${Render.escapeHtml(p.trim())}</p>`).join('')}
-          `;
-        } catch {
+
+        // Cas 1 : contenu scrapé déjà dispo en mémoire ou en base
+        let scrapedText = article.scraped_content || null;
+
+        // Cas 2 : tenter le scraping si pas encore fait
+        if (!scrapedText && article.link) {
+          content.innerHTML = '<div class="content-loading"><div class="spinner"></div><span>Chargement...</span></div>';
+          try {
+            const res = await fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`, {
+              signal: AbortSignal.timeout(10000)
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.text && data.text.length > 100) {
+                scrapedText = data.text;
+                article.scraped_content = scrapedText; // Stocker en mémoire
+              }
+            }
+          } catch {}
+        }
+
+        if (!scrapedText) {
           content.innerHTML = `<p style="color:var(--grey-mid);font-family:var(--font-mono);font-size:0.8rem;">
             Ce site bloque la lecture externe.<br><br>
-            <a href="${Render.escapeHtml(article.link)}" target="_blank" rel="noopener" style="color:var(--ink);">↗ Ouvrir dans le navigateur</a>
+            <a href="${Render.escapeHtml(article.link || '#')}" target="_blank" rel="noopener" style="color:var(--ink);">↗ Ouvrir dans le navigateur</a>
           </p>`;
+          return;
         }
+
+        // Détecter si le texte est en anglais (heuristique simple)
+        const isEnglish = /\b(the|and|that|this|with|have|from|they|will|been|were)\b/gi.test(scrapedText.substring(0, 500));
+
+        if (isEnglish) {
+          content.innerHTML = '<div class="content-loading"><div class="spinner"></div><span>Traduction en cours...</span></div>';
+          try {
+            const translated = await AI.callGroq(
+              'Tu es un traducteur expert. Traduis le texte en français naturel et fluide. Conserve la structure des paragraphes. Ne traduis pas les noms propres.',
+              `Traduis ce texte en français :\n\n${scrapedText.substring(0, 4000)}`,
+              1500
+            );
+            scrapedText = translated;
+          } catch {
+            // Si traduction échoue, afficher en anglais
+          }
+        }
+
+        const paragraphs = scrapedText.split('\n\n').filter(p => p.trim());
+        content.innerHTML = `
+          <h1>${Render.escapeHtml(article.ai_title || article.title || '')}</h1>
+          ${paragraphs.map(p => `<p>${Render.escapeHtml(p.trim())}</p>`).join('')}
+        `;
       };
       document.getElementById('btn-reader-mode-menu').addEventListener('click', readerModeAction);
 
