@@ -2351,17 +2351,12 @@ RÈGLES ABSOLUES :
       }
 
       html = html
-        .replace(/<\/?(strong|b|em|i)(\s[^>]*)?>([^<]*)<\/>/gi, '$3')
+        .replace(/<\/?(strong|b|em|i)(\s[^>]*)?>([^<]*)<\/\1>/gi, '$3')
         .replace(/<\/?(strong|b|em|i)(\s[^>]*)?>/gi, '')
-        .replace(/\*\*([^*
-]+)\*\*/g, '$1')
-        .replace(/\*([^*
-]+)\*/g, '$1')
+        .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+        .replace(/\*([^*\n]+)\*/g, '$1')
         .replace(/^###?\s*/gm, '')
-        .replace(/
-{3,}/g, '
-
-')
+        .replace(/\n{3,}/g, '\n\n')
         .trim();
 
       return html;
