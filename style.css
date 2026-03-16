@@ -1738,6 +1738,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   justify-content: space-between;
   padding: 10px 16px;
   border-bottom: var(--border);
+  gap: 8px;
 }
 
 .feed-digest-label {
@@ -1748,19 +1749,29 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   text-transform: uppercase;
 }
 
-.feed-digest-refresh {
+.feed-digest-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.feed-digest-refresh,
+.feed-digest-expand {
   font-size: 1rem;
   color: var(--grey-light);
   cursor: pointer;
   padding: 2px 6px;
   transition: color var(--t-fast), transform var(--t-spring);
+  line-height: 1;
 }
 .feed-digest-refresh:hover { color: var(--ink); transform: rotate(180deg); }
-.feed-digest-refresh:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.feed-digest-expand:hover { color: var(--ink); }
+.feed-digest-refresh:disabled,
+.feed-digest-expand:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
 .feed-digest-content {
-  padding: 16px 20px;
-  max-height: 280px;
+  padding: 20px 24px;
+  max-height: 300px;
   overflow-y: auto;
 }
 
@@ -1771,36 +1782,218 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   letter-spacing: 0.04em;
 }
 
+/* Typographie éditoriale du digest */
 .feed-digest-text {
   font-family: var(--font-display);
-  font-size: 0.88rem;
-  line-height: 1.7;
+  font-size: 0.92rem;
+  line-height: 1.8;
   color: var(--ink);
+  font-weight: 400;
 }
 
 .feed-digest-text h2 {
-  font-size: 0.78rem;
   font-family: var(--font-mono);
-  letter-spacing: 0.08em;
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--grey-mid);
-  margin: 16px 0 6px;
+  margin: 20px 0 8px;
   font-weight: 400;
+  padding-bottom: 6px;
+  border-bottom: var(--border);
 }
 
 .feed-digest-text h2:first-child { margin-top: 0; }
 
 .feed-digest-text p {
-  margin-bottom: 10px;
-  font-size: 0.88rem;
+  margin-bottom: 12px;
+  font-size: 0.92rem;
+  font-weight: 400;
+}
+
+.feed-digest-text strong {
+  font-weight: 500;
 }
 
 .feed-digest-text ul {
-  padding-left: 16px;
-  margin-bottom: 10px;
+  list-style: none;
+  padding: 0;
+  margin-bottom: 12px;
 }
 
 .feed-digest-text li {
-  margin-bottom: 4px;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
+  padding: 3px 0 3px 14px;
+  position: relative;
+  font-weight: 400;
 }
+
+.feed-digest-text li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--grey-light);
+}
+
+/* Modale digest plein écran */
+.digest-fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--white);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  transition: opacity var(--t-normal);
+}
+.digest-fullscreen-overlay.hidden { opacity: 0; pointer-events: none; }
+.digest-fullscreen-overlay:not(.hidden) { opacity: 1; }
+
+.digest-fullscreen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  border-bottom: var(--border);
+  flex-shrink: 0;
+}
+
+.digest-fullscreen-title {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: var(--grey-mid);
+  text-transform: uppercase;
+}
+
+.digest-fullscreen-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.digest-fullscreen-regen {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: var(--grey-mid);
+  cursor: pointer;
+  padding: 4px 8px;
+  border: var(--border);
+  border-radius: 2px;
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+.digest-fullscreen-regen:hover { color: var(--ink); border-color: var(--ink); }
+
+.digest-fullscreen-close {
+  font-size: 0.9rem;
+  color: var(--grey-mid);
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color var(--t-fast);
+}
+.digest-fullscreen-close:hover { color: var(--ink); }
+
+.digest-fullscreen-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 48px 32px;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Typographie plein écran — plus grande */
+.digest-fullscreen-body .feed-digest-text {
+  font-size: 1.05rem;
+  line-height: 1.9;
+}
+
+.digest-fullscreen-body .feed-digest-text h2 {
+  font-size: 0.62rem;
+  margin: 28px 0 12px;
+}
+
+.digest-fullscreen-body .feed-digest-text p {
+  font-size: 1.05rem;
+  margin-bottom: 16px;
+}
+
+.digest-fullscreen-body .feed-digest-text li {
+  font-size: 1rem;
+  padding: 5px 0 5px 16px;
+}
+
+@media (max-width: 600px) {
+  .digest-fullscreen-header { padding: 14px 20px; }
+  .digest-fullscreen-body { padding: 28px 20px; }
+}
+
+/* ================================================================
+   ARTICLE BLOC — Vue pour les articles importants (imp 4-5)
+   ================================================================ */
+.article-bloc {
+  position: relative;
+  display: flex;
+  border-bottom: var(--border);
+  cursor: pointer;
+  transition: background var(--t-fast);
+  animation: rowIn 0.3s var(--ease) both;
+}
+
+.article-bloc:hover { background: var(--grey-wash); }
+.article-bloc.read { opacity: 0.55; }
+
+.bloc-imp-bar {
+  width: 3px;
+  flex-shrink: 0;
+  background: var(--grey-subtle);
+}
+.bloc-imp-bar.imp-4 { background: var(--imp-4); width: 4px; }
+.bloc-imp-bar.imp-5 { background: var(--imp-5); width: 5px; }
+
+.bloc-inner {
+  flex: 1;
+  padding: 16px 16px 14px;
+  min-width: 0;
+}
+
+.bloc-source {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  color: var(--grey-light);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.bloc-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  line-height: 1.35;
+  color: var(--ink);
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.bloc-excerpt {
+  font-size: 0.82rem;
+  color: var(--grey-deep);
+  line-height: 1.55;
+  margin-bottom: 10px;
+  opacity: 0.85;
+}
+
+.bloc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bloc-tags {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.bloc-actions { flex-shrink: 0; }
