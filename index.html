@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=37" />
+  <link rel="stylesheet" href="style.css?v=39" />
   <!-- Anti-flash dark mode : appliqué avant le rendu -->
   <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
@@ -83,10 +83,6 @@
         <a href="#" class="nav-item active" data-view="feed">
           <span class="nav-icon">≡</span>
           <span class="nav-label">FLUX <span class="nav-badge hidden" id="badge-feed"></span><span class="nav-badge-breaking hidden" id="badge-breaking">●</span></span>
-        </a>
-        <a href="#" class="nav-item" data-view="home">
-          <span class="nav-icon">⬡</span>
-          <span class="nav-label">DIGEST</span>
         </a>
         <a href="#" class="nav-item" data-view="bookmarks">
           <span class="nav-icon">◧</span>
@@ -180,7 +176,10 @@
         <div class="feed-digest-banner" id="feed-digest-banner">
           <div class="feed-digest-header">
             <span class="feed-digest-label">⬡ DIGEST IA</span>
-            <button class="feed-digest-refresh" id="btn-feed-digest-refresh" title="Générer le digest">↺</button>
+            <div class="feed-digest-actions">
+              <button class="feed-digest-refresh" id="btn-feed-digest-refresh" title="Générer le digest">↺</button>
+              <button class="feed-digest-expand" id="btn-feed-digest-expand" title="Plein écran">⤢</button>
+            </div>
           </div>
           <div class="feed-digest-content" id="feed-digest-content">
             <span class="feed-digest-placeholder">Appuyez sur ↺ pour générer un briefing de vos actualités</span>
@@ -360,6 +359,20 @@
   <button class="scroll-top-btn hidden" id="btn-scroll-top" title="Retour en haut">↑</button>
 
   <!-- Mode lecteur — iframe propre -->
+  <!-- Modale digest plein écran -->
+  <div class="digest-fullscreen-overlay hidden" id="digest-fullscreen-overlay">
+    <div class="digest-fullscreen-header">
+      <span class="digest-fullscreen-title">⬡ DIGEST IA</span>
+      <div class="digest-fullscreen-actions">
+        <button class="digest-fullscreen-regen" id="btn-digest-fullscreen-regen">↺ Régénérer</button>
+        <button class="digest-fullscreen-close" id="btn-digest-fullscreen-close">✕</button>
+      </div>
+    </div>
+    <div class="digest-fullscreen-body" id="digest-fullscreen-body">
+      <span class="feed-digest-placeholder">Appuyez sur ↺ Régénérer pour générer le digest</span>
+    </div>
+  </div>
+
   <div class="toast-container" id="toast-container"></div>
 
   <!-- ============================================================
@@ -376,6 +389,6 @@
   <!-- Scripts -->
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=44"></script>
+  <script src="app.js?v=46"></script>
 </body>
 </html>
