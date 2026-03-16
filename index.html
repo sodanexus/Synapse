@@ -260,7 +260,10 @@
           <button class="reader-btn font-size-btn" data-size="lg" title="Grande police">A+</button>
           <span class="reader-sep"></span>
           <!-- Audio TTS -->
-          <button class="reader-btn" id="btn-listen" title="Écouter l'article">▶</button>
+          <div class="tts-btn-wrap">
+            <button class="reader-btn" id="btn-listen" title="Écouter l'article">▶</button>
+            <div class="tts-progress-track"><div class="tts-progress-fill" id="tts-progress-bar"></div></div>
+          </div>
           <!-- Bookmark -->
           <button class="reader-btn" id="btn-bookmark" title="Sauvegarder">◧</button>
           <span class="reader-sep"></span>
@@ -331,7 +334,10 @@
         <span class="digest-fullscreen-date" id="digest-header-date"></span>
       </div>
       <div class="digest-fullscreen-actions">
-        <button class="digest-tts-btn" id="btn-digest-listen" title="Écouter le digest">▶</button>
+        <div class="tts-btn-wrap">
+          <button class="digest-tts-btn" id="btn-digest-listen" title="Écouter le digest">▶</button>
+          <div class="tts-progress-track"><div class="tts-progress-fill" id="tts-progress-bar-digest"></div></div>
+        </div>
         <button class="digest-fullscreen-regen" id="btn-digest-fullscreen-regen">↺ Régénérer</button>
         <button class="digest-fullscreen-close" id="btn-digest-fullscreen-close">✕</button>
       </div>
