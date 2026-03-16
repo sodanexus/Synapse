@@ -1380,14 +1380,14 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   .sidebar.open { transform: translateX(0); box-shadow: var(--shadow-lift); }
   .sidebar-toggle { display: flex; }
   .view { padding: 64px 32px 48px; }
-  .view-header { flex-direction: column; align-items: flex-start; }
+  .view-header { flex-direction: row; align-items: center; justify-content: space-between; }
 }
 
 /* ================================================================
    RESPONSIVE — MOBILE
    ================================================================ */
 @media (max-width: 600px) {
-  .view { padding: 28px 20px 40px; }
+  .view { padding: 56px 20px 40px; } /* padding-top 56px pour laisser place au header mobile */
   .view-title { font-size: 2.2rem; }
   .articles-grid { grid-template-columns: 1fr; gap: 12px; }
   .form-row { flex-direction: column; }
@@ -2466,4 +2466,31 @@ body.dark .auth-input {
 body.dark .quota-warning {
   background: var(--grey-wash);
   border-color: var(--grey-subtle);
+}
+
+
+/* ================================================================
+   TTS — Bouton écouter dans le reader
+   ================================================================ */
+#btn-listen {
+  min-width: 32px;
+  justify-content: center;
+  transition: color var(--t-fast), background var(--t-fast), transform var(--t-fast);
+}
+
+#btn-listen.active {
+  color: var(--ink);
+  background: var(--grey-wash);
+}
+
+/* Animation de chargement sur les "···" */
+#btn-listen.tts-loading {
+  opacity: 0.5;
+  animation: pulse 1s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
 }
