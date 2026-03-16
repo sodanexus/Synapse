@@ -1013,6 +1013,9 @@ RÈGLES ABSOLUES :
     function renderFeedArticles(articles, filter = 'all', query = '') {
       const container = document.getElementById('feed-articles');
       const countEl = document.getElementById('feed-count');
+
+      // Mettre à jour les stats d'accueil à la place du count
+      const statsEl = document.getElementById('feed-welcome-stats');
       container.innerHTML = '';
 
       // Si une recherche Supabase est active, utiliser ses résultats
@@ -1061,10 +1064,18 @@ RÈGLES ABSOLUES :
       const label = STATE.searchResults !== null
         ? `${totalCount} résultat${totalCount !== 1 ? 's' : ''} (base complète)`
         : `${totalCount} article${totalCount !== 1 ? 's' : ''}`;
-      countEl.textContent = label;
-      countEl.className = STATE.isSearching ? 'articles-count searching'
-        : STATE.searchResults !== null ? 'articles-count db-results'
-        : 'articles-count';
+
+      if (countEl) {
+        countEl.textContent = label;
+        countEl.className = STATE.isSearching ? 'articles-count searching'
+          : STATE.searchResults !== null ? 'articles-count db-results'
+          : 'articles-count';
+      }
+
+      // Mettre à jour les stats d'accueil si en mode recherche
+      if (statsEl && STATE.searchResults !== null) {
+        statsEl.textContent = label;
+      }
 
       if (filtered.length === 0) {
         const msg = STATE.isSearching
