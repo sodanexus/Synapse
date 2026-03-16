@@ -2233,3 +2233,63 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   color: var(--ink);
   border-color: var(--ink);
 }
+
+
+/* ================================================================
+   QUOTA TRACKER — indicateur d'utilisation API Groq
+   ================================================================ */
+:root {
+  --quota-ok:   #888888;
+  --quota-warn: #c0392b;
+}
+body.dark {
+  --quota-ok:   #606060;
+  --quota-warn: #e06060;
+}
+
+.quota-indicator {
+  padding: 8px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-bottom: var(--border);
+  margin-bottom: 8px;
+}
+
+.quota-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quota-label {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+  color: var(--grey-light);
+  text-transform: uppercase;
+  width: 42px;
+  flex-shrink: 0;
+}
+
+.quota-bar-wrap {
+  flex: 1;
+  height: 2px;
+  background: var(--grey-subtle);
+  overflow: hidden;
+}
+
+.quota-bar {
+  height: 100%;
+  transition: width 0.4s var(--ease), background 0.3s;
+}
+
+.quota-val {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  color: var(--grey-light);
+  white-space: nowrap;
+  width: 60px;
+  text-align: right;
+  flex-shrink: 0;
+}
