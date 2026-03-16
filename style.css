@@ -1217,20 +1217,41 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 .reader-footer {
   display: flex;
   justify-content: space-between;
-  padding: 14px 28px;
+  align-items: stretch;
+  padding: 0;
   border-top: var(--border);
 }
 
 .reader-nav-btn {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  color: var(--grey-light);
-  padding: 6px 0;
-  transition: color 0.15s;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  color: var(--grey-mid);
+  padding: 18px 28px;
+  transition: color var(--t-fast), background var(--t-fast);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  max-width: 48%;
 }
 
-.reader-nav-btn:hover { color: var(--ink); }
+.reader-nav-btn:hover { color: var(--ink); background: var(--grey-wash); }
+.reader-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.reader-nav-btn:disabled:hover { background: none; }
+.reader-nav-next { justify-content: flex-end; }
+
+.reader-nav-arrow {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.reader-nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.62rem;
+}
 
 /* ================================================================
    TOAST NOTIFICATIONS
