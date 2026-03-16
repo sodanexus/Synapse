@@ -1740,22 +1740,12 @@ RÈGLES ABSOLUES :
       };
       document.getElementById('btn-share-menu').addEventListener('click', shareAction);
 
-      // Ouvrir l'article — reader:// sur Safari iOS, sinon nouvel onglet
+      // Ouvrir l'article — nouvel onglet sur tous les appareils
       document.getElementById('btn-open-source').addEventListener('click', () => {
         const article = STATE.currentArticleList[STATE.currentArticleIndex];
         if (!article?.link) return;
         moreMenu.classList.add('hidden');
-
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
-        if (isIOS && isSafari) {
-          // reader:// force le mode lecteur Safari sur iOS
-          const readerUrl = 'reader://' + article.link.replace(/^https?:\/\//, '');
-          window.location.href = readerUrl;
-        } else {
-          window.open(article.link, '_blank', 'noopener');
-        }
+        window.open(article.link, '_blank', 'noopener');
       });
 
     }
