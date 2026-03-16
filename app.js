@@ -491,7 +491,7 @@
         article.title || '',
         article.description || '',
         article.content || '',
-      ].filter(Boolean).join('\n\n').substring(0, 2000);
+      ].filter(Boolean).join('\n\n').substring(0, 4000);
 
       if (rssText.trim().length < 30) {
         return { ai_content: article.content || article.title || '', importance: 1, ai_tags: [], sentiment: 'neutral' };
@@ -1453,15 +1453,9 @@ RÈGLES ABSOLUES :
       const score = article.importance || 1;
       document.getElementById('reader-imp-bars').innerHTML = Render.importanceBars(score);
 
-      // Tags
+      // Tags (sans sentiment)
       const tagsEl = document.getElementById('reader-tags');
-      const sentimentIcon = { positive: '↑', negative: '↓', neutral: '→' };
-      const sentimentLabel = { positive: 'positif', negative: 'négatif', neutral: 'neutre' };
-      const s = article.sentiment || 'neutral';
-      const sentimentHtml = article.sentiment
-        ? `<span class="tag sentiment-${s}">${sentimentIcon[s]} ${sentimentLabel[s]}</span>`
-        : '';
-      tagsEl.innerHTML = sentimentHtml + (article.ai_tags || []).map(t =>
+      tagsEl.innerHTML = (article.ai_tags || []).map(t =>
         `<span class="tag">${Render.escapeHtml(t)}</span>`
       ).join('');
 
@@ -1489,29 +1483,25 @@ RÈGLES ABSOLUES :
       const relatedList = document.getElementById('reader-related-list');
       if (!relatedZone || !relatedList) return;
 
-      // Scorer chaque article par pertinence :
-      // +2 par tag commun, +1 si similarité de titre > 0.15
       const tags = (article.ai_tags || []).map(t => t.toLowerCase().trim());
-      const titleWords = new Set(article.title.toLowerCase()
+      const titleWords = new Set((article.ai_title || article.title || '').toLowerCase()
         .replace(/[^a-z0-9àâéèêëîïôùûü]/g, ' ')
         .split(/\s+/).filter(w => w.length > 3));
 
       const scored = STATE.articles
-        .filter(a => a.hash !== article.hash)
+        .filter(a => a.hash !== article.hash && a.ai_tags?.length > 0) // enrichis uniquement
         .map(a => {
           let score = 0;
-          // Tags communs
           const aTags = (a.ai_tags || []).map(t => t.toLowerCase().trim());
           score += aTags.filter(t => tags.includes(t)).length * 2;
-          // Mots du titre en commun
-          const aWords = new Set(a.title.toLowerCase()
+          const aWords = new Set((a.ai_title || a.title || '').toLowerCase()
             .replace(/[^a-z0-9àâéèêëîïôùûü]/g, ' ')
             .split(/\s+/).filter(w => w.length > 3));
           const common = [...titleWords].filter(w => aWords.has(w)).length;
           score += common;
           return { article: a, score };
         })
-        .filter(({ score }) => score > 0)
+        .filter(({ score }) => score >= 2) // seuil plus strict
         .sort((a, b) => b.score - a.score)
         .slice(0, 4)
         .map(({ article }) => article);
@@ -1525,7 +1515,7 @@ RÈGLES ABSOLUES :
         div.className = 'reader-related-item';
         div.innerHTML = `
           <div class="reader-related-source">${Render.escapeHtml(rel.feed_name || '')} · ${Render.relativeTime(rel.pub_date)}</div>
-          <div class="reader-related-headline">${Render.escapeHtml(rel.title || '')}</div>
+          <div class="reader-related-headline">${Render.escapeHtml(rel.ai_title || rel.title || '')}</div>
         `;
         div.addEventListener('click', () => {
           const idx = STATE.currentArticleList.findIndex(a => a.hash === rel.hash);
