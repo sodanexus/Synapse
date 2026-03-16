@@ -56,7 +56,6 @@
     user: null,              // Utilisateur Supabase connecté
     feeds: [],               // Liste des feeds RSS de l'utilisateur
     articles: [],            // Tous les articles chargés (enrichis IA)
-    clusters: [],            // Articles regroupés par sujet
     bookmarks: new Set(),    // IDs des articles bookmarkés
     readArticles: new Set(), // IDs des articles lus
     currentView: 'feed',     // Vue active
@@ -671,54 +670,7 @@ RÈGLES ABSOLUES :
       return { unique, duplicates };
     }
 
-    /**
-     * Groupe les articles par thème en utilisant les tags IA.
-     * Retourne un tableau de clusters : { topic, articles[], importance }
-     */
-    function clusterByTopic(articles) {
-      const tagMap = new Map(); // tag → [articles]
-
-      // Grouper les articles par tag IA
-      for (const article of articles) {
-        const tags = article.ai_tags || [];
-        for (const tag of tags) {
-          const key = tag.toLowerCase().trim();
-          if (!tagMap.has(key)) tagMap.set(key, []);
-          tagMap.get(key).push(article);
-        }
-      }
-
-      // Ne garder que les tags avec au moins 2 articles
-      const clusters = [];
-      const usedArticleIds = new Set();
-
-      // Trier les tags par nombre d'articles (décroissant)
-      const sortedTags = [...tagMap.entries()]
-        .filter(([, arts]) => arts.length >= 2)
-        .sort(([, a], [, b]) => b.length - a.length);
-
-      for (const [topic, arts] of sortedTags) {
-        // Éviter qu'un article apparaisse dans plusieurs clusters
-        const clusterArticles = arts.filter(a => !usedArticleIds.has(a.hash));
-        if (clusterArticles.length < 2) continue;
-
-        clusterArticles.forEach(a => usedArticleIds.add(a.hash));
-
-        const avgImportance = clusterArticles.reduce((s, a) => s + (a.importance || 1), 0) / clusterArticles.length;
-
-        clusters.push({
-          id: `cluster-${topic.replace(/\s+/g, '-')}`,
-          topic: topic.charAt(0).toUpperCase() + topic.slice(1),
-          articles: clusterArticles.sort((a, b) => (b.importance || 0) - (a.importance || 0)),
-          importance: Math.round(avgImportance),
-        });
-      }
-
-      // Trier les clusters par importance décroissante
-      return clusters.sort((a, b) => b.importance - a.importance);
-    }
-
-    return { deduplicate, clusterByTopic };
+    return { deduplicate };
   })();
 
   /* ================================================================
@@ -1771,7 +1723,6 @@ RÈGLES ABSOLUES :
             // Mettre à jour le state en mémoire
             STATE.feeds = STATE.feeds.filter(f => f.id !== feed.id);
             STATE.articles = STATE.articles.filter(a => a.feed_id !== feed.id);
-            STATE.clusters = Cluster.clusterByTopic(STATE.articles);
 
             row.remove();
             Sync.refreshUI();
@@ -1864,7 +1815,6 @@ RÈGLES ABSOLUES :
 
             // Réinitialiser le state
             STATE.articles = [];
-            STATE.clusters = [];
             STATE.bookmarks = new Set();
             STATE.readArticles = new Set();
 
@@ -1879,7 +1829,6 @@ RÈGLES ABSOLUES :
             // Même si Supabase échoue, vider le state local
             Cache.clear(STATE.user.id);
             STATE.articles = [];
-            STATE.clusters = [];
             Sync.refreshUI();
             Toast.show('Cache local vidé — sync en cours...', 'info');
             setTimeout(() => Sync.run(), 500);
@@ -2296,7 +2245,6 @@ RÈGLES ABSOLUES :
         // 5. Clustering
         Loader.setStatus('Clustering thématique...');
         Loader.setProgress(85);
-        STATE.clusters = Cluster.clusterByTopic(STATE.articles);
 
         // 6. Rendu UI
         Loader.setStatus('Mise à jour de l\'interface...');
@@ -2368,6 +2316,7 @@ RÈGLES ABSOLUES :
       Settings.renderFeedsManager(STATE.feeds);
       Render.renderSidebarFeeds(STATE.feeds);
       updateBadge();
+      renderWelcome();
     }
 
     /** Met à jour le badge "non lus" dans la nav */
@@ -2659,6 +2608,81 @@ RÈGLES ABSOLUES :
       });
     }
 
+    // En-tête d'accueil — date, stats, sujets dominants
+    function renderWelcome() {
+      const dateEl = document.getElementById('feed-welcome-date');
+      const statsEl = document.getElementById('feed-welcome-stats');
+      const topicsEl = document.getElementById('feed-topics');
+      if (!dateEl) return;
+
+      // Date du jour
+      const now = new Date();
+      dateEl.textContent = now.toLocaleDateString('fr-FR', {
+        weekday: 'long', day: 'numeric', month: 'long'
+      });
+
+      // Stats articles
+      const unread = STATE.articles.filter(a => !a.read).length;
+      const total = STATE.articles.length;
+      const important = STATE.articles.filter(a => (a.importance || 0) >= 4 && !a.read).length;
+      let statsText = `${total} article${total > 1 ? 's' : ''}`;
+      if (unread > 0) statsText += ` · ${unread} non lu${unread > 1 ? 's' : ''}`;
+      if (important > 0) statsText += ` · ${important} important${important > 1 ? 's' : ''}`;
+      statsEl.textContent = statsText;
+
+      // Sujets dominants (top 4 tags les plus fréquents)
+      if (topicsEl) {
+        const tagCount = {};
+        STATE.articles.forEach(a => (a.ai_tags || []).forEach(t => {
+          const k = t.toLowerCase().trim();
+          tagCount[k] = (tagCount[k] || 0) + 1;
+        }));
+        const topTags = Object.entries(tagCount)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 4)
+          .map(([tag]) => tag);
+
+        topicsEl.innerHTML = topTags.length
+          ? topTags.map(t => `<button class="topic-chip" data-topic="${t}">${t}</button>`).join('')
+          : '';
+
+        // Clic sur un sujet → filtre de recherche
+        topicsEl.querySelectorAll('.topic-chip').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const q = btn.dataset.topic;
+            const searchBar = document.getElementById('search-bar');
+            const searchInput = document.getElementById('search-input');
+            searchBar.classList.remove('hidden');
+            searchInput.value = q;
+            searchInput.dispatchEvent(new Event('input'));
+            searchInput.focus();
+          });
+        });
+      }
+    }
+
+    // Toggle de la barre de recherche
+    const searchBar = document.getElementById('search-bar');
+    const searchToggle = document.getElementById('btn-search-toggle');
+    const searchCloseBtn = document.getElementById('btn-search-close');
+
+    if (searchToggle) searchToggle.addEventListener('click', () => {
+      searchBar.classList.toggle('hidden');
+      if (!searchBar.classList.contains('hidden')) {
+        document.getElementById('search-input').focus();
+      }
+    });
+
+    if (searchCloseBtn) searchCloseBtn.addEventListener('click', () => {
+      searchBar.classList.add('hidden');
+      const si = document.getElementById('search-input');
+      si.value = '';
+      STATE.searchQuery = '';
+      STATE.searchResults = null;
+      STATE.articlesPage = 0;
+      Render.renderFeedArticles(STATE.articles, STATE.currentFilter, '');
+    });
+
     // Recherche — locale d'abord, puis Supabase si peu de résultats
     const searchInput = document.getElementById('search-input');
     let searchDebounce;
@@ -2904,7 +2928,6 @@ RÈGLES ABSOLUES :
           cachedArticles.filter(a => a.read).map(a => a.id)
         );
 
-        STATE.clusters = Cluster.clusterByTopic(STATE.articles);
         Sync.refreshUI();
       }
 
