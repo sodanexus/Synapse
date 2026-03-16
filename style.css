@@ -1174,6 +1174,34 @@ body.dark .reader-title-area.has-hero::before {
   );
 }
 
+/* Quand hero actif — titre et tags en couleur sombre pour contraste */
+.reader-title-area.has-hero .reader-title {
+  color: var(--ink);
+  text-shadow: 0 1px 8px rgba(247, 246, 243, 0.4);
+}
+
+.reader-title-area.has-hero .reader-tags .tag {
+  background: rgba(247, 246, 243, 0.7);
+  border-color: rgba(0,0,0,0.12);
+  backdrop-filter: blur(4px);
+}
+
+.reader-title-area.has-hero .reader-importance {
+  background: transparent;
+}
+
+/* Header toolbar — fond semi-transparent quand hero actif */
+.reader-modal:has(.reader-title-area.has-hero) .reader-header {
+  background: rgba(247, 246, 243, 0.82);
+  backdrop-filter: blur(8px);
+  border-bottom-color: rgba(0,0,0,0.08);
+}
+
+body.dark .reader-modal:has(.reader-title-area.has-hero) .reader-header {
+  background: rgba(28, 26, 24, 0.82);
+  border-bottom-color: rgba(255,255,255,0.08);
+}
+
 /* Zone résumé */
 .reader-summary {
   background: var(--grey-wash);
