@@ -1207,10 +1207,23 @@ body.dark .reader-modal:has(.reader-title-area.has-hero) .reader-header {
   border-bottom-color: transparent;
 }
 
+/* Supprimer le border-top du modal quand hero — évite la ligne de démarcation */
+.reader-overlay:has(.reader-title-area.has-hero) .reader-modal {
+  border-top-color: transparent;
+}
+
 
 /* Pas de séparation visuelle entre hero et contenu */
 .reader-modal:has(.reader-title-area.has-hero) .reader-content {
   padding-top: 20px;
+  border-top: none;
+  margin-top: 0;
+}
+
+/* Supprimer toute ligne entre hero et contenu */
+.reader-modal:has(.reader-title-area.has-hero) .reader-title-area {
+  margin-bottom: 0;
+  border-bottom: none;
 }
 
 /* Zone résumé */
