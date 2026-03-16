@@ -715,16 +715,20 @@ RÈGLES ABSOLUES :
       const toggle = document.getElementById('sidebar-toggle');
       const sidebar = document.getElementById('sidebar');
 
-      toggle.addEventListener('click', () => {
-        sidebar.classList.toggle('open');
-      });
+      const toggleSidebar = () => sidebar.classList.toggle('open');
+      if (toggle) toggle.addEventListener('click', toggleSidebar);
+
+      // Hamburger inline (aligné avec FLUX sur mobile)
+      const inlineToggle = document.getElementById('sidebar-toggle-inline');
+      if (inlineToggle) inlineToggle.addEventListener('click', toggleSidebar);
 
       // Fermer sidebar en cliquant en dehors
       document.addEventListener('click', (e) => {
         if (window.innerWidth <= 900 &&
           sidebar.classList.contains('open') &&
           !sidebar.contains(e.target) &&
-          !toggle.contains(e.target)) {
+          !(toggle && toggle.contains(e.target)) &&
+          !(inlineToggle && inlineToggle.contains(e.target))) {
           sidebar.classList.remove('open');
         }
       });
