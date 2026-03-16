@@ -961,11 +961,15 @@ RÈGLES ABSOLUES :
       if (isImportant) {
         // Vue card compacte pour les articles importants
         row.className = `article-card-compact${article.read ? ' read' : ''}`;
+        const isBookmarked = STATE.bookmarks.has(article.id || article.hash);
         row.innerHTML = `
           <div class="card-compact-bar imp-${score}"></div>
-          <div class="card-compact-source">${escapeHtml(article.feed_name || '')} · ${relativeTime(article.pub_date)}</div>
+          <div class="card-compact-header">
+            <div class="card-compact-source">${escapeHtml(article.feed_name || '')} · ${relativeTime(article.pub_date)}</div>
+            <button class="card-compact-bookmark${isBookmarked ? ' bookmarked' : ''}" data-action="bookmark" title="Sauvegarder">◧</button>
+          </div>
           <div class="card-compact-title">${escapeHtml(article.ai_title || article.title || '')}</div>
-          ${article.ai_content ? `<div class="card-compact-excerpt">${escapeHtml(article.ai_content.substring(0, 90))}…</div>` : ''}
+          ${article.ai_content ? `<div class="card-compact-excerpt">${escapeHtml(article.ai_content.substring(0, 150))}…</div>` : ''}
         `;
       } else {
         // Vue row normale
@@ -1079,8 +1083,9 @@ RÈGLES ABSOLUES :
       // Si pas de filtre actif et pas de recherche → articles importants non lus en tête
       // Sinon → chronologique pur
       if (filter === 'all' && !query && STATE.searchResults === null) {
+        const cutoff48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
         const breaking = filtered
-          .filter(a => (a.importance || 0) >= 4 && !a.read)
+          .filter(a => (a.importance || 0) >= 4 && !a.read && (a.pub_date || '') >= cutoff48h)
           .sort((a, b) => (b.importance || 0) - (a.importance || 0) || new Date(b.pub_date) - new Date(a.pub_date))
           .slice(0, 4);
         const breakingHashes = new Set(breaking.map(a => a.hash));
