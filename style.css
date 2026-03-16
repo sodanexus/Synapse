@@ -1770,8 +1770,8 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 .feed-digest-expand:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
 .feed-digest-content {
-  padding: 20px 24px;
-  max-height: 300px;
+  padding: 16px 20px;
+  max-height: 180px;
   overflow-y: auto;
 }
 
