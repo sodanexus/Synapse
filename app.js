@@ -1473,15 +1473,19 @@ RÈGLES ABSOLUES :
     /** Applique l'image hero en fond de la zone titre */
     function _setHeroImage(article) {
       const titleArea = document.getElementById('reader-title-area');
+      const modal = document.getElementById('reader-modal');
       if (!titleArea) return;
 
       // Reset — supprimer le hero-bg précédent
       const oldBg = titleArea.querySelector('.hero-bg');
       if (oldBg) oldBg.remove();
       titleArea.classList.remove('has-hero');
+      if (modal) modal.classList.remove('hero-ready');
 
       const img = article.image || '';
       if (img) {
+        // Appliquer border:none immédiatement, avant le chargement de l'image
+        if (modal) modal.classList.add('hero-ready');
         _applyHero(titleArea, img);
         return;
       }
@@ -1497,6 +1501,7 @@ RÈGLES ABSOLUES :
             const current = STATE.currentArticleList[STATE.currentArticleIndex];
             if (current?.hash !== article.hash) return;
             article.image = data.ogImage;
+            if (modal) modal.classList.add('hero-ready');
             _applyHero(titleArea, data.ogImage);
           })
           .catch(() => {});
