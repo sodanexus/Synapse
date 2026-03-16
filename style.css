@@ -723,8 +723,8 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 .row-imp-bar.imp-1 { background: var(--imp-1); }
 .row-imp-bar.imp-2 { background: var(--imp-2); }
 .row-imp-bar.imp-3 { background: var(--imp-3); }
-.row-imp-bar.imp-4 { background: var(--imp-4); }
-.row-imp-bar.imp-5 { background: var(--imp-5); }
+.row-imp-bar.imp-4 { background: var(--imp-4); width: 4px; }
+.row-imp-bar.imp-5 { background: var(--imp-5); width: 5px; }
 
 .row-source {
   font-family: var(--font-mono);
