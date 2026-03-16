@@ -1902,6 +1902,12 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   flex-shrink: 0;
 }
 
+.digest-fullscreen-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
 .digest-fullscreen-title {
   font-family: var(--font-mono);
   font-size: 0.62rem;
@@ -1910,10 +1916,41 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   text-transform: uppercase;
 }
 
+.digest-fullscreen-date {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  color: var(--grey-light);
+  text-transform: uppercase;
+}
+
 .digest-fullscreen-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* Bouton TTS digest */
+.digest-tts-btn {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: var(--grey-mid);
+  cursor: pointer;
+  padding: 4px 10px;
+  border: var(--border);
+  border-radius: 2px;
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+}
+.digest-tts-btn:hover { color: var(--ink); border-color: var(--ink); }
+.digest-tts-btn.active {
+  background: var(--ink);
+  color: var(--white);
+  border-color: var(--ink);
+}
+.digest-tts-btn.tts-loading {
+  opacity: 0.5;
+  cursor: wait;
 }
 
 .digest-fullscreen-regen {
@@ -1928,6 +1965,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   transition: color var(--t-fast), border-color var(--t-fast);
 }
 .digest-fullscreen-regen:hover { color: var(--ink); border-color: var(--ink); }
+.digest-fullscreen-regen:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .digest-fullscreen-close {
   font-size: 0.9rem;
@@ -1947,6 +1985,92 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   width: 100%;
 }
 
+/* Footer digest */
+.digest-fullscreen-footer {
+  border-top: var(--border);
+  padding: 10px 32px;
+  flex-shrink: 0;
+}
+.digest-footer-meta {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  color: var(--grey-light);
+  text-transform: uppercase;
+}
+
+/* État vide / chargement */
+.digest-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 12px;
+  text-align: center;
+}
+
+.digest-empty-glyph {
+  font-size: 3rem;
+  color: var(--grey-wash);
+  line-height: 1;
+  margin-bottom: 8px;
+  animation: digestPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes digestPulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+.digest-empty-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  color: var(--grey-mid);
+  text-transform: uppercase;
+}
+
+.digest-empty-desc {
+  font-size: 0.85rem;
+  color: var(--grey-mid);
+  line-height: 1.7;
+  max-width: 340px;
+  margin: 4px 0 16px;
+}
+
+.digest-loading-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.digest-step {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: var(--grey-light);
+  padding: 6px 12px;
+  border: var(--border);
+  border-radius: 2px;
+  opacity: 0.4;
+  transition: opacity 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+  text-align: left;
+}
+
+.digest-step.active {
+  opacity: 1;
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.digest-step.done {
+  opacity: 0.6;
+  color: var(--grey-mid);
+}
+
 /* Typographie plein écran — plus grande */
 .digest-fullscreen-body .feed-digest-text {
   font-size: 1.05rem;
@@ -1955,11 +2079,25 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 
 .digest-fullscreen-body .feed-digest-text h2 {
   font-size: 0.62rem;
-  margin: 28px 0 12px;
+  margin: 36px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.digest-fullscreen-body .feed-digest-text h2::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--ink);
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .digest-fullscreen-body .feed-digest-text p {
-  font-size: 1.05rem;
   margin-bottom: 16px;
 }
 
@@ -1968,11 +2106,24 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   padding: 5px 0 5px 16px;
 }
 
-@media (max-width: 600px) {
-  .digest-fullscreen-header { padding: 14px 20px; }
-  .digest-fullscreen-body { padding: 28px 20px; }
+/* Animation sections au rendu */
+.digest-fullscreen-body .feed-digest-text h2,
+.digest-fullscreen-body .feed-digest-text p,
+.digest-fullscreen-body .feed-digest-text ul {
+  animation: digestFadeIn 0.4s ease forwards;
 }
 
+@keyframes digestFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  .digest-fullscreen-header { padding: 12px 16px; }
+  .digest-fullscreen-body { padding: 24px 16px; }
+  .digest-fullscreen-footer { padding: 10px 16px; }
+  .digest-fullscreen-date { display: none; }
+}
 
 /* ================================================================
    GRILLE ARTICLES IMPORTANTS — Cards compactes 2 colonnes
