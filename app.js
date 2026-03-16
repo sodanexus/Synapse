@@ -1564,11 +1564,14 @@ RÈGLES ABSOLUES :
       document.getElementById('reader-imp-bars').innerHTML = Render.importanceBars(score);
 
 
-      // Tags (sans sentiment)
+      // Tags — max 3 affichés + indicateur "+N" si plus
       const tagsEl = document.getElementById('reader-tags');
-      tagsEl.innerHTML = (article.ai_tags || []).map(t =>
+      const allTags = article.ai_tags || [];
+      const visibleTags = allTags.slice(0, 3);
+      const extraCount = allTags.length - visibleTags.length;
+      tagsEl.innerHTML = visibleTags.map(t =>
         `<span class="tag">${Render.escapeHtml(t)}</span>`
-      ).join('');
+      ).join('') + (extraCount > 0 ? `<span class="tag tag-more">+${extraCount}</span>` : '');
 
       // Mettre à jour l'icône bookmark
       const bookmarkBtn = document.getElementById('btn-bookmark');
