@@ -1416,6 +1416,9 @@ RÈGLES ABSOLUES :
           populate(article, true);
         }
 
+        // Mettre à jour la row dans le feed sans re-render complet
+        _updateFeedRow(article);
+
       } catch (err) {
         if (err.message === 'QUOTA_EXHAUSTED') {
           _showQuotaWarning();
@@ -1426,6 +1429,77 @@ RÈGLES ABSOLUES :
       } finally {
         if (titleEl) titleEl.style.opacity = '';
       }
+    }
+
+    /**
+     * Met à jour chirurgicalement la row d'un article dans le feed
+     * après enrichissement IA — sans re-render tout le feed.
+     */
+    function _updateFeedRow(article) {
+      const hash = article.hash || '';
+      const rows = document.querySelectorAll(`[data-hash="${hash}"]`);
+      if (!rows.length) return;
+
+      const score = article.importance || 1;
+
+      rows.forEach(row => {
+        // ── Card compacte (articles importants) ──
+        if (row.classList.contains('article-card-compact')) {
+          const titleEl  = row.querySelector('.card-compact-title');
+          const excerptEl = row.querySelector('.card-compact-excerpt');
+          const barEl    = row.querySelector('.card-compact-bar');
+
+          if (titleEl)  titleEl.textContent = article.ai_title || article.title || '';
+          if (barEl) {
+            barEl.className = `card-compact-bar imp-${score}`;
+          }
+          if (article.ai_content) {
+            if (excerptEl) {
+              excerptEl.textContent = article.ai_content.substring(0, 90) + '…';
+            } else {
+              // Créer l'excerpt s'il n'existait pas
+              const div = document.createElement('div');
+              div.className = 'card-compact-excerpt';
+              div.textContent = article.ai_content.substring(0, 90) + '…';
+              row.appendChild(div);
+            }
+          }
+        }
+
+        // ── Row normale ──
+        if (row.classList.contains('article-row')) {
+          const titleEl   = row.querySelector('.row-title');
+          const excerptEl = row.querySelector('.row-excerpt');
+          const metaEl    = row.querySelector('.row-meta');
+          const barEl     = row.querySelector('.row-imp-bar');
+
+          if (titleEl)  titleEl.textContent  = article.ai_title || article.title || '';
+          if (metaEl)   metaEl.textContent   = (article.ai_tags || []).slice(0, 3).join(' · ');
+          if (barEl) {
+            barEl.className = `row-imp-bar imp-${score}`;
+          }
+          if (article.ai_content) {
+            if (excerptEl) {
+              excerptEl.textContent = article.ai_content.substring(0, 120) + '…';
+            } else {
+              // Créer l'excerpt s'il n'existait pas (article sans résumé au départ)
+              const rowBody = row.querySelector('.row-body');
+              if (rowBody) {
+                const div = document.createElement('div');
+                div.className = 'row-excerpt';
+                div.textContent = article.ai_content.substring(0, 120) + '…';
+                // Insérer après le titre
+                const titleInBody = rowBody.querySelector('.row-title');
+                if (titleInBody && titleInBody.nextSibling) {
+                  rowBody.insertBefore(div, titleInBody.nextSibling);
+                } else {
+                  rowBody.appendChild(div);
+                }
+              }
+            }
+          }
+        }
+      });
     }
 
     /** Affiche un avertissement quota dans le reader */
