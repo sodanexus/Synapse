@@ -1030,7 +1030,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   border: var(--border);
   box-shadow: var(--shadow-lift);
   width: 100%;
-  max-width: 680px;
+  max-width: 720px;
   animation: slideUp 0.35s var(--ease-out);
 }
 
@@ -2828,8 +2828,9 @@ body.dark {
 
 
 .reader-meta-bottom {
-  padding: 20px 36px 4px;
+  padding: 20px 36px;
   border-top: var(--border);
+  border-bottom: var(--border);
   display: flex;
   flex-direction: row;
   align-items: center;
