@@ -458,7 +458,9 @@
       // Gestion du rate limit : retry avec backoff exponentiel
       if (response.status === 429) {
         if (retryCount >= 3) {
-          throw new Error('Rate limit Groq atteint après plusieurs tentatives. Réessayez dans quelques minutes.');
+          // Marquer le modèle comme épuisé — centralisé ici pour tous les appelants
+          QuotaTracker.markExhausted(usedModel);
+          throw new Error('QUOTA_EXHAUSTED');
         }
         // Attendre de plus en plus longtemps : 5s, 10s, 20s
         const waitMs = (5000) * Math.pow(2, retryCount);
@@ -1372,6 +1374,12 @@ RÈGLES ABSOLUES :
      * Affiche un indicateur de chargement dans le reader pendant le traitement.
      */
     async function enrichOnOpen(article) {
+      // Vérifier le quota avant tout appel
+      if (QuotaTracker.isExhausted(CONFIG.GROQ_MODEL_ENRICH)) {
+        _showQuotaWarning();
+        return;
+      }
+
       // Indicateur de chargement sur le titre du reader
       const titleEl = document.getElementById('reader-title');
       if (titleEl) titleEl.style.opacity = '0.5';
@@ -1409,11 +1417,35 @@ RÈGLES ABSOLUES :
         }
 
       } catch (err) {
-        console.warn('Enrichissement IA échoué:', err);
-        Toast.show('IA indisponible — réessayez plus tard', 'info');
+        if (err.message === 'QUOTA_EXHAUSTED') {
+          _showQuotaWarning();
+        } else {
+          console.warn('Enrichissement IA échoué:', err);
+          Toast.show('IA indisponible — réessayez plus tard', 'info');
+        }
       } finally {
         if (titleEl) titleEl.style.opacity = '';
       }
+    }
+
+    /** Affiche un avertissement quota dans le reader */
+    function _showQuotaWarning() {
+      const contentEl = document.getElementById('reader-content');
+      if (!contentEl) return;
+      // Ne pas écraser un contenu déjà présent
+      if (contentEl.querySelector('.quota-warning')) return;
+      const warn = document.createElement('div');
+      warn.className = 'quota-warning';
+      warn.innerHTML = `
+        <div class="quota-warning-icon">⊘</div>
+        <div class="quota-warning-text">
+          Quota IA atteint pour aujourd'hui.<br>
+          L'article s'affiche en version originale.<br>
+          <span class="quota-warning-sub">Remise à zéro à minuit UTC</span>
+        </div>
+      `;
+      contentEl.prepend(warn);
+      Toast.show('Quota IA atteint — remise à zéro à minuit', 'info', 5000);
     }
 
     /** Ferme le reader */
@@ -2118,10 +2150,13 @@ RÈGLES ABSOLUES :
         if (STATE.user) DB.saveDigest(STATE.user.id, html).catch(() => {});
         Toast.show('Digest généré ✓', 'success');
       } catch (err) {
-        const errMsg = '<span class="feed-digest-placeholder">Erreur — réessayez plus tard</span>';
+        const isQuota = err.message === 'QUOTA_EXHAUSTED' || err.message?.includes('Aucun article enrichi');
+        const errMsg = isQuota
+          ? '<span class="feed-digest-placeholder">⊘ Quota IA atteint — remise à zéro à minuit UTC</span>'
+          : '<span class="feed-digest-placeholder">Erreur — réessayez plus tard</span>';
         if (contentEl) contentEl.innerHTML = errMsg;
         if (fsBody) fsBody.innerHTML = errMsg;
-        Toast.show('Erreur digest IA', 'error');
+        Toast.show(isQuota ? 'Quota IA atteint — remise à zéro à minuit' : 'Erreur digest IA', isQuota ? 'info' : 'error', 5000);
       } finally {
         btnEl.disabled = false;
         btnEl.innerHTML = origLabel;
@@ -2355,7 +2390,7 @@ RÈGLES ABSOLUES :
       // Trouver les articles à enrichir — uniquement ceux jamais traités
       // (pas d'ai_content en base, pas juste non-enrichis en mémoire)
       const toEnrich = STATE.articles
-        .filter(a => !AI.isEnriched(a) && !a.ai_content) // double vérif
+        .filter(a => !AI.isEnriched(a)) // isEnriched() vérifie déjà ai_content
         .sort((a, b) => (b.importance || 0) - (a.importance || 0))
         .slice(0, 3); // max 3 par session bg (bridé pour préserver le quota)
 
@@ -2400,10 +2435,9 @@ RÈGLES ABSOLUES :
           article.ai_title = result.ai_title || null;
         } catch (err) {
           // Rate limit ou quota épuisé — on s'arrête proprement
-          if (err.message?.includes('Rate limit') || err.message?.includes('429')) {
-            console.log('[BG] Rate limit atteint, arrêt enrichissement bg');
-            QuotaTracker.markExhausted(CONFIG.GROQ_MODEL_ENRICH);
-            break;
+          if (err.message === 'QUOTA_EXHAUSTED' || err.message?.includes('Rate limit')) {
+            console.log('[BG] Quota atteint, arrêt enrichissement bg');
+            break; // markExhausted déjà fait dans callGroq
           }
           console.warn('[BG] Erreur enrichissement:', err.message);
         }
