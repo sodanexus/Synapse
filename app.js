@@ -2345,8 +2345,7 @@ RÈGLES ABSOLUES :
           .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
           .replace(/^#\s+(.+)$/gm, '<h2>$1</h2>')
           .replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>')
-          .replace(/(<li>.*<\/li>
-?)+/gs, '<ul>$&</ul>')
+          .replace(/(<li>.*<\/li>\n?)+/gs, '<ul>$&</ul>')
           .replace(/^(?!<[hul]|$)(.+)$/gm, '<p>$1</p>');
       }
 
