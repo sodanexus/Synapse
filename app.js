@@ -746,7 +746,6 @@ RÈGLES ABSOLUES :
 
       // Charger les vues dynamiques à la demande
       if (viewId === 'bookmarks') Render.renderBookmarks(STATE.articles);
-      if (viewId === 'history')   Render.renderHistory();
     }
 
     /** Initialise la navigation */
@@ -1299,7 +1298,7 @@ RÈGLES ABSOLUES :
     }
 
     return {
-      articleCard, articleRow, renderFeedArticles,
+      articleRow, renderFeedArticles,
       renderBookmarks, renderHistory, renderSidebarFeeds,
       escapeHtml, relativeTime, importanceBars
     };
