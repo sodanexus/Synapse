@@ -24,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=43" />
+  <link rel="stylesheet" href="style.css?v=44" />
   <!-- Anti-flash dark mode : appliqué avant le rendu -->
   <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
@@ -131,10 +131,13 @@
         <!-- En-tête d'accueil -->
         <div class="feed-welcome">
           <div class="feed-welcome-left">
-            <div class="feed-welcome-date" id="feed-welcome-date"></div>
-            <div class="feed-welcome-stats" id="feed-welcome-stats"></div>
+            <h1 class="view-title">FLUX</h1>
+            <div class="feed-welcome-stats" id="feed-welcome-stats">
+              <span class="feed-welcome-date" id="feed-welcome-date"></span>
+            </div>
           </div>
           <div class="feed-welcome-right">
+            <button class="feed-digest-btn" id="btn-open-digest" title="Générer le digest IA">⬡ DIGEST</button>
             <button class="feed-search-toggle" id="btn-search-toggle" title="Rechercher">⌕</button>
             <button class="btn-mark-all-read" id="btn-mark-all-read" title="Tout marquer comme lu">✓</button>
           </div>
@@ -155,20 +158,6 @@
           <button class="filter-btn active" data-filter="all">TOUT</button>
           <button class="filter-btn" data-filter="unread">NON LUS</button>
           <button class="filter-btn" data-filter="important">IMPORTANT</button>
-        </div>
-
-        <!-- Bandeau digest inline -->
-        <div class="feed-digest-banner" id="feed-digest-banner">
-          <div class="feed-digest-header">
-            <span class="feed-digest-label">⬡ DIGEST IA</span>
-            <div class="feed-digest-actions">
-              <button class="feed-digest-refresh" id="btn-feed-digest-refresh" title="Générer le digest">↺</button>
-              <button class="feed-digest-expand" id="btn-feed-digest-expand" title="Plein écran">⤢</button>
-            </div>
-          </div>
-          <div class="feed-digest-content" id="feed-digest-content">
-            <span class="feed-digest-placeholder">Appuyez sur ↺ pour générer un briefing de vos actualités</span>
-          </div>
         </div>
 
         <div class="articles-list" id="feed-articles">
@@ -349,6 +338,6 @@
   <!-- Scripts -->
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=55"></script>
+  <script src="app.js?v=57"></script>
 </body>
 </html>
