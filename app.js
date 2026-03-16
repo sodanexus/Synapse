@@ -1470,7 +1470,8 @@ RÈGLES ABSOLUES :
           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
       document.getElementById('reader-title').textContent = article.ai_title || article.title || '';
-      document.getElementById('reader-link').href = article.link || '#';
+      const readerLink = document.getElementById('reader-link');
+      if (readerLink) readerLink.href = article.link || '#';
 
       // Barres d'importance
       const score = article.importance || 1;
@@ -1488,8 +1489,16 @@ RÈGLES ABSOLUES :
         `<span class="tag">${Render.escapeHtml(t)}</span>`
       ).join('');
 
+      // Mettre à jour l'icône bookmark
+      const bookmarkBtn = document.getElementById('btn-bookmark');
+      if (bookmarkBtn) {
+        const isBookmarked = STATE.bookmarks.has(article.id || article.hash) || article.bookmarked;
+        bookmarkBtn.classList.toggle('active', isBookmarked);
+        bookmarkBtn.textContent = isBookmarked ? '◨' : '◧';
+      }
+
       // Afficher/cacher le bouton LECTEUR selon disponibilité du lien
-      const readerModeBtn = document.getElementById('btn-reader-mode');
+      const readerModeBtn = document.getElementById('btn-reader-mode-menu');
       if (readerModeBtn) {
         readerModeBtn.style.display = article.link ? '' : 'none';
       }
@@ -1698,11 +1707,13 @@ RÈGLES ABSOLUES :
           STATE.bookmarks.delete(key);
           article.bookmarked = false;
           btn.classList.remove('active');
-          Toast.show('Supprimé des sauvegardes', 'info');
+          btn.textContent = '◧';
+          Toast.show('Retiré des sauvegardes', 'info');
         } else {
           STATE.bookmarks.add(key);
           article.bookmarked = true;
           btn.classList.add('active');
+          btn.textContent = '◨'; // rempli = sauvegardé
           Toast.show('Sauvegardé ✓', 'success');
         }
 
@@ -1711,82 +1722,73 @@ RÈGLES ABSOLUES :
         }
       });
 
-      // Bouton partager
-      document.getElementById('btn-share').addEventListener('click', async () => {
+      // Menu contextuel "..."
+      const moreBtn = document.getElementById('btn-reader-more');
+      const moreMenu = document.getElementById('reader-more-menu');
+      moreBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        moreMenu.classList.toggle('hidden');
+      });
+      document.addEventListener('click', () => moreMenu.classList.add('hidden'));
+
+      // Partager (dans le menu)
+      const shareAction = async () => {
         const article = STATE.currentArticleList[STATE.currentArticleIndex];
         if (!article) return;
-
+        moreMenu.classList.add('hidden');
         const title = article.ai_title || article.title || '';
         const text = (article.ai_content || '').substring(0, 300) + '...';
         const url = article.link || '';
-
-        // Web Share API — natif sur mobile, copie sur desktop
         if (navigator.share) {
-          try {
-            await navigator.share({ title, text, url });
-          } catch (err) {
-            if (err.name !== 'AbortError') Toast.show('Erreur partage', 'error');
-          }
+          try { await navigator.share({ title, text, url }); }
+          catch (err) { if (err.name !== 'AbortError') Toast.show('Erreur partage', 'error'); }
         } else {
-          // Fallback desktop : copier dans le presse-papier
-          const shareText = `${title}\n\n${text}\n\n${url}`;
           try {
-            await navigator.clipboard.writeText(shareText);
-            Toast.show('Copié dans le presse-papier ✓', 'success');
-          } catch {
-            Toast.show('Impossible de copier', 'error');
-          }
+            await navigator.clipboard.writeText(`${title}\n\n${text}\n\n${url}`);
+            Toast.show('Copié ✓', 'success');
+          } catch { Toast.show('Impossible de copier', 'error'); }
         }
-      });
+      };
+      document.getElementById('btn-share-menu').addEventListener('click', shareAction);
 
-      // Mode lecteur — contenu scrapé propre
-      document.getElementById('btn-reader-mode').addEventListener('click', async () => {
+      // Mode lecteur (dans le menu)
+      const readerModeAction = async () => {
         const article = STATE.currentArticleList[STATE.currentArticleIndex];
         if (!article?.link) return;
-
+        moreMenu.classList.add('hidden');
         const overlay = document.getElementById('reader-mode-overlay');
         const content = document.getElementById('reader-mode-content');
         const source = document.getElementById('reader-mode-source');
-
         source.textContent = article.feed_name || '';
         content.innerHTML = '<div class="content-loading"><div class="spinner"></div><span>Chargement...</span></div>';
         overlay.classList.remove('hidden');
-
         try {
           const res = await fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`, {
             signal: AbortSignal.timeout(10000)
           });
-
-          if (!res.ok) throw new Error('Impossible de charger la page');
+          if (!res.ok) throw new Error();
           const data = await res.json();
-
-          if (!data.text || data.text.length < 100) throw new Error('Contenu insuffisant');
-
-          // Afficher le titre + contenu propre
+          if (!data.text || data.text.length < 100) throw new Error();
           const paragraphs = data.text.split('\n\n').filter(p => p.trim());
           content.innerHTML = `
             <h1>${Render.escapeHtml(article.ai_title || article.title || '')}</h1>
             ${paragraphs.map(p => `<p>${Render.escapeHtml(p.trim())}</p>`).join('')}
           `;
-        } catch (err) {
-          content.innerHTML = `
-            <p style="color:var(--grey-mid);font-family:var(--font-mono);font-size:0.8rem;">
-              Impossible de charger le contenu — ce site bloque la lecture externe.<br><br>
-              <a href="${Render.escapeHtml(article.link)}" target="_blank" rel="noopener" style="color:var(--ink);">↗ Ouvrir dans le navigateur</a>
-            </p>
-          `;
+        } catch {
+          content.innerHTML = `<p style="color:var(--grey-mid);font-family:var(--font-mono);font-size:0.8rem;">
+            Ce site bloque la lecture externe.<br><br>
+            <a href="${Render.escapeHtml(article.link)}" target="_blank" rel="noopener" style="color:var(--ink);">↗ Ouvrir dans le navigateur</a>
+          </p>`;
         }
-      });
+      };
+      document.getElementById('btn-reader-mode-menu').addEventListener('click', readerModeAction);
 
       document.getElementById('btn-close-reader-mode').addEventListener('click', () => {
         document.getElementById('reader-mode-overlay').classList.add('hidden');
       });
-
-      // Fermer en cliquant en dehors
       document.getElementById('reader-mode-overlay').addEventListener('click', (e) => {
-        if (e.target === e.currentTarget) {
+        if (e.target === e.currentTarget)
           document.getElementById('reader-mode-overlay').classList.add('hidden');
-        }
       });
 
     }
