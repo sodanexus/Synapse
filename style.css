@@ -1136,20 +1136,24 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 
 .reader-title-area.has-hero {
   background-size: cover;
-  background-position: center top;
+  background-position: center center;
   background-repeat: no-repeat;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
-/* Dégradé light mode — fond vers #f7f6f3 */
+/* Dégradé light mode — plus bas, image plus visible */
 .reader-title-area.has-hero::before {
   content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(247, 246, 243, 0.1) 0%,
-    rgba(247, 246, 243, 0.5) 40%,
-    rgba(247, 246, 243, 0.88) 72%,
+    rgba(247, 246, 243, 0.0) 0%,
+    rgba(247, 246, 243, 0.15) 45%,
+    rgba(247, 246, 243, 0.75) 72%,
     rgba(247, 246, 243, 1.0) 100%
   );
   z-index: 0;
@@ -1169,9 +1173,9 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 body.dark .reader-title-area.has-hero::before {
   background: linear-gradient(
     to bottom,
-    rgba(28, 26, 24, 0.1) 0%,
-    rgba(28, 26, 24, 0.5) 40%,
-    rgba(28, 26, 24, 0.88) 72%,
+    rgba(28, 26, 24, 0.0) 0%,
+    rgba(28, 26, 24, 0.15) 45%,
+    rgba(28, 26, 24, 0.75) 72%,
     rgba(28, 26, 24, 1.0) 100%
   );
 }
@@ -1587,6 +1591,13 @@ body.dark .reader-modal:has(.reader-title-area.has-hero) .reader-header {
   transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast);
 }
 .tag:hover { transform: scale(1.05); }
+
+.tag-more {
+  background: transparent;
+  color: var(--grey-mid);
+  cursor: default;
+}
+.tag-more:hover { transform: none; }
 
 /* Sidebar feeds */
 .feeds-list li {
@@ -2791,8 +2802,28 @@ body.dark {
   padding: 20px 36px 4px;
   border-top: var(--border);
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Importance inline */
+.reader-meta-bottom .reader-importance {
+  border-bottom: none;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+/* Tags inline — pas de retour à la ligne forcé */
+.reader-meta-bottom .reader-tags {
+  border-bottom: none;
+  padding: 0;
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  min-width: 0;
 }
 
 /* ================================================================
