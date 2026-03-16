@@ -91,7 +91,7 @@
     function save(userId, articles) {
       try {
         localStorage.setItem(key(userId), JSON.stringify({
-          articles: articles.slice(0, 100),
+          articles: articles.slice(0, 200),
           savedAt: Date.now(),
         }));
       } catch (err) {
@@ -2946,6 +2946,7 @@ RÈGLES ABSOLUES :
     async function run() {
       if (STATE.isLoading) return;
       STATE.isLoading = true;
+      Loader.show('Synchronisation...');
       Loader.setSyncDot('syncing');
 
       const syncBtn = document.getElementById('btn-refresh');
@@ -3002,13 +3003,8 @@ RÈGLES ABSOLUES :
         // Sauvegarder dans localStorage
         if (STATE.user) Cache.save(STATE.user.id, STATE.articles);
 
-        // Sauvegarder tous les articles bruts dans Supabase (même non enrichis)
-        // pour qu'ils survivent aux refreshs sans avoir été ouverts
+        // Sauvegarder les articles pas encore en base (pas d'id Supabase)
         if (STATE.user) {
-          const newRaw = enriched.filter(a => {
-            const existing = STATE.articles.find(old => old.hash === a.hash);
-            return !existing; // seulement les vraiment nouveaux
-          });
           // Upsert en silence, par lots de 5 pour ne pas surcharger
           const saveNew = enriched.filter(a => !a.id); // pas encore en base
           for (let i = 0; i < saveNew.length; i += 5) {
