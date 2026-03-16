@@ -1386,21 +1386,15 @@ RÈGLES ABSOLUES :
       STATE.currentArticleIndex = index;
       STATE.currentArticleList = articleList;
 
-      // Marquer comme lu
       markRead(article);
-
-      // Remplir le reader avec le contenu disponible immédiatement
       populate(article);
+      updateNavLabels();
 
-      // Afficher l'overlay
       const overlay = document.getElementById('reader-overlay');
       overlay.classList.remove('hidden');
       document.body.style.overflow = 'hidden';
-
-      // Focus trap (accessibilité)
       document.getElementById('btn-close-reader').focus();
 
-      // Enrichissement IA à la demande — uniquement si pas encore fait correctement
       if (!AI.isEnriched(article)) {
         enrichOnOpen(article);
       }
@@ -1465,10 +1459,15 @@ RÈGLES ABSOLUES :
     /** Remplit le reader avec les données d'un article */
     function populate(article, animate = false) {
       document.getElementById('reader-source').textContent = article.feed_name || '';
+
+      // Temps de lecture estimé
+      const wordCount = ((article.ai_content || article.content || '')).split(/\s+/).filter(Boolean).length;
+      const readMin = Math.max(1, Math.round(wordCount / 200));
       document.getElementById('reader-date').textContent =
         new Date(article.pub_date).toLocaleDateString('fr-FR', {
           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
+        }) + ` · ${readMin} min`;
+
       document.getElementById('reader-title').textContent = article.ai_title || article.title || '';
       const readerLink = document.getElementById('reader-link');
       if (readerLink) readerLink.href = article.link || '#';
@@ -1639,6 +1638,33 @@ RÈGLES ABSOLUES :
     }
 
     /** Navigation dans le reader */
+    /** Met à jour les labels de navigation prev/next */
+    function updateNavLabels() {
+      const list = STATE.currentArticleList;
+      const idx = STATE.currentArticleIndex;
+      const prevEl = document.getElementById('prev-article-title');
+      const nextEl = document.getElementById('next-article-title');
+      const prevBtn = document.getElementById('btn-prev-article');
+      const nextBtn = document.getElementById('btn-next-article');
+
+      if (prevEl && prevBtn) {
+        const hasPrev = idx > 0;
+        prevBtn.disabled = !hasPrev;
+        prevBtn.style.opacity = hasPrev ? '1' : '0.3';
+        prevEl.textContent = hasPrev
+          ? (list[idx - 1].ai_title || list[idx - 1].title || 'PRÉCÉDENT').substring(0, 40)
+          : 'PRÉCÉDENT';
+      }
+      if (nextEl && nextBtn) {
+        const hasNext = idx < list.length - 1;
+        nextBtn.disabled = !hasNext;
+        nextBtn.style.opacity = hasNext ? '1' : '0.3';
+        nextEl.textContent = hasNext
+          ? (list[idx + 1].ai_title || list[idx + 1].title || 'SUIVANT').substring(0, 40)
+          : 'SUIVANT';
+      }
+    }
+
     function goNext() {
       const list = STATE.currentArticleList;
       if (STATE.currentArticleIndex < list.length - 1) {
@@ -1646,6 +1672,7 @@ RÈGLES ABSOLUES :
         const article = list[STATE.currentArticleIndex];
         markRead(article);
         populate(article);
+        updateNavLabels();
         document.getElementById('reader-modal').scrollTop = 0;
         if (!AI.isEnriched(article)) enrichOnOpen(article);
       }
@@ -1658,6 +1685,7 @@ RÈGLES ABSOLUES :
         const article = list[STATE.currentArticleIndex];
         markRead(article);
         populate(article);
+        updateNavLabels();
         document.getElementById('reader-modal').scrollTop = 0;
         if (!AI.isEnriched(article)) enrichOnOpen(article);
       }
@@ -2664,6 +2692,24 @@ RÈGLES ABSOLUES :
      13. INIT — Point d'entrée
      ================================================================ */
   async function init() {
+    // Détection hors ligne
+    const offlineBanner = document.createElement('div');
+    offlineBanner.id = 'offline-banner';
+    offlineBanner.style.cssText = `
+      display: none; position: fixed; top: 0; left: 0; right: 0;
+      background: #333; color: #fff; text-align: center;
+      font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em;
+      padding: 8px; z-index: 9999;
+    `;
+    offlineBanner.textContent = '⚠ HORS LIGNE — Les articles en cache restent disponibles';
+    document.body.appendChild(offlineBanner);
+
+    window.addEventListener('offline', () => { offlineBanner.style.display = 'block'; });
+    window.addEventListener('online', () => {
+      offlineBanner.style.display = 'none';
+      Toast.show('Connexion rétablie ✓', 'success');
+      Sync.run();
+    });
     // Initialiser Supabase
     Auth.init();
 
@@ -3056,10 +3102,18 @@ RÈGLES ABSOLUES :
           Toast.show(`Flux à jour — prochain sync dans ${remaining} min`, 'info');
         }
 
-        // Sync auto toutes les 30 minutes si l'onglet est actif
+        // Sync auto toutes les 30 minutes — seulement si l'onglet est visible
+        // et que l'utilisateur a été actif récemment
+        let lastActivity = Date.now();
+        ['click', 'scroll', 'keydown'].forEach(evt =>
+          document.addEventListener(evt, () => { lastActivity = Date.now(); }, { passive: true })
+        );
+
         setInterval(() => {
-          if (!document.hidden) Sync.run();
+          const idleMs = Date.now() - lastActivity;
+          if (!document.hidden && idleMs < 10 * 60 * 1000) Sync.run(); // actif depuis moins de 10 min
         }, 30 * 60 * 1000);
+
       } else {
         Nav.switchView('settings');
         Toast.show('Bienvenue ! Commencez par ajouter des feeds RSS.', 'info');
