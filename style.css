@@ -2001,3 +2001,104 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 @media (max-width: 600px) {
   .important-grid { grid-template-columns: 1fr; gap: 6px; }
 }
+
+/* ================================================================
+   EN-TÊTE D'ACCUEIL FLUX
+   ================================================================ */
+.feed-welcome {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 28px 0 12px;
+  gap: 16px;
+}
+
+.feed-welcome-date {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.1;
+  text-transform: capitalize;
+}
+
+.feed-welcome-stats {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  color: var(--grey-mid);
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+
+.feed-welcome-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+.feed-search-toggle {
+  font-size: 1rem;
+  color: var(--grey-mid);
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: color var(--t-fast);
+}
+.feed-search-toggle:hover { color: var(--ink); }
+
+/* Sujets dominants */
+.feed-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+  min-height: 0;
+}
+
+.topic-chip {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  background: var(--grey-wash);
+  color: var(--grey-deep);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+  text-transform: lowercase;
+  border: var(--border);
+}
+.topic-chip:hover {
+  background: var(--ink);
+  color: var(--white);
+  border-color: var(--ink);
+}
+
+/* Barre de recherche avec bouton fermer */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+.search-bar.hidden { display: none; }
+
+.search-close {
+  font-size: 0.7rem;
+  color: var(--grey-mid);
+  padding: 2px 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--t-fast);
+}
+.search-close:hover { color: var(--ink); }
+
+/* Vue mobile */
+@media (max-width: 600px) {
+  .feed-welcome { padding: 20px 0 8px; }
+  .feed-welcome-date { font-size: 1.3rem; }
+}
