@@ -2065,114 +2065,32 @@ body.dark .reader-modal.hero-ready .reader-header {
 }
 
 /* Modale digest plein écran */
-.digest-fullscreen-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--paper);
-  z-index: 500;
+/* ── Digest modal — structure identique au reader ── */
+
+/* Le digest réutilise .modal-overlay et .reader-modal */
+.digest-modal {
   display: flex;
   flex-direction: column;
-  transition: opacity var(--t-normal);
-}
-.digest-fullscreen-overlay.hidden { opacity: 0; pointer-events: none; }
-.digest-fullscreen-overlay:not(.hidden) { opacity: 1; }
-
-.digest-fullscreen-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 32px;
-  border-bottom: var(--border);
-  flex-shrink: 0;
+  max-height: 90vh;
 }
 
-.digest-fullscreen-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
-}
-
-.digest-fullscreen-title {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.14em;
-  color: var(--grey-mid);
-  text-transform: uppercase;
-}
-
-.digest-fullscreen-date {
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.08em;
-  color: var(--grey-light);
-  text-transform: uppercase;
-}
-
-.digest-fullscreen-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Bouton TTS digest */
-.digest-tts-btn {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.08em;
-  color: var(--grey-mid);
-  cursor: pointer;
-  padding: 4px 10px;
-  border: var(--border);
-  border-radius: 2px;
-  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
-}
-.digest-tts-btn:hover { color: var(--ink); border-color: var(--ink); }
-.digest-tts-btn.active {
-  background: var(--ink);
-  color: var(--white);
-  border-color: var(--ink);
-}
-.digest-tts-btn.tts-loading {
-  opacity: 0.5;
-  cursor: wait;
-}
-
-.digest-fullscreen-regen {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.08em;
-  color: var(--grey-mid);
-  cursor: pointer;
-  padding: 4px 8px;
-  border: var(--border);
-  border-radius: 2px;
-  transition: color var(--t-fast), border-color var(--t-fast);
-}
-.digest-fullscreen-regen:hover { color: var(--ink); border-color: var(--ink); }
-.digest-fullscreen-regen:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.digest-fullscreen-close {
-  font-size: 0.9rem;
-  color: var(--grey-mid);
-  cursor: pointer;
-  padding: 4px 8px;
-  transition: color var(--t-fast);
-}
-.digest-fullscreen-close:hover { color: var(--ink); }
-
+/* Corps scrollable */
 .digest-fullscreen-body {
   flex: 1;
   overflow-y: auto;
-  padding: 48px 32px;
-  max-width: 800px;
-  margin: 0 auto;
-  width: 100%;
+  padding: 28px 36px 48px;
+}
+
+/* Hero title digest */
+#digest-hero-title {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  letter-spacing: 0.02em;
 }
 
 /* Footer digest */
 .digest-fullscreen-footer {
   border-top: var(--border);
-  padding: 10px 32px;
+  padding: 10px 36px;
   flex-shrink: 0;
 }
 .digest-footer-meta {
