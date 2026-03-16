@@ -1935,13 +1935,7 @@ RÈGLES ABSOLUES :
         });
       }
 
-      // Ouvrir l'article — entrée dans le menu ···
-      document.getElementById('btn-open-source').addEventListener('click', () => {
-        const article = STATE.currentArticleList[STATE.currentArticleIndex];
-        if (!article?.link) return;
-        moreMenu.classList.add('hidden');
-        window.open(article.link, '_blank', 'noopener');
-      });
+
 
     }
 
