@@ -2214,32 +2214,34 @@ RÈGLES ABSOLUES :
     let _state    = 'idle'; // idle | loading | playing | paused
     let _abortCtrl = null;  // AbortController pour annuler le fetch en cours
 
-    /** Lance, met en pause ou stoppe selon l'état */
-    async function toggle(text) {
+    /** Lance, met en pause ou stoppe selon l'état
+     *  btnOverride : bouton externe optionnel (ex: bouton digest) à synchroniser
+     */
+    async function toggle(text, btnOverride = null) {
       // Si en lecture → pause
       if (_state === 'playing' && _audio) {
         _audio.pause();
-        _setState('paused');
+        _setState('paused', btnOverride);
         return;
       }
 
       // Si en pause → reprendre
       if (_state === 'paused' && _audio) {
         _audio.play();
-        _setState('playing');
+        _setState('playing', btnOverride);
         return;
       }
 
       // Si loading → annuler le fetch en cours
       if (_state === 'loading') {
         _abortCtrl?.abort();
-        _setState('idle');
+        _setState('idle', btnOverride);
         return;
       }
 
       // Nouvelle lecture
       if (!text || text.trim().length === 0) return;
-      _setState('loading');
+      _setState('loading', btnOverride);
       _abortCtrl = new AbortController();
 
       try {
@@ -2255,30 +2257,29 @@ RÈGLES ABSOLUES :
         const data = await res.json();
         if (!data.audioBase64) throw new Error('No audio data');
 
-        // Convertir base64 → blob → URL
         const binary = atob(data.audioBase64);
         const bytes  = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         const blob = new Blob([bytes], { type: 'audio/mpeg' });
 
-        _cleanup(); // nettoyer l'éventuel audio précédent
+        _cleanup();
         _blobUrl = URL.createObjectURL(blob);
         _audio   = new Audio(_blobUrl);
 
-        _audio.onended = () => { _cleanup(); _setState('idle'); };
-        _audio.onerror = () => { _cleanup(); _setState('idle'); Toast.show('Erreur audio', 'error'); };
+        _audio.onended = () => { _cleanup(); _setState('idle', btnOverride); };
+        _audio.onerror = () => { _cleanup(); _setState('idle', btnOverride); Toast.show('Erreur audio', 'error'); };
 
         await _audio.play();
-        _setState('playing');
+        _setState('playing', btnOverride);
 
       } catch (err) {
         if (err.name === 'AbortError') {
-          _setState('idle');
+          _setState('idle', btnOverride);
           return;
         }
         console.warn('TTS échoué:', err);
         Toast.show('Audio indisponible — réessayez', 'error');
-        _setState('idle');
+        _setState('idle', btnOverride);
       }
     }
 
@@ -2288,18 +2289,16 @@ RÈGLES ABSOLUES :
       if (_blobUrl) { URL.revokeObjectURL(_blobUrl); _blobUrl = null; }
     }
 
-    /** Arrête complètement — appelé au changement d'article ou fermeture reader */
+    /** Arrête complètement */
     function stop() {
       _abortCtrl?.abort();
       _cleanup();
       _setState('idle');
     }
 
-    /** Met à jour l'état et le bouton */
-    function _setState(state) {
+    /** Met à jour l'état sur le bouton reader ET sur un bouton override éventuel */
+    function _setState(state, btnOverride = null) {
       _state = state;
-      const btn = document.getElementById('btn-listen');
-      if (!btn) return;
 
       const icons  = { idle: '▶', loading: '···', playing: '■', paused: '▶' };
       const titles = {
@@ -2309,10 +2308,22 @@ RÈGLES ABSOLUES :
         paused:  'Reprendre',
       };
 
-      btn.textContent = icons[state]  || '▶';
-      btn.title       = titles[state] || '';
-      btn.classList.toggle('active',      state === 'playing');
-      btn.classList.toggle('tts-loading', state === 'loading');
+      // Bouton reader standard
+      const btn = document.getElementById('btn-listen');
+      if (btn) {
+        btn.textContent = icons[state] || '▶';
+        btn.title       = titles[state] || '';
+        btn.classList.toggle('active',      state === 'playing');
+        btn.classList.toggle('tts-loading', state === 'loading');
+      }
+
+      // Bouton externe (digest, etc.)
+      if (btnOverride) {
+        btnOverride.textContent = icons[state] || '▶';
+        btnOverride.title       = titles[state] || '';
+        btnOverride.classList.toggle('active',      state === 'playing');
+        btnOverride.classList.toggle('tts-loading', state === 'loading');
+      }
     }
 
     function isActive() { return _state !== 'idle'; }
@@ -2321,7 +2332,7 @@ RÈGLES ABSOLUES :
   })();
 
   /* ================================================================
-     11. UI — Digest HomePage
+     11. UI — Digest IA
      ================================================================ */
   const Digest = (() => {
     /** Nettoie et normalise le HTML du digest — convertit markdown → HTML */
@@ -2334,42 +2345,121 @@ RÈGLES ABSOLUES :
           .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
           .replace(/^#\s+(.+)$/gm, '<h2>$1</h2>')
           .replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>')
-          .replace(/(<li>.*<\/li>\n?)+/gs, '<ul>$&</ul>')
+          .replace(/(<li>.*<\/li>
+?)+/gs, '<ul>$&</ul>')
           .replace(/^(?!<[hul]|$)(.+)$/gm, '<p>$1</p>');
       }
 
       html = html
-        // Supprimer TOUS les strong/b/em/i avec ou sans attributs
-        .replace(/<\/?(strong|b|em|i)(\s[^>]*)?>([^<]*)<\/\1>/gi, '$3')
+        .replace(/<\/?(strong|b|em|i)(\s[^>]*)?>([^<]*)<\/>/gi, '$3')
         .replace(/<\/?(strong|b|em|i)(\s[^>]*)?>/gi, '')
-        // **texte** → texte simple
-        .replace(/\*\*([^*\n]+)\*\*/g, '$1')
-        // *texte* → texte simple
-        .replace(/\*([^*\n]+)\*/g, '$1')
-        // ### restants
+        .replace(/\*\*([^*
+]+)\*\*/g, '$1')
+        .replace(/\*([^*
+]+)\*/g, '$1')
         .replace(/^###?\s*/gm, '')
-        .replace(/\n{3,}/g, '\n\n')
+        .replace(/
+{3,}/g, '
+
+')
         .trim();
 
       return html;
     }
 
-    /** Génère le digest et met à jour le bandeau + plein écran */
-    async function generateAndRender(btnEl, contentEl, fsBody) {
+    /** Extrait le texte brut du digest pour le TTS */
+    function extractTextForTTS(html) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      // Ajouter des pauses naturelles entre sections
+      tmp.querySelectorAll('h2').forEach(h => {
+        h.textContent = h.textContent + '. ';
+      });
+      return (tmp.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+
+    /** Anime les étapes de chargement */
+    function animateLoadingSteps() {
+      const steps = ['digest-step-1', 'digest-step-2', 'digest-step-3'];
+      let current = 0;
+
+      // Activer la première étape immédiatement
+      const activate = () => {
+        steps.forEach((id, i) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.classList.remove('active', 'done');
+          if (i < current) el.classList.add('done');
+          if (i === current) el.classList.add('active');
+        });
+      };
+
+      activate();
+      const interval = setInterval(() => {
+        current = Math.min(current + 1, steps.length - 1);
+        activate();
+        if (current === steps.length - 1) clearInterval(interval);
+      }, 2500);
+
+      return () => clearInterval(interval);
+    }
+
+    /** Met à jour la date dans le header */
+    function updateHeaderDate() {
+      const el = document.getElementById('digest-header-date');
+      if (!el) return;
+      el.textContent = new Date().toLocaleDateString('fr-FR', {
+        weekday: 'long', day: 'numeric', month: 'long'
+      });
+    }
+
+    /** Met à jour le footer avec les méta-infos */
+    function updateFooter(articleCount, generatedAt) {
+      const footer = document.getElementById('digest-footer');
+      const meta = document.getElementById('digest-footer-meta');
+      if (!footer || !meta) return;
+      const time = generatedAt
+        ? new Date(generatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        : new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      meta.textContent = `${articleCount} article${articleCount > 1 ? 's' : ''} analysé${articleCount > 1 ? 's' : ''} · Généré à ${time}`;
+      footer.style.display = 'block';
+    }
+
+    /** Génère le digest et met à jour l'interface */
+    async function generateAndRender(btnEl) {
+      const fsBody = document.getElementById('digest-fullscreen-body');
+      const listenBtn = document.getElementById('btn-digest-listen');
+
       btnEl.disabled = true;
       const origLabel = btnEl.innerHTML;
       btnEl.innerHTML = '<span class="spinner digest-spinner"></span>';
-      if (contentEl) contentEl.innerHTML = '<span class="feed-digest-placeholder">Génération en cours...</span>';
-      if (fsBody) fsBody.innerHTML = '<span class="feed-digest-placeholder">Génération en cours...</span>';
+
+      // Cacher le bouton TTS pendant la génération
+      if (listenBtn) { listenBtn.style.display = 'none'; }
+
+      // Afficher l'état de chargement animé
+      fsBody.innerHTML = `
+        <div class="digest-empty-state" id="digest-empty-state">
+          <div class="digest-empty-glyph">⬡</div>
+          <div class="digest-empty-label">BRIEFING DU JOUR</div>
+          <p class="digest-empty-desc">Votre synthèse IA est en cours de génération.<br>Les articles importants sont analysés et regroupés par thème.</p>
+          <div class="digest-loading-steps" id="digest-loading-steps">
+            <div class="digest-step" id="digest-step-1">Analyse des articles...</div>
+            <div class="digest-step" id="digest-step-2">Regroupement par thèmes...</div>
+            <div class="digest-step" id="digest-step-3">Rédaction du briefing...</div>
+          </div>
+        </div>
+      `;
+      const stopAnimation = animateLoadingSteps();
 
       try {
-        // Pré-enrichir les articles manquants (seulement si quota suffisant)
+        // Pré-enrichir les articles manquants
         const enrichedCount = STATE.articles.filter(a => AI.isEnriched(a)).length;
         const quotaRemaining = QuotaTracker.remaining(CONFIG.GROQ_MODEL_ENRICH);
         const maxPreEnrich = Math.min(
-          Math.max(0, 10 - enrichedCount), // articles manquants
-          quotaRemaining,                   // quota restant
-          5                                 // max 5 pour le digest (pas tout brûler)
+          Math.max(0, 10 - enrichedCount),
+          quotaRemaining,
+          5
         );
 
         const toEnrich = maxPreEnrich > 0
@@ -2380,7 +2470,7 @@ RÈGLES ABSOLUES :
           : [];
 
         if (toEnrich.length === 0 && enrichedCount === 0) {
-          throw new Error('Aucun article enrichi disponible et quota insuffisant. Ouvrez quelques articles d\'abord.');
+          throw new Error('Aucun article enrichi disponible et quota insuffisant. Ouvrez quelques articles d'abord.');
         }
 
         for (let i = 0; i < toEnrich.length; i++) {
@@ -2396,18 +2486,40 @@ RÈGLES ABSOLUES :
         }
 
         const html = await AI.generateDailyDigest(STATE.articles);
-        const rendered = `<div class="feed-digest-text">${cleanDigestHtml(html)}</div>`;
-        if (contentEl) contentEl.innerHTML = rendered;
-        if (fsBody) fsBody.innerHTML = rendered;
+        stopAnimation();
+
+        const cleanedHtml = cleanDigestHtml(html);
+        const rendered = `<div class="feed-digest-text">${cleanedHtml}</div>`;
+        fsBody.innerHTML = rendered;
+
+        // Méta-infos footer
+        const analyzedCount = STATE.articles.filter(a => AI.isEnriched(a)).length;
+        updateFooter(analyzedCount, new Date());
+
+        // Réactiver le bouton TTS avec le texte extrait
+        if (listenBtn) {
+          listenBtn.style.display = '';
+          listenBtn._digestText = extractTextForTTS(cleanedHtml);
+        }
+
         if (STATE.user) DB.saveDigest(STATE.user.id, html).catch(() => {});
         Toast.show('Digest généré ✓', 'success');
+
       } catch (err) {
+        stopAnimation();
         const isQuota = err.message === 'QUOTA_EXHAUSTED' || err.message?.includes('Aucun article enrichi');
-        const errMsg = isQuota
-          ? '<span class="feed-digest-placeholder">⊘ Quota IA atteint — remise à zéro à minuit UTC</span>'
-          : '<span class="feed-digest-placeholder">Erreur — réessayez plus tard</span>';
-        if (contentEl) contentEl.innerHTML = errMsg;
-        if (fsBody) fsBody.innerHTML = errMsg;
+        fsBody.innerHTML = `
+          <div class="digest-empty-state">
+            <div class="digest-empty-glyph" style="animation:none;opacity:0.2">⊘</div>
+            <div class="digest-empty-label">${isQuota ? 'QUOTA ATTEINT' : 'ERREUR'}</div>
+            <p class="digest-empty-desc">${isQuota
+              ? 'Quota IA atteint pour aujourd'hui.<br>Remise à zéro à minuit UTC.'
+              : 'Une erreur est survenue.<br>Réessayez dans quelques instants.'
+            }</p>
+          </div>
+        `;
+        if (listenBtn) listenBtn.style.display = 'none';
+        document.getElementById('digest-footer').style.display = 'none';
         Toast.show(isQuota ? 'Quota IA atteint — remise à zéro à minuit' : 'Erreur digest IA', isQuota ? 'info' : 'error', 5000);
       } finally {
         btnEl.disabled = false;
@@ -2416,34 +2528,59 @@ RÈGLES ABSOLUES :
     }
 
     function init() {
-      const fsBody = document.getElementById('digest-fullscreen-body');
+      updateHeaderDate();
 
-      // Bouton ⬡ DIGEST — ouvre le plein écran et génère si vide
+      const listenBtn = document.getElementById('btn-digest-listen');
+      if (listenBtn) {
+        listenBtn.style.display = 'none'; // caché jusqu'à génération
+        listenBtn.addEventListener('click', () => {
+          const text = listenBtn._digestText || '';
+          if (!text) return;
+          TTS.toggle(text, listenBtn);
+        });
+      }
+
+      // Bouton ⬡ DIGEST — ouvre le plein écran
       const openBtn = document.getElementById('btn-open-digest');
       if (openBtn) openBtn.addEventListener('click', () => {
         const overlay = document.getElementById('digest-fullscreen-overlay');
         overlay.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+        updateHeaderDate();
 
-        // Si pas encore de contenu, générer automatiquement
-        if (fsBody && (fsBody.innerHTML.trim() === '' ||
-            fsBody.querySelector('.feed-digest-placeholder'))) {
+        const fsBody = document.getElementById('digest-fullscreen-body');
+        const isEmpty = fsBody.querySelector('.digest-empty-state') ||
+                        fsBody.querySelector('.feed-digest-placeholder') ||
+                        fsBody.innerHTML.trim() === '';
+
+        if (isEmpty) {
           const regenBtn = document.getElementById('btn-digest-fullscreen-regen');
-          generateAndRender(regenBtn || openBtn, null, fsBody);
+          generateAndRender(regenBtn || openBtn);
         }
       });
 
-      // Fermer plein écran
+      // Fermer plein écran — stopper TTS
       document.getElementById('btn-digest-fullscreen-close').addEventListener('click', () => {
+        TTS.stop();
         document.getElementById('digest-fullscreen-overlay').classList.add('hidden');
         document.body.style.overflow = '';
+        // Reset bouton TTS
+        if (listenBtn) {
+          listenBtn.textContent = '▶';
+          listenBtn.classList.remove('active', 'tts-loading');
+        }
       });
 
-      // ↺ Régénérer depuis le plein écran
+      // ↺ Régénérer
       const regenBtn = document.getElementById('btn-digest-fullscreen-regen');
-      if (regenBtn) regenBtn.addEventListener('click', () =>
-        generateAndRender(regenBtn, null, fsBody)
-      );
+      if (regenBtn) regenBtn.addEventListener('click', () => {
+        TTS.stop();
+        if (listenBtn) {
+          listenBtn.textContent = '▶';
+          listenBtn.classList.remove('active', 'tts-loading');
+        }
+        generateAndRender(regenBtn);
+      });
     }
 
     return { init, cleanHtml: cleanDigestHtml };
