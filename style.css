@@ -1135,21 +1135,32 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 }
 
 .reader-title-area.has-hero {
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
   min-height: 360px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  /* Image invisible jusqu'au fade-in */
-  opacity: 0;
-  transition: opacity 0.5s ease;
 }
 
-/* Déclenché par JS après chargement de l'image */
-.reader-title-area.hero-visible {
+/* Div image injectée par JS — fade-in indépendant du contenu */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  z-index: 0;
+}
+
+.hero-bg.hero-visible {
   opacity: 1;
+}
+
+/* S'assurer que le contenu passe au-dessus de hero-bg et des pseudo-éléments */
+.reader-title-area > *:not(.hero-bg) {
+  position: relative;
+  z-index: 2;
 }
 
 /* Dégradé light mode — plus bas, image plus visible */
@@ -1164,7 +1175,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
     rgba(247, 246, 243, 0.75) 72%,
     rgba(247, 246, 243, 1.0) 100%
   );
-  z-index: 0;
+  z-index: 1;
 }
 
 /* Légère désaturation de l'image pour ne pas écraser le texte */
