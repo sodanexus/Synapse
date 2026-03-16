@@ -160,8 +160,8 @@
 
     /** Écoute les changements d'auth (login/logout) */
     function onAuthChange(callback) {
-      getClient().auth.onAuthStateChange((_event, session) => {
-        callback(session?.user ?? null);
+      getClient().auth.onAuthStateChange((event, session) => {
+        callback(session?.user ?? null, event);
       });
     }
 
@@ -3274,14 +3274,21 @@ RÈGLES ABSOLUES :
     Auth.init();
 
     // Écouter les changements d'auth
-    Auth.onAuthChange(async (user) => {
+    Auth.onAuthChange(async (user, event) => {
+      // Ignorer les events qui ne changent pas l'état de connexion
+      // TOKEN_REFRESHED et USER_UPDATED ne nécessitent pas de recharger toute l'app
+      if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        if (user) STATE.user = user; // Mettre à jour le user silencieusement
+        return;
+      }
+
       if (user) {
-        // Utilisateur connecté
+        // Première connexion ou retour après déconnexion
         STATE.user = user;
         AuthUI.hideAuthOverlay(user);
         await onUserLogin(user);
       } else {
-        // Pas connecté
+        // Déconnexion réelle
         Loader.hide();
         AuthUI.showAuthOverlay();
       }
