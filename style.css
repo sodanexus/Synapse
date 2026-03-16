@@ -1138,6 +1138,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  background-color: var(--white);
 }
 
 /* Div image injectée par JS — fade-in indépendant du contenu */
@@ -1169,22 +1170,22 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(247, 246, 243, 0.05) 0%,
-    rgba(247, 246, 243, 0.18) 45%,
-    rgba(247, 246, 243, 0.78) 72%,
-    rgba(247, 246, 243, 1.0) 100%
+    rgba(255, 255, 255, 0.0) 0%,
+    rgba(255, 255, 255, 0.15) 45%,
+    rgba(255, 255, 255, 0.80) 72%,
+    rgba(255, 255, 255, 1.0) 100%
   );
   z-index: 1;
 }
 
-/* Dark mode — fond vers #1c1a18 */
+/* Dark mode — fond vers --white dark (#232018) */
 body.dark .reader-title-area.has-hero::before {
   background: linear-gradient(
     to bottom,
-    rgba(28, 26, 24, 0.0) 0%,
-    rgba(28, 26, 24, 0.15) 45%,
-    rgba(28, 26, 24, 0.75) 72%,
-    rgba(28, 26, 24, 1.0) 100%
+    rgba(35, 32, 24, 0.0) 0%,
+    rgba(35, 32, 24, 0.15) 45%,
+    rgba(35, 32, 24, 0.75) 72%,
+    rgba(35, 32, 24, 1.0) 100%
   );
 }
 
@@ -1204,6 +1205,12 @@ body.dark .reader-title-area.has-hero::before {
 body.dark .reader-modal:has(.reader-title-area.has-hero) .reader-header {
   background: rgba(28, 26, 24, 0.82);
   border-bottom-color: transparent;
+}
+
+
+/* Pas de séparation visuelle entre hero et contenu */
+.reader-modal:has(.reader-title-area.has-hero) .reader-content {
+  padding-top: 20px;
 }
 
 /* Zone résumé */
