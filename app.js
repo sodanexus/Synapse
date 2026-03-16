@@ -575,6 +575,7 @@ TEXTE : ${rssText}`;
 RÈGLES ABSOLUES :
 - Réponds UNIQUEMENT en HTML valide, JAMAIS en markdown
 - N'utilise JAMAIS #, ##, ###, **, *, - pour formater
+- N'utilise JAMAIS <strong>, <b>, <em>, <i> — aucun texte en gras ou italique
 - Utilise UNIQUEMENT ces balises : <h2>, <p>, <ul>, <li>
 - Pas d'introduction, pas de conclusion, pas de titre général
 - Langue : français
@@ -921,7 +922,7 @@ RÈGLES ABSOLUES :
     function articleRow(article, index, articleList) {
       const score = article.importance || 1;
       const isBookmarked = STATE.bookmarks.has(article.id || article.hash);
-      const isImportant = score >= 4;
+      const isImportant = score >= 4 && !article._forceRow;
 
       const row = document.createElement('div');
       row.dataset.hash = article.hash || '';
@@ -1094,12 +1095,11 @@ RÈGLES ABSOLUES :
       const page = STATE.articlesPage || 0;
       const paginated = filtered.slice(0, (page + 1) * PAGE_SIZE);
 
-      // Séparer articles importants et normaux pour la première page
-      const breakingCount = filtered._breakingCount || 0;
-      const breakingArticles = breakingCount > 0 ? paginated.slice(0, breakingCount) : [];
-      const normalArticles = paginated.slice(breakingCount);
+      // Grille en tête pour les articles breaking (seulement page 0)
+      const breakingCount = (page === 0 && filtered._breakingCount) ? filtered._breakingCount : 0;
+      const breakingArticles = paginated.slice(0, breakingCount);
+      const restArticles = paginated.slice(breakingCount);
 
-      // Grille pour les articles importants
       if (breakingArticles.length > 0) {
         const grid = document.createElement('div');
         grid.className = 'important-grid';
@@ -1108,16 +1108,17 @@ RÈGLES ABSOLUES :
         });
         container.appendChild(grid);
 
-        // Séparateur
         const sep = document.createElement('div');
         sep.className = 'feed-section-sep';
         sep.innerHTML = '<span>AUTRES ARTICLES</span>';
         container.appendChild(sep);
       }
 
-      // Articles normaux en liste
-      normalArticles.forEach((article, i) => {
-        container.appendChild(articleRow(article, i + breakingCount, filtered));
+      // Articles normaux — forcer les imp4/5 à s'afficher en row (pas card)
+      // en passant leur importance à 3 max pour éviter le rendu card-compact isolé
+      restArticles.forEach((article, i) => {
+        const articleProxy = { ...article, _forceRow: true };
+        container.appendChild(articleRow(articleProxy, i + breakingCount, filtered));
       });
 
       // Infinite scroll — sentinel en bas de liste
@@ -2031,8 +2032,14 @@ RÈGLES ABSOLUES :
       }
 
       html = html
-        .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+        // Supprimer TOUS les strong/b/em/i avec ou sans attributs
+        .replace(/<\/?(strong|b|em|i)(\s[^>]*)?>([^<]*)<\/\1>/gi, '$3')
+        .replace(/<\/?(strong|b|em|i)(\s[^>]*)?>/gi, '')
+        // **texte** → texte simple
+        .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+        // *texte* → texte simple
+        .replace(/\*([^*\n]+)\*/g, '$1')
+        // ### restants
         .replace(/^###?\s*/gm, '')
         .replace(/\n{3,}/g, '\n\n')
         .trim();
