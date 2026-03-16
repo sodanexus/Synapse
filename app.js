@@ -3088,8 +3088,10 @@ RÈGLES ABSOLUES :
 
     /** Rafraîchit toutes les vues UI avec l'état actuel */
     function refreshUI() {
-      const activeFeedIds = new Set(STATE.feeds.filter(f => f.active).map(f => f.id));
-      const visibleArticles = STATE.articles.filter(a => !a.feed_id || activeFeedIds.has(a.feed_id));
+      // Exclure uniquement les articles dont le feed est explicitement désactivé
+      // Ne pas filtrer les articles sans correspondance (feed supprimé/recréé)
+      const inactiveFeedIds = new Set(STATE.feeds.filter(f => !f.active).map(f => f.id));
+      const visibleArticles = STATE.articles.filter(a => !a.feed_id || !inactiveFeedIds.has(a.feed_id));
 
       Render.renderFeedArticles(visibleArticles, STATE.currentFilter, STATE.searchQuery);
       // Bookmarks : re-render uniquement si la vue est active (évite un appel Supabase à chaque sync)
