@@ -32,8 +32,17 @@
     // Le worker gère : /rss?url=... et /ai (relay Groq)
     WORKER_URL: 'https://synapse-worker.pannetier-julien.workers.dev',
 
-    // Modèle Groq (peut être changé facilement ici)
+    // Modèles Groq — split selon la tâche
+    // llama-3.1-8b-instant : 14.4K req/jour → enrichissement articles (rapide, suffisant)
+    // llama-3.3-70b-versatile : 1K req/jour  → digest uniquement (complexe, rare)
+    GROQ_MODEL_ENRICH: 'llama-3.1-8b-instant',
+    GROQ_MODEL_DIGEST: 'llama-3.3-70b-versatile',
+    // Rétrocompatibilité (utilisé dans callGroq par défaut)
     GROQ_MODEL: 'llama-3.1-8b-instant',
+
+    // Quota journalier estimé (req/jour free tier)
+    QUOTA_ENRICH_DAILY: 14400,
+    QUOTA_DIGEST_DAILY: 1000,
 
     // Nombre d'articles max à charger par fetch
     MAX_ARTICLES_PER_FEED: 20,
@@ -430,12 +439,15 @@
      * Le worker reçoit : POST /ai { prompt, systemPrompt, model }
      * Il retourne : { text: "..." }
      */
-    async function callGroq(systemPrompt, userPrompt, maxTokens = 800, retryCount = 0) {
+    async function callGroq(systemPrompt, userPrompt, maxTokens = 800, retryCount = 0, model = null) {
+      const usedModel = model || CONFIG.GROQ_MODEL;
+      // Incrémenter le compteur quota
+      QuotaTracker.increment(usedModel);
       const response = await fetch(`${CONFIG.WORKER_URL}/ai`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: CONFIG.GROQ_MODEL,
+          model: usedModel,
           system: systemPrompt,
           prompt: userPrompt,
           max_tokens: maxTokens,
@@ -452,7 +464,7 @@
         const waitMs = (5000) * Math.pow(2, retryCount);
         console.warn(`Groq 429 — attente ${waitMs / 1000}s avant retry ${retryCount + 1}/3`);
         await sleep(waitMs);
-        return callGroq(systemPrompt, userPrompt, maxTokens, retryCount + 1);
+        return callGroq(systemPrompt, userPrompt, maxTokens, retryCount + 1, model);
       }
 
       if (!response.ok) {
@@ -581,7 +593,9 @@ RÈGLES ABSOLUES :
 - Langue : français
 - Cite les sources entre parenthèses dans le texte`,
         `Rédige un briefing structuré par thèmes (max 6 thèmes). Pour chaque thème : un <h2> avec le nom du thème, un <p> de synthèse, et une <ul> avec les points clés.\n\n${articlesText}`,
-        800
+        800,
+        0,
+        CONFIG.GROQ_MODEL_DIGEST
       );
 
       return digest;
@@ -2065,11 +2079,25 @@ RÈGLES ABSOLUES :
       if (fsBody) fsBody.innerHTML = '<span class="feed-digest-placeholder">Génération en cours...</span>';
 
       try {
-        // Enrichir les articles manquants
-        const toEnrich = STATE.articles
-          .filter(a => !AI.isEnriched(a))
-          .sort((a, b) => (b.importance || 0) - (a.importance || 0))
-          .slice(0, Math.max(0, 10 - STATE.articles.filter(a => AI.isEnriched(a)).length));
+        // Pré-enrichir les articles manquants (seulement si quota suffisant)
+        const enrichedCount = STATE.articles.filter(a => AI.isEnriched(a)).length;
+        const quotaRemaining = QuotaTracker.remaining(CONFIG.GROQ_MODEL_ENRICH);
+        const maxPreEnrich = Math.min(
+          Math.max(0, 10 - enrichedCount), // articles manquants
+          quotaRemaining,                   // quota restant
+          5                                 // max 5 pour le digest (pas tout brûler)
+        );
+
+        const toEnrich = maxPreEnrich > 0
+          ? STATE.articles
+              .filter(a => !AI.isEnriched(a))
+              .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+              .slice(0, maxPreEnrich)
+          : [];
+
+        if (toEnrich.length === 0 && enrichedCount === 0) {
+          throw new Error('Aucun article enrichi disponible et quota insuffisant. Ouvrez quelques articles d\'abord.');
+        }
 
         for (let i = 0; i < toEnrich.length; i++) {
           try {
@@ -2193,6 +2221,121 @@ RÈGLES ABSOLUES :
   })();
 
   /* ================================================================
+     QUOTA TRACKER — Suivi des appels Groq par modèle
+     Stocke en localStorage pour persister entre sessions.
+     Reset automatique chaque jour à minuit UTC.
+     ================================================================ */
+  const QuotaTracker = (() => {
+    const KEY = 'synapse_quota';
+
+    function _load() {
+      try {
+        const raw = localStorage.getItem(KEY);
+        if (!raw) return _fresh();
+        const data = JSON.parse(raw);
+        // Reset si nouveau jour UTC
+        const today = new Date().toISOString().split('T')[0];
+        if (data.date !== today) return _fresh();
+        return data;
+      } catch { return _fresh(); }
+    }
+
+    function _fresh() {
+      return {
+        date: new Date().toISOString().split('T')[0],
+        counts: {},
+        exhausted: {},
+      };
+    }
+
+    function _save(data) {
+      try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
+    }
+
+    /** Incrémente le compteur pour un modèle */
+    function increment(model) {
+      const data = _load();
+      data.counts[model] = (data.counts[model] || 0) + 1;
+      _save(data);
+      _updateUI();
+    }
+
+    /** Marque un modèle comme épuisé (429 reçu) */
+    function markExhausted(model) {
+      const data = _load();
+      data.exhausted[model] = true;
+      _save(data);
+      _updateUI();
+    }
+
+    /** Vérifie si un modèle est épuisé */
+    function isExhausted(model) {
+      const data = _load();
+      return !!data.exhausted[model];
+    }
+
+    /** Retourne le nb d'appels restants estimés */
+    function remaining(model) {
+      const data = _load();
+      const used = data.counts[model] || 0;
+      const limit = model === CONFIG.GROQ_MODEL_DIGEST
+        ? CONFIG.QUOTA_DIGEST_DAILY
+        : CONFIG.QUOTA_ENRICH_DAILY;
+      return Math.max(0, limit - used);
+    }
+
+    /** Retourne le nb d'appels du jour pour un modèle */
+    function used(model) {
+      return _load().counts[model] || 0;
+    }
+
+    /** Met à jour l'indicateur dans la sidebar */
+    function _updateUI() {
+      const el = document.getElementById('quota-indicator');
+      if (!el) return;
+      const enrichUsed = used(CONFIG.GROQ_MODEL_ENRICH);
+      const digestUsed = used(CONFIG.GROQ_MODEL_DIGEST);
+      const enrichRem  = remaining(CONFIG.GROQ_MODEL_ENRICH);
+      const digestRem  = remaining(CONFIG.GROQ_MODEL_DIGEST);
+      const enrichPct  = Math.min(100, Math.round(enrichUsed / CONFIG.QUOTA_ENRICH_DAILY * 100));
+      const digestPct  = Math.min(100, Math.round(digestUsed / CONFIG.QUOTA_DIGEST_DAILY * 100));
+
+      el.innerHTML = `
+        <div class="quota-row">
+          <span class="quota-label">ENRICH</span>
+          <div class="quota-bar-wrap">
+            <div class="quota-bar" style="width:${enrichPct}%;background:${enrichPct > 80 ? 'var(--quota-warn)' : 'var(--quota-ok)'}"></div>
+          </div>
+          <span class="quota-val">${enrichUsed}/${CONFIG.QUOTA_ENRICH_DAILY}</span>
+        </div>
+        <div class="quota-row">
+          <span class="quota-label">DIGEST</span>
+          <div class="quota-bar-wrap">
+            <div class="quota-bar" style="width:${digestPct}%;background:${digestPct > 80 ? 'var(--quota-warn)' : 'var(--quota-ok)'}"></div>
+          </div>
+          <span class="quota-val">${digestUsed}/${CONFIG.QUOTA_DIGEST_DAILY}</span>
+        </div>
+      `;
+    }
+
+    /** Initialise l'UI du tracker */
+    function init() {
+      _updateUI();
+      // Reset check toutes les heures
+      setInterval(() => {
+        const data = _load();
+        const today = new Date().toISOString().split('T')[0];
+        if (data.date !== today) {
+          _save(_fresh());
+          _updateUI();
+        }
+      }, 3600000);
+    }
+
+    return { increment, markExhausted, isExhausted, remaining, used, init };
+  })();
+
+  /* ================================================================
      BACKGROUND ENRICH — Enrichissement silencieux en arrière-plan
      Enrichit les articles non encore traités par ordre d'importance,
      sans bloquer l'UI et en respectant le rate limit Groq.
@@ -2203,16 +2346,23 @@ RÈGLES ABSOLUES :
     async function run() {
       if (running) return;
 
-      // Trouver les articles à enrichir (pas encore traités, triés par importance desc)
+      // Vérifier si le quota n'est pas épuisé avant de lancer
+      if (QuotaTracker.isExhausted(CONFIG.GROQ_MODEL_ENRICH)) {
+        console.log('[BG] Quota épuisé — background enrich annulé');
+        return;
+      }
+
+      // Trouver les articles à enrichir — uniquement ceux jamais traités
+      // (pas d'ai_content en base, pas juste non-enrichis en mémoire)
       const toEnrich = STATE.articles
-        .filter(a => !AI.isEnriched(a))
+        .filter(a => !AI.isEnriched(a) && !a.ai_content) // double vérif
         .sort((a, b) => (b.importance || 0) - (a.importance || 0))
-        .slice(0, 10); // max 10 par session bg
+        .slice(0, 3); // max 3 par session bg (bridé pour préserver le quota)
 
       if (toEnrich.length === 0) return;
 
       running = true;
-      console.log(`[BG] Enrichissement arrière-plan : ${toEnrich.length} articles`);
+      console.log(`[BG] Enrichissement arrière-plan : ${toEnrich.length} articles (quota restant: ${QuotaTracker.remaining(CONFIG.GROQ_MODEL_ENRICH)})`);
 
       for (const article of toEnrich) {
         // Arrêter si l'utilisateur a ouvert un article (on lui laisse la priorité)
@@ -2249,12 +2399,19 @@ RÈGLES ABSOLUES :
           // Mettre à jour ai_title en mémoire aussi
           article.ai_title = result.ai_title || null;
         } catch (err) {
-          // Rate limit ou erreur — on s'arrête proprement
-          if (err.message?.includes('Rate limit')) {
+          // Rate limit ou quota épuisé — on s'arrête proprement
+          if (err.message?.includes('Rate limit') || err.message?.includes('429')) {
             console.log('[BG] Rate limit atteint, arrêt enrichissement bg');
+            QuotaTracker.markExhausted(CONFIG.GROQ_MODEL_ENRICH);
             break;
           }
           console.warn('[BG] Erreur enrichissement:', err.message);
+        }
+
+        // Vérifier le quota à chaque itération
+        if (QuotaTracker.isExhausted(CONFIG.GROQ_MODEL_ENRICH)) {
+          console.log('[BG] Quota atteint en cours de traitement, arrêt');
+          break;
         }
 
         // Délai respectueux entre chaque appel
@@ -2585,6 +2742,7 @@ RÈGLES ABSOLUES :
     AuthUI.init();
     Theme.init();
     FontSize.init();
+    QuotaTracker.init();
 
     // Initialiser le label et le mettre à jour toutes les minutes
     Sync.updateLastSyncLabel();
