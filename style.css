@@ -1194,16 +1194,16 @@ body.dark .reader-title-area.has-hero::before {
   padding-bottom: 36px;
 }
 
-/* Header toolbar — fond semi-transparent quand hero actif */
+/* Header toolbar — fond semi-transparent et sans bordure quand hero actif */
 .reader-modal:has(.reader-title-area.has-hero) .reader-header {
   background: rgba(247, 246, 243, 0.82);
   backdrop-filter: blur(8px);
-  border-bottom-color: rgba(0,0,0,0.08);
+  border-bottom-color: transparent;
 }
 
 body.dark .reader-modal:has(.reader-title-area.has-hero) .reader-header {
   background: rgba(28, 26, 24, 0.82);
-  border-bottom-color: rgba(255,255,255,0.08);
+  border-bottom-color: transparent;
 }
 
 /* Zone résumé */
