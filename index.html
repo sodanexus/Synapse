@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=48" />
+  <link rel="stylesheet" href="style.css?v=49" />
   <!-- Anti-flash dark mode : appliqué avant le rendu -->
   <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
@@ -267,6 +267,8 @@
           <!-- Bookmark -->
           <button class="reader-btn" id="btn-bookmark" title="Sauvegarder">◧</button>
           <span class="reader-sep"></span>
+          <!-- Ouvrir source — accès direct sur mobile -->
+          <button class="reader-btn" id="btn-open-source-direct" title="Ouvrir l'article complet">↗</button>
           <!-- Menu contextuel -->
           <div class="reader-more-wrap">
             <button class="reader-btn" id="btn-reader-more" title="Plus d'options">···</button>
@@ -280,17 +282,20 @@
         </div>
       </div>
 
-      <!-- Score d'importance -->
-      <div class="reader-importance" id="reader-importance">
-        <span class="importance-label">IMPORTANCE</span>
-        <div class="importance-bars" id="reader-imp-bars"></div>
+      <!-- Hero image + Titre — groupés pour le background -->
+      <div class="reader-title-area" id="reader-title-area">
+        <!-- Score d'importance -->
+        <div class="reader-importance" id="reader-importance">
+          <span class="importance-label">IMPORTANCE</span>
+          <div class="importance-bars" id="reader-imp-bars"></div>
+        </div>
+
+        <!-- Tags IA -->
+        <div class="reader-tags" id="reader-tags"></div>
+
+        <!-- Titre -->
+        <h1 class="reader-title" id="reader-title"></h1>
       </div>
-
-      <!-- Tags IA -->
-      <div class="reader-tags" id="reader-tags"></div>
-
-      <!-- Titre -->
-      <h1 class="reader-title" id="reader-title"></h1>
 
 
 
