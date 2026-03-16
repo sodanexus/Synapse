@@ -381,6 +381,7 @@
               content: stripHtml(item.content || item.description || ''),
               pub_date: parseDate(item.pubDate),
               hash: hashString(item.link || item.title || ''),
+              image: item.image || '',
               // Champs IA — remplis après
               ai_content: null,
               ai_tags: [],
@@ -1469,6 +1470,50 @@ RÈGLES ABSOLUES :
       Toast.show('Quota IA atteint — remise à zéro à minuit', 'info', 5000);
     }
 
+    /** Applique l'image hero en fond de la zone titre */
+    function _setHeroImage(article) {
+      const titleArea = document.getElementById('reader-title-area');
+      if (!titleArea) return;
+
+      // Reset
+      titleArea.style.backgroundImage = '';
+      titleArea.classList.remove('has-hero');
+
+      const img = article.image || '';
+      if (img) {
+        _applyHero(titleArea, img);
+        return;
+      }
+
+      // Pas d'image RSS → tenter OG scrape en arrière-plan (silencieux)
+      if (article.link) {
+        fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`, {
+          signal: AbortSignal.timeout(8000),
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (!data?.ogImage) return;
+            // Vérifier que c'est toujours le même article ouvert
+            const current = STATE.currentArticleList[STATE.currentArticleIndex];
+            if (current?.hash !== article.hash) return;
+            article.image = data.ogImage;
+            _applyHero(titleArea, data.ogImage);
+          })
+          .catch(() => {});
+      }
+    }
+
+    /** Applique l'image en background avec fade-in */
+    function _applyHero(el, url) {
+      const img = new Image();
+      img.onload = () => {
+        el.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
+        el.classList.add('has-hero');
+      };
+      img.onerror = () => {};
+      img.src = url;
+    }
+
     /** Ferme le reader avec animation */
     function close() {
       TTS.stop();
@@ -1510,6 +1555,9 @@ RÈGLES ABSOLUES :
         }) + ` · ${readMin} min`;
 
       document.getElementById('reader-title').textContent = article.ai_title || article.title || '';
+
+      // Image hero — fond du header avec dégradé
+      _setHeroImage(article);
 
       // Barres d'importance
       const score = article.importance || 1;
