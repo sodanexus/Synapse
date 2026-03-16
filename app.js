@@ -2204,9 +2204,8 @@ RÈGLES ABSOLUES :
   })();
 
   /* ================================================================
-     TTS — ElevenLabs Text-to-Speech (via Cloudflare Worker proxy)
-     Voix : Lily — féminine, velvety, parfaite pour news/narration
-     Modèle : eleven_flash_v2_5 — rapide, économe en quota
+     TTS — Unreal Speech Text-to-Speech (via Cloudflare Worker proxy)
+     Voix : Élodie — française, féminine (Unreal Speech)
      État : idle | loading | playing | paused
      ================================================================ */
   const TTS = (() => {
@@ -2247,7 +2246,7 @@ RÈGLES ABSOLUES :
         const res = await fetch(`${CONFIG.WORKER_URL}/tts`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: text.slice(0, 2400) }),
+          body: JSON.stringify({ text }),
           signal: _abortCtrl.signal,
         });
 
@@ -2277,7 +2276,7 @@ RÈGLES ABSOLUES :
           _setState('idle');
           return;
         }
-        console.warn('ElevenLabs TTS échoué:', err);
+        console.warn('TTS échoué:', err);
         Toast.show('Audio indisponible — réessayez', 'error');
         _setState('idle');
       }
@@ -2835,7 +2834,8 @@ RÈGLES ABSOLUES :
       const visibleArticles = STATE.articles.filter(a => !a.feed_id || activeFeedIds.has(a.feed_id));
 
       Render.renderFeedArticles(visibleArticles, STATE.currentFilter, STATE.searchQuery);
-      Render.renderBookmarks(visibleArticles);
+      // Bookmarks : re-render uniquement si la vue est active (évite un appel Supabase à chaque sync)
+      if (STATE.currentView === 'bookmarks') Render.renderBookmarks(visibleArticles);
       Settings.renderFeedsManager(STATE.feeds);
       Render.renderSidebarFeeds(STATE.feeds);
       updateBadge();
@@ -3187,7 +3187,7 @@ RÈGLES ABSOLUES :
         );
 
         // Si assez de résultats locaux (>= 5), pas besoin de chercher en base
-        if (localResults.length >= 5) return;
+        if (localResults.length >= 10) return;
 
         STATE.isSearching = true;
         Render.renderFeedArticles(STATE.articles, STATE.currentFilter, q);
