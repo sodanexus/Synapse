@@ -1131,7 +1131,6 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 .reader-title-area {
   position: relative;
   overflow: hidden;
-  transition: background-image 0.3s ease;
 }
 
 .reader-title-area.has-hero {
@@ -1170,22 +1169,12 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(247, 246, 243, 0.0) 0%,
-    rgba(247, 246, 243, 0.15) 45%,
-    rgba(247, 246, 243, 0.75) 72%,
+    rgba(247, 246, 243, 0.05) 0%,
+    rgba(247, 246, 243, 0.18) 45%,
+    rgba(247, 246, 243, 0.78) 72%,
     rgba(247, 246, 243, 1.0) 100%
   );
   z-index: 1;
-}
-
-/* Légère désaturation de l'image pour ne pas écraser le texte */
-.reader-title-area.has-hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  backdrop-filter: saturate(0.65) brightness(0.95);
-  z-index: 0;
-  pointer-events: none;
 }
 
 /* Dark mode — fond vers #1c1a18 */
