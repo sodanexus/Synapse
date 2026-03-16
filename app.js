@@ -68,7 +68,6 @@
     searchResults: null,     // Résultats de recherche Supabase (null = pas de recherche active)
     articlesPage: 0,         // Page courante pour la pagination
     articlesPerPage: 200,    // Articles par page
-    digestGenerated: false,  // Digest déjà généré aujourd'hui ?
     lastSyncTime: null,      // Timestamp du dernier sync
     isLoading: false,        // Chargement en cours
     isSearching: false,      // Recherche Supabase en cours
@@ -778,13 +777,6 @@ RÈGLES ABSOLUES :
         }
       });
 
-      // Date du digest
-      const dateEl = document.getElementById('digest-date');
-      if (dateEl) {
-        dateEl.textContent = new Date().toLocaleDateString('fr-FR', {
-          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-        }).toUpperCase();
-      }
     }
 
     return { init, switchView };
@@ -974,35 +966,6 @@ RÈGLES ABSOLUES :
     }
 
     /** Crée une card article (vue grille, home) */
-    function articleCard(article, index, articleList) {
-      const card = document.createElement('div');
-      card.className = `article-card${article.read ? '' : ' unread'}`;
-      card.style.animationDelay = `${index * 40}ms`;
-      card.dataset.hash = article.hash || '';
-
-      const score = article.importance || 1;
-      const tags = (article.ai_tags || []).slice(0, 3).map(t =>
-        `<span class="tag">${escapeHtml(t)}</span>`
-      ).join('');
-
-      card.innerHTML = `
-        <div class="card-imp-bar imp-${score}"></div>
-        <div class="card-source">${escapeHtml(article.feed_name || '')}</div>
-        <h3 class="card-title">${escapeHtml(article.ai_title || article.title || '')}</h3>
-        <p class="card-excerpt">${escapeHtml((article.ai_content || article.content || '').substring(0, 200))}</p>
-        <div class="card-footer">
-          <span class="card-date">${relativeTime(article.pub_date)}</span>
-          <div class="card-tags">${tags}</div>
-        </div>
-      `;
-
-      card.addEventListener('click', () => {
-        Reader.open(article, index, articleList);
-      });
-
-      return card;
-    }
-
     /** Crée une ligne article (vue liste, flux / bookmarks) */
     function articleRow(article, index, articleList) {
       const score = article.importance || 1;
@@ -1014,21 +977,13 @@ RÈGLES ABSOLUES :
       row.style.animationDelay = `${index * 30}ms`;
 
       if (isImportant) {
-        // Vue bloc pour les articles importants
-        row.className = `article-bloc${article.read ? ' read' : ''}`;
+        // Vue card compacte pour les articles importants
+        row.className = `article-card-compact${article.read ? ' read' : ''}`;
         row.innerHTML = `
-          <div class="bloc-imp-bar imp-${score}"></div>
-          <div class="bloc-inner">
-            <div class="bloc-source">${escapeHtml(article.feed_name || '')} · ${relativeTime(article.pub_date)}</div>
-            <div class="bloc-title">${escapeHtml(article.ai_title || article.title || '')}</div>
-            ${article.ai_content ? `<div class="bloc-excerpt">${escapeHtml(article.ai_content.substring(0, 160))}…</div>` : ''}
-            <div class="bloc-footer">
-              <div class="bloc-tags">${(article.ai_tags || []).slice(0, 3).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
-              <div class="bloc-actions">
-                <button class="row-action-btn${isBookmarked ? ' bookmarked' : ''}" data-action="bookmark">◧</button>
-              </div>
-            </div>
-          </div>
+          <div class="card-compact-bar imp-${score}"></div>
+          <div class="card-compact-source">${escapeHtml(article.feed_name || '')} · ${relativeTime(article.pub_date)}</div>
+          <div class="card-compact-title">${escapeHtml(article.ai_title || article.title || '')}</div>
+          ${article.ai_content ? `<div class="card-compact-excerpt">${escapeHtml(article.ai_content.substring(0, 90))}…</div>` : ''}
         `;
       } else {
         // Vue row normale
@@ -1103,25 +1058,6 @@ RÈGLES ABSOLUES :
         .replace(/'/g, '&#39;');
     }
 
-    /** Rendu vue HOME — articles importants du jour */
-    function renderHomeArticles(articles) {
-      const container = document.getElementById('home-articles');
-      container.innerHTML = '';
-
-      const topArticles = articles
-        .sort((a, b) => (b.importance || 0) - (a.importance || 0))
-        .slice(0, 12);
-
-      if (topArticles.length === 0) {
-        container.innerHTML = '<div class="empty-state"><span class="empty-state-icon">⬡</span><p class="empty-state-text">Aucun article chargé. Ajoutez des feeds RSS dans la section FEEDS.</p></div>';
-        return;
-      }
-
-      topArticles.forEach((article, i) => {
-        container.appendChild(articleCard(article, i, topArticles));
-      });
-    }
-
     /** Rendu vue FLUX — liste filtrée */
     function renderFeedArticles(articles, filter = 'all', query = '') {
       const container = document.getElementById('feed-articles');
@@ -1194,15 +1130,30 @@ RÈGLES ABSOLUES :
       const page = STATE.articlesPage || 0;
       const paginated = filtered.slice(0, (page + 1) * PAGE_SIZE);
 
-      paginated.forEach((article, i) => {
-        // Séparateur entre les articles importants et le reste
-        if (filtered._breakingCount && i === filtered._breakingCount && i < paginated.length) {
-          const sep = document.createElement('div');
-          sep.className = 'feed-section-sep';
-          sep.innerHTML = '<span>AUTRES ARTICLES</span>';
-          container.appendChild(sep);
-        }
-        container.appendChild(articleRow(article, i, filtered));
+      // Séparer articles importants et normaux pour la première page
+      const breakingCount = filtered._breakingCount || 0;
+      const breakingArticles = breakingCount > 0 ? paginated.slice(0, breakingCount) : [];
+      const normalArticles = paginated.slice(breakingCount);
+
+      // Grille pour les articles importants
+      if (breakingArticles.length > 0) {
+        const grid = document.createElement('div');
+        grid.className = 'important-grid';
+        breakingArticles.forEach((article, i) => {
+          grid.appendChild(articleRow(article, i, filtered));
+        });
+        container.appendChild(grid);
+
+        // Séparateur
+        const sep = document.createElement('div');
+        sep.className = 'feed-section-sep';
+        sep.innerHTML = '<span>AUTRES ARTICLES</span>';
+        container.appendChild(sep);
+      }
+
+      // Articles normaux en liste
+      normalArticles.forEach((article, i) => {
+        container.appendChild(articleRow(article, i + breakingCount, filtered));
       });
 
       // Infinite scroll — sentinel en bas de liste
@@ -1224,47 +1175,6 @@ RÈGLES ABSOLUES :
 
         observer.observe(sentinel);
       }
-    }
-
-    /** Rendu vue CLUSTERS */
-    function renderClusters(clusters) {
-      const container = document.getElementById('clusters-grid');
-      container.innerHTML = '';
-
-      if (clusters.length === 0) {
-        container.innerHTML = '<div class="empty-state"><span class="empty-state-icon">◈</span><p class="empty-state-text">Pas assez d\'articles pour créer des clusters. Rafraîchissez vos feeds.</p></div>';
-        return;
-      }
-
-      clusters.forEach((cluster, ci) => {
-        const card = document.createElement('div');
-        card.className = 'cluster-card';
-        card.style.animationDelay = `${ci * 60}ms`;
-
-        card.innerHTML = `
-          <div class="cluster-header">
-            <div class="cluster-topic">
-              <span class="cluster-count">${cluster.articles.length}</span>
-              ${escapeHtml(cluster.topic)}
-            </div>
-            <span class="cluster-toggle">▾</span>
-          </div>
-          <div class="cluster-articles articles-list"></div>
-        `;
-
-        // Toggle ouverture
-        card.querySelector('.cluster-header').addEventListener('click', () => {
-          card.classList.toggle('open');
-        });
-
-        // Rendu des articles du cluster
-        const artContainer = card.querySelector('.cluster-articles');
-        cluster.articles.forEach((article, i) => {
-          artContainer.appendChild(articleRow(article, i, cluster.articles));
-        });
-
-        container.appendChild(card);
-      });
     }
 
     /** Rendu vue BOOKMARKS */
@@ -1389,8 +1299,8 @@ RÈGLES ABSOLUES :
     }
 
     return {
-      articleCard, articleRow, renderHomeArticles, renderFeedArticles,
-      renderClusters, renderBookmarks, renderHistory, renderSidebarFeeds,
+      articleCard, articleRow, renderFeedArticles,
+      renderBookmarks, renderHistory, renderSidebarFeeds,
       escapeHtml, relativeTime, importanceBars
     };
   })();
@@ -2095,166 +2005,89 @@ RÈGLES ABSOLUES :
      11. UI — Digest HomePage
      ================================================================ */
   const Digest = (() => {
-    /** Génère et affiche le digest du jour */
-    async function generate() {
-      const btn = document.getElementById('btn-generate-digest');
-      const zone = document.getElementById('digest-zone');
-
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner digest-spinner"></span>';
-
-      try {
-        // Enrichir les articles manquants avant de générer
-        const enrichedArticles = STATE.articles.filter(a => AI.isEnriched(a));
-        const toEnrich = STATE.articles
-          .filter(a => !AI.isEnriched(a))
-          .sort((a, b) => (b.importance || 0) - (a.importance || 0))
-          .slice(0, Math.max(0, 10 - enrichedArticles.length));
-
-        if (toEnrich.length > 0) {
-          zone.innerHTML = `<div class="content-loading"><div class="spinner"></div><span>Enrichissement IA — 0/${toEnrich.length} articles...</span></div>`;
-          const statusEl = zone.querySelector('span');
-
-          for (let i = 0; i < toEnrich.length; i++) {
-            try {
-              const result = await AI.enrichArticle(toEnrich[i]);
-              toEnrich[i].ai_content = result.ai_content;
-              toEnrich[i].ai_title = result.ai_title || null;
-              toEnrich[i].importance = result.importance;
-              toEnrich[i].ai_tags = result.ai_tags;
-              toEnrich[i].sentiment = result.sentiment || 'neutral';
-              if (statusEl) statusEl.textContent = `Enrichissement IA — ${i + 1}/${toEnrich.length} articles...`;
-            } catch (err) {
-              console.warn('Enrichissement échoué pour digest:', err);
-            }
-            if (i < toEnrich.length - 1) await new Promise(r => setTimeout(r, CONFIG.GROQ_REQUEST_DELAY));
-          }
-        }
-
-        zone.innerHTML = '<div class="content-loading"><div class="spinner"></div><span>Génération du digest...</span></div>';
-
-        const html = await AI.generateDailyDigest(STATE.articles);
-        renderDigest(html);
-        Toast.show('Digest généré ✓', 'success');
-      } catch (err) {
-        zone.innerHTML = `<div class="digest-placeholder">
-          <span class="placeholder-icon">⚠</span>
-          <p>Erreur lors de la génération : ${Render.escapeHtml(err.message)}</p>
-        </div>`;
-        Toast.show('Erreur digest IA', 'error');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '↺';
-      }
-    }
-
     /** Nettoie et normalise le HTML du digest — convertit markdown → HTML */
     function cleanDigestHtml(raw) {
-      let html = raw
-        // Supprimer les balises incomplètes en fin
-        .replace(/<\/?[a-z]+>?\s*$/gi, '')
-        .trim();
+      let html = raw.replace(/<\/?[a-z]+>?\s*$/gi, '').trim();
 
-      // Si l'IA a renvoyé du markdown pur (pas de balises HTML), convertir
       if (!html.includes('<h') && !html.includes('<p') && !html.includes('<ul')) {
         html = html
-          // ### Titre → <h2>
           .replace(/^###\s+(.+)$/gm, '<h2>$1</h2>')
-          // ## Titre → <h2>
           .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
-          // # Titre → <h2>
           .replace(/^#\s+(.+)$/gm, '<h2>$1</h2>')
-          // - item ou * item → <li>
           .replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>')
-          // Entourer les <li> consécutifs d'un <ul>
           .replace(/(<li>.*<\/li>\n?)+/gs, '<ul>$&</ul>')
-          // Paragraphes (lignes non balisées)
           .replace(/^(?!<[hul]|$)(.+)$/gm, '<p>$1</p>');
       }
 
-      // Dans tous les cas, convertir le markdown résiduel
       html = html
-        // **texte** → <strong>
         .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
-        // *texte* → <em>
         .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
-        // ### restants
         .replace(/^###?\s*/gm, '')
-        // Lignes vides multiples
         .replace(/\n{3,}/g, '\n\n')
         .trim();
 
       return html;
     }
 
-    /** Affiche le digest avec un effet de streaming mot par mot */
-    function renderDigest(html) {
-      const zone = document.getElementById('digest-zone');
-      const div = document.createElement('div');
-      div.className = 'digest-content';
-      zone.innerHTML = '';
-      zone.appendChild(div);
+    /** Génère le digest et met à jour le bandeau + plein écran */
+    async function generateAndRender(btnEl, contentEl, fsBody) {
+      btnEl.disabled = true;
+      const origLabel = btnEl.innerHTML;
+      btnEl.innerHTML = '<span class="spinner digest-spinner"></span>';
+      if (contentEl) contentEl.innerHTML = '<span class="feed-digest-placeholder">Génération en cours...</span>';
+      if (fsBody) fsBody.innerHTML = '<span class="feed-digest-placeholder">Génération en cours...</span>';
 
-      const cleaned = cleanDigestHtml(html);
+      try {
+        // Enrichir les articles manquants
+        const toEnrich = STATE.articles
+          .filter(a => !AI.isEnriched(a))
+          .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+          .slice(0, Math.max(0, 10 - STATE.articles.filter(a => AI.isEnriched(a)).length));
 
-      // Insérer le HTML d'un coup mais invisible
-      div.innerHTML = cleaned;
-      div.style.opacity = '0';
+        for (let i = 0; i < toEnrich.length; i++) {
+          try {
+            const result = await AI.enrichArticle(toEnrich[i]);
+            toEnrich[i].ai_content = result.ai_content;
+            toEnrich[i].ai_title = result.ai_title || null;
+            toEnrich[i].importance = result.importance;
+            toEnrich[i].ai_tags = result.ai_tags;
+            toEnrich[i].sentiment = result.sentiment || 'neutral';
+          } catch {}
+          if (i < toEnrich.length - 1) await new Promise(r => setTimeout(r, CONFIG.GROQ_REQUEST_DELAY));
+        }
 
-      // Collecter tous les noeuds texte feuilles
-      const textNodes = [];
-      const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT, null);
-      let node;
-      while ((node = walker.nextNode())) {
-        if (node.textContent.trim()) textNodes.push(node);
+        const html = await AI.generateDailyDigest(STATE.articles);
+        const rendered = `<div class="feed-digest-text">${cleanDigestHtml(html)}</div>`;
+        if (contentEl) contentEl.innerHTML = rendered;
+        if (fsBody) fsBody.innerHTML = rendered;
+        if (STATE.user) DB.saveDigest(STATE.user.id, html).catch(() => {});
+        Toast.show('Digest généré ✓', 'success');
+      } catch (err) {
+        const errMsg = '<span class="feed-digest-placeholder">Erreur — réessayez plus tard</span>';
+        if (contentEl) contentEl.innerHTML = errMsg;
+        if (fsBody) fsBody.innerHTML = errMsg;
+        Toast.show('Erreur digest IA', 'error');
+      } finally {
+        btnEl.disabled = false;
+        btnEl.innerHTML = origLabel;
       }
-
-      // Découper chaque noeud texte en spans mot par mot
-      const allSpans = [];
-      textNodes.forEach(textNode => {
-        const words = textNode.textContent.split(/(\s+)/);
-        const frag = document.createDocumentFragment();
-        words.forEach(word => {
-          if (word.match(/^\s+$/)) {
-            frag.appendChild(document.createTextNode(word));
-          } else {
-            const span = document.createElement('span');
-            span.textContent = word;
-            span.style.opacity = '0';
-            span.style.transition = 'opacity 0.12s ease';
-            frag.appendChild(span);
-            allSpans.push(span);
-          }
-        });
-        textNode.replaceWith(frag);
-      });
-
-      // Rendre le conteneur visible
-      div.style.opacity = '1';
-
-      // Révéler les mots par groupes rapides
-      const GROUP = 6;
-      const DELAY = 18; // ms — assez rapide pour ne pas être frustrant
-      allSpans.forEach((span, i) => {
-        setTimeout(() => {
-          span.style.opacity = '1';
-        }, Math.floor(i / GROUP) * DELAY);
-      });
     }
 
-    /** Initialise les boutons digest */
     function init() {
-      document.getElementById('btn-generate-digest').addEventListener('click', generate);
+      const contentEl = document.getElementById('feed-digest-content');
+      const fsBody = document.getElementById('digest-fullscreen-body');
 
-      // Bouton expand → plein écran
+      // Bouton ↺ dans le bandeau
+      const refreshBtn = document.getElementById('btn-feed-digest-refresh');
+      if (refreshBtn) refreshBtn.addEventListener('click', () =>
+        generateAndRender(refreshBtn, contentEl, null)
+      );
+
+      // Bouton ⤢ expand → plein écran
       const expandBtn = document.getElementById('btn-feed-digest-expand');
       if (expandBtn) expandBtn.addEventListener('click', () => {
-        const contentEl = document.getElementById('feed-digest-content');
-        const fsBody = document.getElementById('digest-fullscreen-body');
-        const overlay = document.getElementById('digest-fullscreen-overlay');
-        // Copier le contenu actuel dans le plein écran
         fsBody.innerHTML = contentEl.innerHTML;
-        overlay.classList.remove('hidden');
+        document.getElementById('digest-fullscreen-overlay').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
       });
 
@@ -2264,49 +2097,14 @@ RÈGLES ABSOLUES :
         document.body.style.overflow = '';
       });
 
-      // Régénérer depuis le plein écran
-      document.getElementById('btn-digest-fullscreen-regen').addEventListener('click', async () => {
-        const fsBody = document.getElementById('digest-fullscreen-body');
-        const contentEl = document.getElementById('feed-digest-content');
-        const regenBtn = document.getElementById('btn-digest-fullscreen-regen');
-        regenBtn.disabled = true;
-        regenBtn.textContent = '↺ En cours...';
-        fsBody.innerHTML = '<span class="feed-digest-placeholder">Génération en cours...</span>';
-        try {
-          const html = await AI.generateDailyDigest(STATE.articles);
-          const rendered = `<div class="feed-digest-text">${Digest.cleanHtml(html)}</div>`;
-          fsBody.innerHTML = rendered;
-          contentEl.innerHTML = rendered;
-          if (STATE.user) await DB.saveDigest(STATE.user.id, html).catch(() => {});
-        } catch {
-          fsBody.innerHTML = '<span class="feed-digest-placeholder">Erreur — réessayez</span>';
-        } finally {
-          regenBtn.disabled = false;
-          regenBtn.textContent = '↺ Régénérer';
-        }
-      });
-      // Bandeau digest dans le FLUX
-      const feedDigestBtn = document.getElementById('btn-feed-digest-refresh');
-      if (feedDigestBtn) feedDigestBtn.addEventListener('click', async () => {
-        const contentEl = document.getElementById('feed-digest-content');
-        const btnEl = document.getElementById('btn-feed-digest-refresh');
-        btnEl.disabled = true;
-        btnEl.innerHTML = '<span class="spinner digest-spinner"></span>';
-        contentEl.innerHTML = '<span class="feed-digest-placeholder">Génération en cours...</span>';
-        try {
-          const html = await AI.generateDailyDigest(STATE.articles);
-          contentEl.innerHTML = `<div class="feed-digest-text">${html}</div>`;
-          if (STATE.user) await DB.saveDigest(STATE.user.id, html).catch(() => {});
-        } catch {
-          contentEl.innerHTML = '<span class="feed-digest-placeholder">Erreur — réessayez plus tard</span>';
-        } finally {
-          btnEl.disabled = false;
-          btnEl.innerHTML = '↺';
-        }
-      });
+      // ↺ Régénérer depuis le plein écran
+      const regenBtn = document.getElementById('btn-digest-fullscreen-regen');
+      if (regenBtn) regenBtn.addEventListener('click', () =>
+        generateAndRender(regenBtn, contentEl, fsBody)
+      );
     }
 
-    return { init, generate, cleanHtml: cleanDigestHtml };
+    return { init, cleanHtml: cleanDigestHtml };
   })();
 
   /* ================================================================
@@ -2563,13 +2361,10 @@ RÈGLES ABSOLUES :
 
     /** Rafraîchit toutes les vues UI avec l'état actuel */
     function refreshUI() {
-      // Ne montrer que les articles des feeds actifs
       const activeFeedIds = new Set(STATE.feeds.filter(f => f.active).map(f => f.id));
       const visibleArticles = STATE.articles.filter(a => !a.feed_id || activeFeedIds.has(a.feed_id));
 
-      Render.renderHomeArticles(visibleArticles);
       Render.renderFeedArticles(visibleArticles, STATE.currentFilter, STATE.searchQuery);
-      Render.renderClusters(Cluster.clusterByTopic(visibleArticles));
       Render.renderBookmarks(visibleArticles);
       Settings.renderFeedsManager(STATE.feeds);
       Render.renderSidebarFeeds(STATE.feeds);
