@@ -1262,10 +1262,60 @@ RÈGLES ABSOLUES :
       });
     }
 
+    /** Rendu de l'en-tête d'accueil — date, stats, sujets */
+    function renderWelcome() {
+      const dateEl = document.getElementById('feed-welcome-date');
+      const statsEl = document.getElementById('feed-welcome-stats');
+      const topicsEl = document.getElementById('feed-topics');
+      if (!dateEl) return;
+
+      dateEl.textContent = new Date().toLocaleDateString('fr-FR', {
+        weekday: 'long', day: 'numeric', month: 'long'
+      });
+
+      const unread = STATE.articles.filter(a => !a.read).length;
+      const total = STATE.articles.length;
+      const important = STATE.articles.filter(a => (a.importance || 0) >= 4 && !a.read).length;
+      let statsText = `${total} article${total > 1 ? 's' : ''}`;
+      if (unread > 0) statsText += ` · ${unread} non lu${unread > 1 ? 's' : ''}`;
+      if (important > 0) statsText += ` · ${important} important${important > 1 ? 's' : ''}`;
+      if (statsEl) statsEl.textContent = statsText;
+
+      if (topicsEl) {
+        const tagCount = {};
+        STATE.articles.forEach(a => (a.ai_tags || []).forEach(t => {
+          const k = t.toLowerCase().trim();
+          tagCount[k] = (tagCount[k] || 0) + 1;
+        }));
+        const topTags = Object.entries(tagCount)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 4)
+          .map(([tag]) => tag);
+
+        topicsEl.innerHTML = topTags.length
+          ? topTags.map(t => `<button class="topic-chip" data-topic="${t}">${t}</button>`).join('')
+          : '';
+
+        topicsEl.querySelectorAll('.topic-chip').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const q = btn.dataset.topic;
+            const searchBar = document.getElementById('search-bar');
+            const searchInput = document.getElementById('search-input');
+            if (searchBar) searchBar.classList.remove('hidden');
+            if (searchInput) {
+              searchInput.value = q;
+              searchInput.dispatchEvent(new Event('input'));
+              searchInput.focus();
+            }
+          });
+        });
+      }
+    }
+
     return {
       articleRow, renderFeedArticles,
       renderBookmarks, renderHistory, renderSidebarFeeds,
-      escapeHtml, relativeTime, importanceBars
+      renderWelcome, escapeHtml, relativeTime, importanceBars
     };
   })();
 
@@ -2329,7 +2379,7 @@ RÈGLES ABSOLUES :
       Settings.renderFeedsManager(STATE.feeds);
       Render.renderSidebarFeeds(STATE.feeds);
       updateBadge();
-      renderWelcome();
+      Render.renderWelcome();
     }
 
     /** Met à jour le badge "non lus" dans la nav */
@@ -2619,59 +2669,6 @@ RÈGLES ABSOLUES :
           }
         }
       });
-    }
-
-    // En-tête d'accueil — date, stats, sujets dominants
-    function renderWelcome() {
-      const dateEl = document.getElementById('feed-welcome-date');
-      const statsEl = document.getElementById('feed-welcome-stats');
-      const topicsEl = document.getElementById('feed-topics');
-      if (!dateEl) return;
-
-      // Date du jour
-      const now = new Date();
-      dateEl.textContent = now.toLocaleDateString('fr-FR', {
-        weekday: 'long', day: 'numeric', month: 'long'
-      });
-
-      // Stats articles
-      const unread = STATE.articles.filter(a => !a.read).length;
-      const total = STATE.articles.length;
-      const important = STATE.articles.filter(a => (a.importance || 0) >= 4 && !a.read).length;
-      let statsText = `${total} article${total > 1 ? 's' : ''}`;
-      if (unread > 0) statsText += ` · ${unread} non lu${unread > 1 ? 's' : ''}`;
-      if (important > 0) statsText += ` · ${important} important${important > 1 ? 's' : ''}`;
-      statsEl.textContent = statsText;
-
-      // Sujets dominants (top 4 tags les plus fréquents)
-      if (topicsEl) {
-        const tagCount = {};
-        STATE.articles.forEach(a => (a.ai_tags || []).forEach(t => {
-          const k = t.toLowerCase().trim();
-          tagCount[k] = (tagCount[k] || 0) + 1;
-        }));
-        const topTags = Object.entries(tagCount)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 4)
-          .map(([tag]) => tag);
-
-        topicsEl.innerHTML = topTags.length
-          ? topTags.map(t => `<button class="topic-chip" data-topic="${t}">${t}</button>`).join('')
-          : '';
-
-        // Clic sur un sujet → filtre de recherche
-        topicsEl.querySelectorAll('.topic-chip').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const q = btn.dataset.topic;
-            const searchBar = document.getElementById('search-bar');
-            const searchInput = document.getElementById('search-input');
-            searchBar.classList.remove('hidden');
-            searchInput.value = q;
-            searchInput.dispatchEvent(new Event('input'));
-            searchInput.focus();
-          });
-        });
-      }
     }
 
     // Toggle de la barre de recherche
