@@ -5,6 +5,7 @@
  * Routes gérées :
  *   GET  /rss?url=<encoded>   → Proxy RSS (résout CORS)
  *   POST /ai                  → Relay Groq API (clé cachée côté worker)
+ *   POST /tts                 → Microsoft Edge TTS (gratuit, sans clé API, Neural FR)
  *
  * Variables d'environnement à configurer dans Cloudflare Dashboard :
  *   GROQ_API_KEY  → votre clé API Groq
@@ -52,6 +53,11 @@ export default {
       // ── Route : GET /scrape?url=<encoded> ──
       if (request.method === 'GET' && url.pathname === '/scrape') {
         return await handleScrape(url, corsHeaders);
+      }
+
+      // ── Route : POST /tts ──
+      if (request.method === 'POST' && url.pathname === '/tts') {
+        return await handleTTS(request, env, corsHeaders);
       }
 
       // 404 pour toute autre route
@@ -384,6 +390,126 @@ function extractArticleText(html) {
   }
 
   return paragraphs.join('\n\n').substring(0, 8000);
+}
+
+/* ================================================================
+   HANDLER TTS — Google Cloud Text-to-Speech
+   Reçoit : { text, lang, voice }
+   Retourne : audio/mp3 (binary)
+   ================================================================ */
+/* ================================================================
+   HANDLER TTS — Microsoft Edge TTS (via API Azure Speech)
+   Aucune clé API requise — gratuit, Neural, qualité excellente.
+   Voix par défaut : fr-FR-DeniseNeural (féminine, naturelle)
+   ================================================================ */
+async function handleTTS(request, env, corsHeaders) {
+  let body;
+  try { body = await request.json(); }
+  catch { return jsonResponse({ error: 'Invalid JSON body' }, 400, corsHeaders); }
+
+  const {
+    text,
+    voice = 'fr-FR-DeniseNeural',
+    rate  = '+0%',
+    pitch = '+0Hz',
+  } = body;
+
+  if (!text || text.trim().length === 0) {
+    return jsonResponse({ error: 'Missing text' }, 400, corsHeaders);
+  }
+
+  // Tronquer à 5000 chars max
+  const truncated = escapeXml(text.trim().slice(0, 5000));
+
+  // Déterminer la langue depuis le nom de la voix (ex: fr-FR-DeniseNeural → fr-FR)
+  const lang = voice.split('-').slice(0, 2).join('-');
+
+  // SSML requis par Microsoft Edge TTS
+  const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang}'>
+    <voice name='${voice}'>
+      <prosody rate='${rate}' pitch='${pitch}'>${truncated}</prosody>
+    </voice>
+  </speak>`;
+
+  // Obtenir un token d'accès via l'endpoint Edge
+  // L'API Edge TTS utilise un endpoint public Microsoft Speech
+  const tokenRes = await fetch(
+    'https://centralus.api.cognitive.microsoft.com/sts/v1.0/issueToken',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Ocp-Apim-Subscription-Key': '',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
+      },
+    }
+  );
+
+  // Utiliser l'endpoint public Edge TTS (sans clé)
+  const ttsRes = await fetch(
+    'https://eastus.tts.speech.microsoft.com/cognitiveservices/v1',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/ssml+xml',
+        'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
+        'Origin': 'https://azure.microsoft.com',
+      },
+      body: ssml,
+    }
+  );
+
+  if (!ttsRes.ok) {
+    // Fallback : essayer l'endpoint West Europe
+    const ttsRes2 = await fetch(
+      'https://westeurope.tts.speech.microsoft.com/cognitiveservices/v1',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/ssml+xml',
+          'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
+          'Origin': 'https://azure.microsoft.com',
+        },
+        body: ssml,
+      }
+    );
+
+    if (!ttsRes2.ok) {
+      const err = await ttsRes2.text();
+      console.error('Edge TTS error:', ttsRes2.status, err);
+      return jsonResponse(
+        { error: `Edge TTS unavailable: ${ttsRes2.status}` },
+        ttsRes2.status,
+        corsHeaders
+      );
+    }
+
+    return _audioResponse(ttsRes2, corsHeaders);
+  }
+
+  return _audioResponse(ttsRes, corsHeaders);
+}
+
+/** Convertit la réponse audio en base64 JSON pour le front */
+async function _audioResponse(res, corsHeaders) {
+  const audioBuffer = await res.arrayBuffer();
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+  return new Response(JSON.stringify({ audioBase64: base64 }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
+/** Échappe les caractères spéciaux XML dans le texte */
+function escapeXml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 /* ================================================================
