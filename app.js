@@ -1896,20 +1896,10 @@ RÈGLES ABSOLUES :
         }
       });
 
-      // Menu contextuel "..."
-      const moreBtn = document.getElementById('btn-reader-more');
-      const moreMenu = document.getElementById('reader-more-menu');
-      moreBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        moreMenu.classList.toggle('hidden');
-      });
-      document.addEventListener('click', () => moreMenu.classList.add('hidden'));
-
-      // Partager (dans le menu)
-      const shareAction = async () => {
+      // Partager
+      document.getElementById('btn-share-menu').addEventListener('click', async () => {
         const article = STATE.currentArticleList[STATE.currentArticleIndex];
         if (!article) return;
-        moreMenu.classList.add('hidden');
         const title = article.ai_title || article.title || '';
         const text = (article.ai_content || '').substring(0, 300) + '...';
         const url = article.link || '';
@@ -1922,8 +1912,7 @@ RÈGLES ABSOLUES :
             Toast.show('Copié ✓', 'success');
           } catch { Toast.show('Impossible de copier', 'error'); }
         }
-      };
-      document.getElementById('btn-share-menu').addEventListener('click', shareAction);
+      });
 
       // Ouvrir l'article — bouton direct dans la toolbar
       const openSourceDirect = document.getElementById('btn-open-source-direct');
