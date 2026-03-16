@@ -487,7 +487,6 @@
     }
 
     async function enrichArticle(article) {
-      // Construire le texte RSS de base immédiatement
       const rssText = [
         article.title || '',
         article.description || '',
@@ -498,35 +497,16 @@
         return { ai_content: article.content || article.title || '', importance: 1, ai_tags: [], sentiment: 'neutral' };
       }
 
-      // Lancer scraping et Groq EN PARALLÈLE — timeout scraping réduit à 5s
-      const scrapePromise = article.link
-        ? fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`, {
-            signal: AbortSignal.timeout(5000)
-          })
-          .then(r => r.ok ? r.json() : null)
-          .then(d => (d?.text?.length > 200) ? d.text : null)
-          .catch(() => null)
-        : Promise.resolve(null);
-
-      // Groq démarre immédiatement avec le texte RSS
       const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris ou résumes les articles RSS en prose claire et fluide. Tu supprimes tout le bruit (publicités, appels à l'action, mentions légales). Si le contenu est riche, tu réécris en 150-250 mots. Si le contenu est court ou tronqué, tu fais le meilleur résumé possible avec ce que tu as, en ajoutant du contexte général sur le sujet si nécessaire. Tu ne copies JAMAIS le texte original mot pour mot. Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks. Langue de sortie : français.`;
 
-      // On attend les deux en parallèle
-      const [scrapedText, raw] = await Promise.all([
-        scrapePromise,
-        (async () => {
-          // Si on a du scraped text, on le préfère — mais Groq part déjà avec le RSS
-          // On relancera si le scraping donne mieux (seulement si scraping > 2x le RSS)
-          const sourceText = rssText;
-          const prompt = `Réécris ou résume cet article et retourne exactement ce JSON (et rien d'autre) :
+      const prompt = `Réécris ou résume cet article et retourne exactement ce JSON (et rien d'autre) :
 {"ai_title":"<titre traduit en français, concis et accrocheur, max 12 mots>","ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"],"sentiment":"<positive|negative|neutral>"}
 
 TITRE : ${article.title}
 SOURCE : ${article.feed_name}
-TEXTE : ${sourceText}`;
-          return callGroq(systemPrompt, prompt, 800);
-        })()
-      ]);
+TEXTE : ${rssText}`;
+
+      const raw = await callGroq(systemPrompt, prompt, 800);
 
       try {
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -539,16 +519,15 @@ TEXTE : ${sourceText}`;
           ? parsed.sentiment : 'neutral';
 
         return {
-          ai_title: parsed.ai_title || null,
+          ai_title:   parsed.ai_title || null,
           ai_content: isDistinct ? aiText : (article.content || article.title),
           importance: Math.min(5, Math.max(1, parseInt(parsed.importance) || 1)),
-          ai_tags: Array.isArray(parsed.ai_tags) ? parsed.ai_tags.slice(0, 5) : [],
+          ai_tags:    Array.isArray(parsed.ai_tags) ? parsed.ai_tags.slice(0, 5) : [],
           sentiment,
-          scraped_content: scrapedText || null,
         };
       } catch (err) {
         console.warn(`Parsing JSON échoué pour "${article.title}":`, err, '\nRaw:', raw);
-        return { ai_title: null, ai_content: article.content, importance: 1, ai_tags: [], sentiment: 'neutral', scraped_content: null };
+        return { ai_title: null, ai_content: article.content, importance: 1, ai_tags: [], sentiment: 'neutral' };
       }
     }
 
@@ -1417,7 +1396,6 @@ RÈGLES ABSOLUES :
         article.importance = result.importance;
         article.ai_tags = result.ai_tags;
         article.sentiment = result.sentiment || 'neutral';
-        if (result.scraped_content) article.scraped_content = result.scraped_content;
 
         if (STATE.user) {
           DB.upsertArticle({
@@ -1434,7 +1412,6 @@ RÈGLES ABSOLUES :
             pub_date:         article.pub_date       || new Date().toISOString(),
             read:             article.read           || false,
             bookmarked:       article.bookmarked     || false,
-            scraped_content:  result.scraped_content || null,
           }).catch(err => console.warn('Sauvegarde Supabase échouée:', err));
         }
 
