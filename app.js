@@ -738,6 +738,12 @@ RÈGLES ABSOLUES :
       const inlineToggle = document.getElementById('sidebar-toggle-inline');
       if (inlineToggle) inlineToggle.addEventListener('click', toggleSidebar);
 
+      // Hamburger dans les autres vues
+      const toggleBookmarks = document.getElementById('sidebar-toggle-bookmarks');
+      const toggleSettings  = document.getElementById('sidebar-toggle-settings');
+      if (toggleBookmarks) toggleBookmarks.addEventListener('click', toggleSidebar);
+      if (toggleSettings)  toggleSettings.addEventListener('click', toggleSidebar);
+
       // Fermer sidebar en cliquant en dehors
       document.addEventListener('click', (e) => {
         if (window.innerWidth <= 900 &&
