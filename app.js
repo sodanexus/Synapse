@@ -1559,9 +1559,12 @@ RÈGLES ABSOLUES :
       // Image hero — fond du header avec dégradé
       _setHeroImage(article);
 
-      // Barres d'importance
+      // Barres d'importance — dans la meta du header (sous source/date)
       const score = article.importance || 1;
       document.getElementById('reader-imp-bars').innerHTML = Render.importanceBars(score);
+      // Injecter aussi dans reader-meta-extra pour affichage sous la date
+      const metaExtra = document.getElementById('reader-meta-extra');
+      if (metaExtra) metaExtra.innerHTML = Render.importanceBars(score);
 
       // Tags (sans sentiment)
       const tagsEl = document.getElementById('reader-tags');
