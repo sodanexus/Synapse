@@ -3071,7 +3071,7 @@ RÈGLES ABSOLUES :
           setTimeout(() => Sync.run(), 1000);
         } else {
           const remaining = Math.round(SYNC_INTERVAL_MIN - minutesSinceSync);
-          Toast.show(`Flux à jour — prochain sync dans ${remaining} min`, 'info');
+          Sync.updateLastSyncLabel();
         }
 
         // Sync auto toutes les 30 minutes — seulement si l'onglet est visible
