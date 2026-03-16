@@ -37,9 +37,6 @@
     // llama-3.3-70b-versatile : 1K req/jour  → digest uniquement (complexe, rare)
     GROQ_MODEL_ENRICH: 'llama-3.1-8b-instant',
     GROQ_MODEL_DIGEST: 'llama-3.3-70b-versatile',
-    // Rétrocompatibilité (utilisé dans callGroq par défaut)
-    GROQ_MODEL: 'llama-3.1-8b-instant',
-
     // Quota journalier estimé (req/jour free tier)
     QUOTA_ENRICH_DAILY: 14400,
     QUOTA_DIGEST_DAILY: 1000,
@@ -53,9 +50,6 @@
     // Délai entre les requêtes Groq (ms)
     // Groq free tier ≈ 30 req/min → 3s minimum pour rester dans les limites
     GROQ_REQUEST_DELAY: 3000,
-
-    // Cache TTL pour les articles (ms) — 30 minutes
-    CACHE_TTL: 30 * 60 * 1000,
 
     // Délai entre requêtes Groq pour le digest (ms) — modèle différent, limites différentes
     GROQ_DIGEST_DELAY: 1000,
@@ -78,7 +72,6 @@
     searchQuery: '',         // Requête de recherche active
     searchResults: null,     // Résultats de recherche Supabase (null = pas de recherche active)
     articlesPage: 0,         // Page courante pour la pagination
-    articlesPerPage: 200,    // Articles par page
     lastSyncTime: null,      // Timestamp du dernier sync
     isLoading: false,        // Chargement en cours
     isSearching: false,      // Recherche Supabase en cours
@@ -390,10 +383,8 @@
               hash: hashString(item.link || item.title || ''),
               // Champs IA — remplis après
               ai_content: null,
-              ai_summary: null,
               ai_tags: [],
               importance: 0,
-              cluster_id: null,
               read: false,
               bookmarked: false,
             }));
@@ -443,7 +434,7 @@
      * Il retourne : { text: "..." }
      */
     async function callGroq(systemPrompt, userPrompt, maxTokens = 800, retryCount = 0, model = null) {
-      const usedModel = model || CONFIG.GROQ_MODEL;
+      const usedModel = model || CONFIG.GROQ_MODEL_ENRICH;
       // Incrémenter le compteur quota
       QuotaTracker.increment(usedModel);
       const response = await fetch(`${CONFIG.WORKER_URL}/ai`, {
@@ -509,13 +500,13 @@
       ].filter(Boolean).join('\n\n').substring(0, 4000);
 
       if (rssText.trim().length < 30) {
-        return { ai_content: article.content || article.title || '', importance: 1, ai_tags: [], sentiment: 'neutral' };
+        return { ai_content: article.content || article.title || '', importance: 1, ai_tags: [] };
       }
 
       const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris ou résumes les articles RSS en prose claire et fluide. Tu supprimes tout le bruit (publicités, appels à l'action, mentions légales). Si le contenu est riche, tu réécris en 250-450 mots. Si le contenu est court ou tronqué, tu fais le meilleur résumé possible avec ce que tu as, en ajoutant du contexte général sur le sujet si nécessaire. Tu ne copies JAMAIS le texte original mot pour mot. Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks. Langue de sortie : français.`;
 
       const prompt = `Réécris ou résume cet article et retourne exactement ce JSON (et rien d'autre) :
-{"ai_title":"<titre traduit en français, concis et accrocheur, max 12 mots>","ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"],"sentiment":"<positive|negative|neutral>"}
+{"ai_title":"<titre traduit en français, concis et accrocheur, max 12 mots>","ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"]}
 
 TITRE : ${article.title}
 SOURCE : ${article.feed_name}
@@ -530,19 +521,15 @@ TEXTE : ${rssText}`;
         const parsed = JSON.parse(jsonMatch[0]);
         const aiText = parsed.ai_content || '';
         const isDistinct = aiText.length > 50 && aiText !== article.content;
-        const sentiment = ['positive', 'negative', 'neutral'].includes(parsed.sentiment)
-          ? parsed.sentiment : 'neutral';
-
         return {
           ai_title:   parsed.ai_title || null,
           ai_content: isDistinct ? aiText : (article.content || article.title),
           importance: Math.min(5, Math.max(1, parseInt(parsed.importance) || 1)),
           ai_tags:    Array.isArray(parsed.ai_tags) ? parsed.ai_tags.slice(0, 5) : [],
-          sentiment,
         };
       } catch (err) {
         console.warn(`Parsing JSON échoué pour "${article.title}":`, err, '\nRaw:', raw);
-        return { ai_title: null, ai_content: article.content, importance: 1, ai_tags: [], sentiment: 'neutral' };
+        return { ai_title: null, ai_content: article.content, importance: 1, ai_tags: [] };
       }
     }
 
@@ -606,28 +593,7 @@ RÈGLES ABSOLUES :
       return digest;
     }
 
-    /**
-     * Enrichit un lot d'articles en série (avec délai pour éviter le rate-limit)
-     * Appelle onProgress(current, total) à chaque article traité
-     */
-    async function enrichBatch(articles, onProgress) {
-      const enriched = [];
-      for (let i = 0; i < articles.length; i++) {
-        try {
-          const result = await enrichArticle(articles[i]);
-          enriched.push({ ...articles[i], ...result });
-        } catch (err) {
-          console.warn(`Enrichissement échoué pour "${articles[i].title}":`, err);
-          enriched.push(articles[i]); // Fallback : article brut
-        }
-        if (onProgress) onProgress(i + 1, articles.length);
-        // Délai anti-rate-limit entre chaque appel
-        if (i < articles.length - 1) await sleep(CONFIG.GROQ_REQUEST_DELAY);
-      }
-      return enriched;
-    }
-
-    return { enrichArticle, enrichBatch, generateDailyDigest, callGroq, isEnriched };
+    return { enrichArticle, generateDailyDigest, callGroq, isEnriched };
   })();
 
   /* ================================================================
@@ -677,9 +643,7 @@ RÈGLES ABSOLUES :
             if ((article.importance || 0) > (kept.importance || 0)) {
               kept.importance = article.importance;
             }
-            // Ajouter la source alternative à l'article conservé
-            if (!kept.duplicate_sources) kept.duplicate_sources = [];
-            kept.duplicate_sources.push({ name: article.feed_name, link: article.link });
+
             duplicates.push(article);
             break;
           }
@@ -1271,37 +1235,6 @@ RÈGLES ABSOLUES :
       });
     }
 
-    async function renderHistory() {
-      const container = document.getElementById('history-articles');
-      if (!container) return;
-      container.innerHTML = '<div class="content-loading"><div class="spinner"></div><span>Chargement...</span></div>';
-
-      let articles = [];
-      if (STATE.user) {
-        try {
-          const data = await DB.getReadHistory(STATE.user.id);
-          articles = data.map(a => ({
-            ...a,
-            feed_name: a.feeds?.name || a.feed_name || '',
-            feed_category: a.feeds?.category || a.feed_category || '',
-          }));
-        } catch (err) {
-          container.innerHTML = `<div class="empty-state"><p class="empty-state-text">Erreur : ${err.message}</p></div>`;
-          return;
-        }
-      }
-
-      container.innerHTML = '';
-      if (articles.length === 0) {
-        container.innerHTML = '<div class="empty-state"><span class="empty-state-icon">◷</span><p class="empty-state-text">Aucun article lu récemment.</p></div>';
-        return;
-      }
-
-      articles.forEach((article, i) => {
-        container.appendChild(articleRow(article, i, articles));
-      });
-    }
-
     /** Rendu de l'en-tête d'accueil — date, stats, sujets */
     function renderWelcome() {
       const dateEl = document.getElementById('feed-welcome-date');
@@ -1355,7 +1288,7 @@ RÈGLES ABSOLUES :
 
     return {
       articleRow, renderFeedArticles,
-      renderBookmarks, renderHistory, renderSidebarFeeds,
+      renderBookmarks, renderSidebarFeeds,
       renderWelcome, escapeHtml, relativeTime, importanceBars
     };
   })();
@@ -1406,7 +1339,6 @@ RÈGLES ABSOLUES :
         article.ai_title = result.ai_title || null;
         article.importance = result.importance;
         article.ai_tags = result.ai_tags;
-        article.sentiment = result.sentiment || 'neutral';
 
         if (STATE.user) {
           DB.upsertArticle({
@@ -2585,7 +2517,6 @@ RÈGLES ABSOLUES :
             toEnrich[i].ai_title = result.ai_title || null;
             toEnrich[i].importance = result.importance;
             toEnrich[i].ai_tags = result.ai_tags;
-            toEnrich[i].sentiment = result.sentiment || 'neutral';
           } catch {}
           if (i < toEnrich.length - 1) await new Promise(r => setTimeout(r, CONFIG.GROQ_DIGEST_DELAY));
         }
@@ -2934,7 +2865,6 @@ RÈGLES ABSOLUES :
           article.ai_content = result.ai_content;
           article.importance = result.importance;
           article.ai_tags    = result.ai_tags;
-          article.sentiment  = result.sentiment || 'neutral';
 
           // Sauvegarder en base
           if (STATE.user) {
@@ -3307,27 +3237,6 @@ RÈGLES ABSOLUES :
     // Initialiser le label et le mettre à jour toutes les minutes
     Sync.updateLastSyncLabel();
     setInterval(() => Sync.updateLastSyncLabel(), 60000);
-
-    // Effacer l'historique
-    const clearHistoryBtn = document.getElementById('btn-clear-history');
-    if (clearHistoryBtn) {
-      clearHistoryBtn.addEventListener('click', async () => {
-        if (!confirm('Effacer tout l\'historique de lecture ?')) return;
-        try {
-          await Auth.getClient()
-            .from('articles')
-            .update({ read: false })
-            .eq('user_id', STATE.user.id)
-            .eq('read', true);
-          STATE.readArticles.clear();
-          STATE.articles.forEach(a => a.read = false);
-          Render.renderHistory();
-          Toast.show('Historique effacé', 'info');
-        } catch (err) {
-          Toast.show('Erreur : ' + err.message, 'error');
-        }
-      });
-    }
 
     // Bouton SUGGESTIONS — liste de feeds populaires par catégorie
     const suggestBtn = document.getElementById('btn-show-suggestions');
