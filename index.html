@@ -12,7 +12,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Synapse" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon.png" type="image/png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -24,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=34" />
+  <link rel="stylesheet" href="style.css?v=35" />
   <!-- Anti-flash dark mode : appliqué avant le rendu -->
   <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
@@ -304,8 +303,7 @@
             <button class="reader-btn" id="btn-reader-more" title="Plus d'options">···</button>
             <div class="reader-more-menu hidden" id="reader-more-menu">
               <button class="reader-more-item" id="btn-share-menu">↑ Partager</button>
-              <button class="reader-more-item" id="btn-reader-mode-menu">⊙ Mode lecteur</button>
-              <a class="reader-more-item" id="reader-link" href="#" target="_blank" rel="noopener">↗ Source originale</a>
+              <button class="reader-more-item" id="btn-open-source">↗ Ouvrir l'article complet</button>
             </div>
           </div>
           <!-- Fermer -->
@@ -359,19 +357,6 @@
   <button class="scroll-top-btn hidden" id="btn-scroll-top" title="Retour en haut">↑</button>
 
   <!-- Mode lecteur — iframe propre -->
-  <!-- Mode lecteur — page source clean -->
-  <div class="reader-mode-overlay hidden" id="reader-mode-overlay">
-    <div class="reader-mode-modal" id="reader-mode-modal">
-      <div class="reader-mode-header">
-        <span class="reader-mode-source" id="reader-mode-source"></span>
-        <button class="reader-mode-close" id="btn-close-reader-mode">✕</button>
-      </div>
-      <div class="reader-mode-content" id="reader-mode-content">
-        <div class="content-loading"><div class="spinner"></div><span>Chargement...</span></div>
-      </div>
-    </div>
-  </div>
-
   <div class="toast-container" id="toast-container"></div>
 
   <!-- ============================================================
@@ -388,6 +373,6 @@
   <!-- Scripts -->
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=37"></script>
+  <script src="app.js?v=39"></script>
 </body>
 </html>
