@@ -2289,6 +2289,19 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   text-underline-offset: 2px;
 }
 
+
+/* Articles lus dans la timeline */
+.timeline-read { opacity: 0.4; }
+.timeline-title-read {
+  color: var(--grey-mid);
+  text-decoration: line-through;
+  text-decoration-color: var(--grey-light);
+}
+.timeline-dot-read {
+  background: var(--grey-wash) !important;
+  border: 1px solid var(--grey-light) !important;
+}
+
 @media (max-width: 600px) {
   .digest-timeline-item {
     grid-template-columns: 40px 10px 1fr;
