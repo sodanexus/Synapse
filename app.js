@@ -36,7 +36,7 @@
     GROQ_MODEL: 'llama-3.1-8b-instant',
 
     // Nombre d'articles max à charger par fetch
-    MAX_ARTICLES_PER_FEED: 10,
+    MAX_ARTICLES_PER_FEED: 20,
 
     // Seuil de similarité pour déduplication (0-1)
     DEDUP_THRESHOLD: 0.65,
