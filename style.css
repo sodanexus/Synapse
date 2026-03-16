@@ -1699,3 +1699,108 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   animation: spin 0.8s linear infinite;
   vertical-align: middle;
 }
+
+/* Séparateur dans la liste FLUX */
+.feed-section-sep {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0 8px;
+  margin: 4px 0;
+}
+.feed-section-sep::before,
+.feed-section-sep::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--grey-subtle);
+}
+.feed-section-sep span {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  color: var(--grey-light);
+  white-space: nowrap;
+}
+
+/* Bandeau Digest dans le FLUX */
+.feed-digest-banner {
+  border: var(--border);
+  border-radius: 2px;
+  margin-bottom: 24px;
+  background: var(--grey-wash);
+  overflow: hidden;
+}
+
+.feed-digest-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: var(--border);
+}
+
+.feed-digest-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  color: var(--grey-mid);
+  text-transform: uppercase;
+}
+
+.feed-digest-refresh {
+  font-size: 1rem;
+  color: var(--grey-light);
+  cursor: pointer;
+  padding: 2px 6px;
+  transition: color var(--t-fast), transform var(--t-spring);
+}
+.feed-digest-refresh:hover { color: var(--ink); transform: rotate(180deg); }
+.feed-digest-refresh:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.feed-digest-content {
+  padding: 16px 20px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.feed-digest-placeholder {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--grey-light);
+  letter-spacing: 0.04em;
+}
+
+.feed-digest-text {
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.feed-digest-text h2 {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--grey-mid);
+  margin: 16px 0 6px;
+  font-weight: 400;
+}
+
+.feed-digest-text h2:first-child { margin-top: 0; }
+
+.feed-digest-text p {
+  margin-bottom: 10px;
+  font-size: 0.88rem;
+}
+
+.feed-digest-text ul {
+  padding-left: 16px;
+  margin-bottom: 10px;
+}
+
+.feed-digest-text li {
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+}
