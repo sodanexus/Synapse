@@ -706,6 +706,7 @@ ul { list-style: none; }
   background: var(--grey-wash);
   color: var(--grey-deep);
   border-radius: var(--radius);
+  border: 1px solid transparent;
   text-transform: lowercase;
 }
 
@@ -1112,13 +1113,8 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 /* Tags reader */
 .reader-tags { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 36px 12px; border-bottom: var(--border); }
 
-/* reader-meta-extra — barres d'importance sous la date dans le header */
-.reader-meta-extra {
-  display: flex;
-  gap: 3px;
-  align-items: center;
-  margin-top: 2px;
-}
+/* reader-meta-extra — inutilisé */
+.reader-meta-extra { display: none; }
 
 /* Titre reader */
 .reader-title {
@@ -1214,7 +1210,7 @@ body.dark .reader-title-area.has-hero::before {
 /* Tags — bordure noire sur l'image hero */
 .reader-title-area.has-hero .reader-tags .tag {
   background: transparent;
-  border-color: var(--ink);
+  border: 1px solid var(--ink);
   color: var(--ink);
 }
 
