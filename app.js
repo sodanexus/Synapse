@@ -1134,8 +1134,23 @@ RÈGLES ABSOLUES :
         );
       }
 
-      // Tri : toujours du plus récent au plus ancien
-      filtered.sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
+      // Tri intelligent :
+      // Si pas de filtre actif et pas de recherche → articles importants non lus en tête
+      // Sinon → chronologique pur
+      if (filter === 'all' && !query && STATE.searchResults === null) {
+        const breaking = filtered.filter(a => (a.importance || 0) >= 4 && !a.read);
+        const rest = filtered.filter(a => !((a.importance || 0) >= 4 && !a.read));
+        breaking.sort((a, b) => (b.importance || 0) - (a.importance || 0) || new Date(b.pub_date) - new Date(a.pub_date));
+        rest.sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
+        filtered = [...breaking, ...rest];
+
+        // Ajouter un séparateur visuel si des articles importants sont en tête
+        if (breaking.length > 0) {
+          filtered._breakingCount = breaking.length;
+        }
+      } else {
+        filtered.sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
+      }
 
       const totalCount = filtered.length;
       const label = STATE.searchResults !== null
@@ -1162,6 +1177,13 @@ RÈGLES ABSOLUES :
       const paginated = filtered.slice(0, (page + 1) * PAGE_SIZE);
 
       paginated.forEach((article, i) => {
+        // Séparateur entre les articles importants et le reste
+        if (filtered._breakingCount && i === filtered._breakingCount && i < paginated.length) {
+          const sep = document.createElement('div');
+          sep.className = 'feed-section-sep';
+          sep.innerHTML = '<span>AUTRES ARTICLES</span>';
+          container.appendChild(sep);
+        }
         container.appendChild(articleRow(article, i, filtered));
       });
 
@@ -2202,9 +2224,28 @@ RÈGLES ABSOLUES :
       });
     }
 
-    /** Initialise le bouton */
+    /** Initialise les boutons digest */
     function init() {
       document.getElementById('btn-generate-digest').addEventListener('click', generate);
+      // Bandeau digest dans le FLUX
+      const feedDigestBtn = document.getElementById('btn-feed-digest-refresh');
+      if (feedDigestBtn) feedDigestBtn.addEventListener('click', async () => {
+        const contentEl = document.getElementById('feed-digest-content');
+        const btnEl = document.getElementById('btn-feed-digest-refresh');
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<span class="spinner digest-spinner"></span>';
+        contentEl.innerHTML = '<span class="feed-digest-placeholder">Génération en cours...</span>';
+        try {
+          const html = await AI.generateDailyDigest(STATE.articles);
+          contentEl.innerHTML = `<div class="feed-digest-text">${html}</div>`;
+          if (STATE.user) await DB.saveDigest(STATE.user.id, html).catch(() => {});
+        } catch {
+          contentEl.innerHTML = '<span class="feed-digest-placeholder">Erreur — réessayez plus tard</span>';
+        } finally {
+          btnEl.disabled = false;
+          btnEl.innerHTML = '↺';
+        }
+      });
     }
 
     return { init, generate };
