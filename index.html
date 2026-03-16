@@ -173,6 +173,9 @@
       <section class="view" id="view-bookmarks">
         <header class="view-header">
           <h1 class="view-title">SAUVEGARDES</h1>
+          <button class="sidebar-toggle-inline" id="sidebar-toggle-bookmarks" aria-label="Ouvrir le menu">
+            <span></span><span></span><span></span>
+          </button>
         </header>
         <div class="articles-list" id="bookmarks-articles">
           <!-- Injecté dynamiquement -->
@@ -183,7 +186,12 @@
       <section class="view" id="view-settings">
         <header class="view-header">
           <h1 class="view-title">FEEDS RSS</h1>
-          <button class="btn-secondary" id="btn-shortcuts-help" title="Raccourcis clavier">⌨ RACCOURCIS</button>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button class="btn-secondary" id="btn-shortcuts-help" title="Raccourcis clavier">⌨ RACCOURCIS</button>
+            <button class="sidebar-toggle-inline" id="sidebar-toggle-settings" aria-label="Ouvrir le menu">
+              <span></span><span></span><span></span>
+            </button>
+          </div>
         </header>
 
         <!-- Formulaire ajout feed -->
@@ -251,8 +259,11 @@
           <button class="reader-btn font-size-btn active" data-size="md" title="Taille normale">A</button>
           <button class="reader-btn font-size-btn" data-size="lg" title="Grande police">A+</button>
           <span class="reader-sep"></span>
+          <!-- Audio TTS -->
+          <button class="reader-btn" id="btn-listen" title="Écouter l'article">▶</button>
           <!-- Bookmark -->
           <button class="reader-btn" id="btn-bookmark" title="Sauvegarder">◧</button>
+          <span class="reader-sep"></span>
           <!-- Menu contextuel -->
           <div class="reader-more-wrap">
             <button class="reader-btn" id="btn-reader-more" title="Plus d'options">···</button>
