@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=39" />
+  <link rel="stylesheet" href="style.css?v=41" />
   <!-- Anti-flash dark mode : appliqué avant le rendu -->
   <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
@@ -124,32 +124,6 @@
     <main class="main-content" id="main-content">
 
       <!-- ── VUE : HOME / DIGEST ── -->
-      <section class="view" id="view-home">
-        <header class="view-header">
-          <div class="view-header-left">
-            <h1 class="view-title">DIGEST</h1>
-            <span class="view-date" id="digest-date"></span>
-          </div>
-          <button class="digest-refresh-btn" id="btn-generate-digest" title="Générer le digest IA">↺</button>
-        </header>
-
-        <!-- Zone digest IA -->
-        <div class="digest-zone" id="digest-zone">
-          <div class="digest-placeholder">
-            <span class="placeholder-icon">↺</span>
-            <p>Appuyez sur le bouton ↺ en haut pour générer un briefing intelligent de vos actualités du moment.</p>
-          </div>
-        </div>
-
-        <!-- Top articles du jour (cards condensées) -->
-        <div class="section-header">
-          <h2 class="section-title">ACTUALITÉS IMPORTANTES</h2>
-        </div>
-        <div class="articles-grid" id="home-articles">
-          <!-- Injecté dynamiquement -->
-        </div>
-      </section>
-
       <!-- ── VUE : FLUX ── -->
       <section class="view active" id="view-feed">
         <header class="view-header">
@@ -191,37 +165,12 @@
         </div>
       </section>
 
-      <!-- ── VUE : CLUSTERS ── -->
-      <section class="view" id="view-clusters">
-        <header class="view-header">
-          <h1 class="view-title">CLUSTERS</h1>
-          <span class="view-subtitle">Articles regroupés par sujet — déduplication IA</span>
-        </header>
-        <div class="clusters-grid" id="clusters-grid">
-          <!-- Injecté dynamiquement -->
-        </div>
-      </section>
-
       <!-- ── VUE : BOOKMARKS ── -->
       <section class="view" id="view-bookmarks">
         <header class="view-header">
           <h1 class="view-title">SAUVEGARDES</h1>
         </header>
         <div class="articles-list" id="bookmarks-articles">
-          <!-- Injecté dynamiquement -->
-        </div>
-      </section>
-
-      <!-- ── VUE : HISTORIQUE ── -->
-      <section class="view" id="view-history">
-        <header class="view-header">
-          <div class="view-header-left">
-            <h1 class="view-title">HISTORIQUE</h1>
-            <span class="view-subtitle">Articles récemment lus</span>
-          </div>
-          <button class="btn-secondary" id="btn-clear-history">EFFACER</button>
-        </header>
-        <div class="articles-list" id="history-articles">
           <!-- Injecté dynamiquement -->
         </div>
       </section>
@@ -389,6 +338,6 @@
   <!-- Scripts -->
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=46"></script>
+  <script src="app.js?v=48"></script>
 </body>
 </html>
