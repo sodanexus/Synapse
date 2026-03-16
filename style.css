@@ -2157,3 +2157,79 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 @media (max-width: 900px) {
   .sidebar-toggle-inline { display: flex; }
 }
+
+/* ================================================================
+   FEED ROW STATS — statistiques par feed dans les settings
+   ================================================================ */
+.feed-row-stats {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--grey-light);
+  letter-spacing: 0.05em;
+  margin-top: 3px;
+}
+
+/* ================================================================
+   RSS SUGGESTION BUTTONS — détection auto et suggestions feeds
+   ================================================================ */
+.rss-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.rss-suggestion-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--grey-wash);
+  border: var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--grey-deep);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+  letter-spacing: 0.03em;
+}
+
+.rss-suggestion-btn:hover {
+  background: var(--white);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+/* ================================================================
+   OPML CONTROLS — boutons import/export
+   ================================================================ */
+.opml-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.btn-secondary {
+  background: none;
+  border: var(--border);
+  color: var(--grey-mid);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.btn-secondary:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
