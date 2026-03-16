@@ -571,20 +571,21 @@ TEXTE : ${rssText}`;
       }).join('\n\n');
 
       const digest = await callGroq(
-        `Tu es un éditeur de presse senior. Tu rédiges des briefings synthétiques.
-RÈGLES ABSOLUES :
-- Réponds UNIQUEMENT en HTML valide, JAMAIS en markdown
-- N'utilise JAMAIS #, ##, ###, **, *, - pour formater
-- N'utilise JAMAIS <strong>, <b>, <em>, <i> — aucun texte en gras ou italique
-- Utilise UNIQUEMENT ces balises : <h2>, <p>, <ul>, <li>
-- Pas d'introduction, pas de conclusion, pas de titre général
-- Langue : français
-- Cite les sources entre parenthèses dans le texte`,
-        `Rédige un briefing structuré par thèmes (max 4 thèmes). Pour chaque thème : un <h2> avec le nom du thème, un <p> de synthèse, et une <ul> avec les points clés.\n\n${articlesText}`,
-        800
-      );
+  `Tu es un processeur de données pur. Ta sortie est un flux HTML brut sans aucun style.
+INTERDICTION TECHNIQUE : Ne génère JAMAIS de Markdown (#, ##, **, *, -, __).
+INTERDICTION DE STYLE : Ne génère JAMAIS de <strong>, <b>, <em>, <i>.
+RÈGLES DE STRUCTURE :
+1. Utilise UNIQUEMENT ces balises : <h2>, <p>, <ul>, <li>.
+2. Tout texte à l'intérieur des balises doit être du texte brut (INTERDICTION de mettre du gras).
+3. Pas d'introduction, pas de conclusion, pas de titre général.
+4. Langue : français.
+5. Cite les sources en petit entre parenthèses dans le texte.`,
+  `Rédige un briefing structuré par thèmes (max 5 thèmes) basé sur le texte suivant. 
+FORMAT PAR THÈME : <h2>Nom du thème</h2> <p>Synthèse</p> <ul><li>Point clé</li></ul>\n\n${articlesText}`,
+  800
+);
 
-      return digest;
+return digest;
     }
 
     /**
