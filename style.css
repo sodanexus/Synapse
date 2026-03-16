@@ -1499,7 +1499,9 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 
 .reader-modal {
   transition: transform var(--t-slow), opacity var(--t-slow);
+  will-change: transform, opacity;
 }
+/* Ouverture — monte depuis le bas */
 .modal-overlay.hidden .reader-modal {
   transform: translateY(16px);
   opacity: 0;
