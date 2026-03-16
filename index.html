@@ -24,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=44" />
+  <link rel="stylesheet" href="style.css?v=46" />
   <!-- Anti-flash dark mode : appliqué avant le rendu -->
   <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
@@ -140,6 +140,9 @@
             <button class="feed-digest-btn" id="btn-open-digest" title="Générer le digest IA">⬡ DIGEST</button>
             <button class="feed-search-toggle" id="btn-search-toggle" title="Rechercher">⌕</button>
             <button class="btn-mark-all-read" id="btn-mark-all-read" title="Tout marquer comme lu">✓</button>
+            <button class="sidebar-toggle-inline" id="sidebar-toggle-inline" aria-label="Ouvrir le menu">
+              <span></span><span></span><span></span>
+            </button>
           </div>
         </div>
 
@@ -338,6 +341,6 @@
   <!-- Scripts -->
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=57"></script>
+  <script src="app.js?v=58"></script>
 </body>
 </html>
