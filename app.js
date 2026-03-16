@@ -1272,16 +1272,17 @@ RÈGLES ABSOLUES :
       const dateEl = document.getElementById('feed-welcome-date');
       const statsEl = document.getElementById('feed-welcome-stats');
       const topicsEl = document.getElementById('feed-topics');
-      if (!dateEl) return;
 
-      dateEl.textContent = new Date().toLocaleDateString('fr-FR', {
+      const date = new Date().toLocaleDateString('fr-FR', {
         weekday: 'long', day: 'numeric', month: 'long'
       });
+      if (dateEl) dateEl.textContent = date;
 
       const unread = STATE.articles.filter(a => !a.read).length;
       const total = STATE.articles.length;
       const important = STATE.articles.filter(a => (a.importance || 0) >= 4 && !a.read).length;
-      let statsText = `${total} article${total > 1 ? 's' : ''}`;
+      let statsText = date;
+      if (total > 0) statsText += ` · ${total} article${total > 1 ? 's' : ''}`;
       if (unread > 0) statsText += ` · ${unread} non lu${unread > 1 ? 's' : ''}`;
       if (important > 0) statsText += ` · ${important} important${important > 1 ? 's' : ''}`;
       if (statsEl) statsEl.textContent = statsText;
@@ -2096,21 +2097,21 @@ RÈGLES ABSOLUES :
     }
 
     function init() {
-      const contentEl = document.getElementById('feed-digest-content');
       const fsBody = document.getElementById('digest-fullscreen-body');
 
-      // Bouton ↺ dans le bandeau
-      const refreshBtn = document.getElementById('btn-feed-digest-refresh');
-      if (refreshBtn) refreshBtn.addEventListener('click', () =>
-        generateAndRender(refreshBtn, contentEl, null)
-      );
-
-      // Bouton ⤢ expand → plein écran
-      const expandBtn = document.getElementById('btn-feed-digest-expand');
-      if (expandBtn) expandBtn.addEventListener('click', () => {
-        fsBody.innerHTML = contentEl.innerHTML;
-        document.getElementById('digest-fullscreen-overlay').classList.remove('hidden');
+      // Bouton ⬡ DIGEST — ouvre le plein écran et génère si vide
+      const openBtn = document.getElementById('btn-open-digest');
+      if (openBtn) openBtn.addEventListener('click', () => {
+        const overlay = document.getElementById('digest-fullscreen-overlay');
+        overlay.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+
+        // Si pas encore de contenu, générer automatiquement
+        if (fsBody && (fsBody.innerHTML.trim() === '' ||
+            fsBody.querySelector('.feed-digest-placeholder'))) {
+          const regenBtn = document.getElementById('btn-digest-fullscreen-regen');
+          generateAndRender(regenBtn || openBtn, null, fsBody);
+        }
       });
 
       // Fermer plein écran
@@ -2122,7 +2123,7 @@ RÈGLES ABSOLUES :
       // ↺ Régénérer depuis le plein écran
       const regenBtn = document.getElementById('btn-digest-fullscreen-regen');
       if (regenBtn) regenBtn.addEventListener('click', () =>
-        generateAndRender(regenBtn, contentEl, fsBody)
+        generateAndRender(regenBtn, null, fsBody)
       );
     }
 
