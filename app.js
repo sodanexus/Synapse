@@ -1720,30 +1720,70 @@ RÈGLES ABSOLUES :
       }
     }
 
+    /**
+     * Animation de transition entre articles.
+     * dir = 1  → sortie à gauche (article suivant)
+     * dir = -1 → sortie à droite (article précédent)
+     */
+    function _animateTransition(dir, callback) {
+      const modal = document.getElementById('reader-modal');
+      if (!modal) { callback(); return; }
+      // Si le swipe gère déjà l'animation, on exécute juste le callback
+      if (Reader._swipeInProgress) { callback(); return; }
+
+      const EASE = 'cubic-bezier(0.4, 0.0, 0.2, 1)';
+
+      // Phase 1 — sortie
+      modal.style.transition = `transform 0.18s ${EASE}, opacity 0.18s ease`;
+      modal.style.transform  = `translateX(${dir * -60}px)`;
+      modal.style.opacity    = '0';
+
+      setTimeout(() => {
+        // Phase 2 — reset de l'autre côté, sans transition
+        modal.style.transition = 'none';
+        modal.style.transform  = `translateX(${dir * 60}px)`;
+        modal.style.opacity    = '0';
+
+        // Charger le nouvel article
+        callback();
+        modal.scrollTop = 0;
+
+        // Phase 3 — entrée
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            modal.style.transition = `transform 0.22s ${EASE}, opacity 0.2s ease`;
+            modal.style.transform  = 'translateX(0)';
+            modal.style.opacity    = '1';
+            setTimeout(() => { modal.style.transition = ''; }, 220);
+          });
+        });
+      }, 180);
+    }
+
     function goNext() {
       const list = STATE.currentArticleList;
-      if (STATE.currentArticleIndex < list.length - 1) {
+      if (STATE.currentArticleIndex >= list.length - 1) return;
+      _animateTransition(1, () => {
         STATE.currentArticleIndex++;
         const article = list[STATE.currentArticleIndex];
         markRead(article);
         populate(article);
         updateNavLabels();
-        document.getElementById('reader-modal').scrollTop = 0;
         if (!AI.isEnriched(article)) enrichOnOpen(article);
-      }
+      });
     }
 
     function goPrev() {
       const list = STATE.currentArticleList;
-      if (STATE.currentArticleIndex > 0) {
+      if (STATE.currentArticleIndex <= 0) return;
+      _animateTransition(-1, () => {
         STATE.currentArticleIndex--;
         const article = list[STATE.currentArticleIndex];
         markRead(article);
         populate(article);
         updateNavLabels();
-        document.getElementById('reader-modal').scrollTop = 0;
         if (!AI.isEnriched(article)) enrichOnOpen(article);
-      }
+      });
     }
 
 
@@ -1844,7 +1884,7 @@ RÈGLES ABSOLUES :
 
     }
 
-    return { open, close, init, goNext, goPrev };
+    return { open, close, init, goNext, goPrev, _swipeInProgress: false };
   })();
 
   /* ================================================================
@@ -3161,13 +3201,17 @@ RÈGLES ABSOLUES :
           readerModal.style.transform = `translateX(${dir * 100}vw)`;
           readerModal.style.opacity = '0';
 
+          // Flag : le swipe gère l'animation — goNext/goPrev ne doivent pas ré-animer
+          Reader._swipeInProgress = true;
           if (dx < 0) Reader.goNext();
           else Reader.goPrev();
+          Reader._swipeInProgress = false;
 
           requestAnimationFrame(() => {
             readerModal.style.transition = 'transform 0.3s cubic-bezier(0.25,0.1,0.25,1), opacity 0.3s ease';
             readerModal.style.transform = 'translateX(0)';
             readerModal.style.opacity = '1';
+            setTimeout(() => { readerModal.style.transition = ''; }, 300);
           });
         }, 200);
       } else {
