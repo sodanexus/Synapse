@@ -1895,14 +1895,17 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
    TTS PROGRESS BAR — Reader & Digest
    ================================================================ */
 .tts-btn-wrap {
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 3px;
 }
 
 .tts-progress-track {
-  width: 28px;
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
   height: 2px;
   background: var(--grey-wash);
   border-radius: 1px;
@@ -2351,14 +2354,31 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 .card-compact-bar.imp-4 { background: var(--imp-4); }
 .card-compact-bar.imp-5 { background: var(--imp-5); }
 
+.card-compact-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
 .card-compact-source {
   font-family: var(--font-mono);
   font-size: 0.58rem;
   letter-spacing: 0.07em;
   color: var(--grey-light);
   text-transform: uppercase;
-  margin-top: 4px;
 }
+
+.card-compact-bookmark {
+  font-size: 0.75rem;
+  color: var(--grey-light);
+  cursor: pointer;
+  padding: 0 2px;
+  transition: color var(--t-fast);
+  flex-shrink: 0;
+}
+.card-compact-bookmark:hover { color: var(--ink); }
+.card-compact-bookmark.bookmarked { color: var(--ink); }
 
 .card-compact-title {
   font-family: var(--font-display);
