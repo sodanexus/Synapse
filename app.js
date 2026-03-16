@@ -1475,8 +1475,9 @@ RÈGLES ABSOLUES :
       const titleArea = document.getElementById('reader-title-area');
       if (!titleArea) return;
 
-      // Reset
-      titleArea.style.backgroundImage = '';
+      // Reset — supprimer le hero-bg précédent
+      const oldBg = titleArea.querySelector('.hero-bg');
+      if (oldBg) oldBg.remove();
       titleArea.classList.remove('has-hero');
 
       const img = article.image || '';
@@ -1493,7 +1494,6 @@ RÈGLES ABSOLUES :
           .then(r => r.ok ? r.json() : null)
           .then(data => {
             if (!data?.ogImage) return;
-            // Vérifier que c'est toujours le même article ouvert
             const current = STATE.currentArticleList[STATE.currentArticleIndex];
             if (current?.hash !== article.hash) return;
             article.image = data.ogImage;
@@ -1503,12 +1503,19 @@ RÈGLES ABSOLUES :
       }
     }
 
-    /** Applique l'image en background avec fade-in */
-    function _applyHero(el, url) {
+    /** Injecte un div.hero-bg avec fade-in — le contenu reste visible en permanence */
+    function _applyHero(titleArea, url) {
       const img = new Image();
       img.onload = () => {
-        el.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
-        el.classList.add('has-hero');
+        // Créer le div image
+        const bg = document.createElement('div');
+        bg.className = 'hero-bg';
+        bg.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
+        titleArea.insertBefore(bg, titleArea.firstChild);
+        titleArea.classList.add('has-hero');
+        // Forcer reflow puis fade-in
+        void bg.offsetHeight;
+        bg.classList.add('hero-visible');
       };
       img.onerror = () => {};
       img.src = url;
