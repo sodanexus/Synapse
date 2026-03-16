@@ -1005,36 +1005,54 @@ RÈGLES ABSOLUES :
 
     /** Crée une ligne article (vue liste, flux / bookmarks) */
     function articleRow(article, index, articleList) {
-      const row = document.createElement('div');
-      row.className = `article-row${article.read ? ' read' : ''}`;
-      row.style.animationDelay = `${index * 30}ms`;
-      row.dataset.hash = article.hash || '';
-
       const score = article.importance || 1;
       const isBookmarked = STATE.bookmarks.has(article.id || article.hash);
+      const isImportant = score >= 4;
 
-      row.innerHTML = `
-        <div class="row-imp-bar imp-${score}"></div>
-        <div class="row-body">
-          <div class="row-source">${escapeHtml(article.feed_name || '')} · ${relativeTime(article.pub_date)}</div>
-          <div class="row-title">${escapeHtml(article.ai_title || article.title || '')}</div>
-          ${(article.ai_content) ? `<div class="row-excerpt">${escapeHtml(article.ai_content.substring(0, 120))}…</div>` : ''}
-          <div class="row-meta">${(article.ai_tags || []).slice(0, 3).join(' · ')}</div>
-        </div>
-        <div class="row-actions">
-          <button class="row-action-btn${isBookmarked ? ' bookmarked' : ''}" data-action="bookmark" title="Sauvegarder">◧</button>
-          <a class="row-action-btn" href="${escapeHtml(article.link || '#')}" target="_blank" rel="noopener" title="Article original" data-action="source">↗</a>
-        </div>
-      `;
+      const row = document.createElement('div');
+      row.dataset.hash = article.hash || '';
+      row.style.animationDelay = `${index * 30}ms`;
 
-      // Clic sur la ligne → ouvrir reader
+      if (isImportant) {
+        // Vue bloc pour les articles importants
+        row.className = `article-bloc${article.read ? ' read' : ''}`;
+        row.innerHTML = `
+          <div class="bloc-imp-bar imp-${score}"></div>
+          <div class="bloc-inner">
+            <div class="bloc-source">${escapeHtml(article.feed_name || '')} · ${relativeTime(article.pub_date)}</div>
+            <div class="bloc-title">${escapeHtml(article.ai_title || article.title || '')}</div>
+            ${article.ai_content ? `<div class="bloc-excerpt">${escapeHtml(article.ai_content.substring(0, 160))}…</div>` : ''}
+            <div class="bloc-footer">
+              <div class="bloc-tags">${(article.ai_tags || []).slice(0, 3).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
+              <div class="bloc-actions">
+                <button class="row-action-btn${isBookmarked ? ' bookmarked' : ''}" data-action="bookmark">◧</button>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        // Vue row normale
+        row.className = `article-row${article.read ? ' read' : ''}`;
+        row.innerHTML = `
+          <div class="row-imp-bar imp-${score}"></div>
+          <div class="row-body">
+            <div class="row-source">${escapeHtml(article.feed_name || '')} · ${relativeTime(article.pub_date)}</div>
+            <div class="row-title">${escapeHtml(article.ai_title || article.title || '')}</div>
+            ${article.ai_content ? `<div class="row-excerpt">${escapeHtml(article.ai_content.substring(0, 120))}…</div>` : ''}
+            <div class="row-meta">${(article.ai_tags || []).slice(0, 3).join(' · ')}</div>
+          </div>
+          <div class="row-actions">
+            <button class="row-action-btn${isBookmarked ? ' bookmarked' : ''}" data-action="bookmark" title="Sauvegarder">◧</button>
+          </div>
+        `;
+      }
+
       row.addEventListener('click', (e) => {
         if (!e.target.closest('[data-action]')) {
           Reader.open(article, index, articleList);
         }
       });
 
-      // Bouton bookmark
       const bookmarkBtn = row.querySelector('[data-action="bookmark"]');
       bookmarkBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -2227,6 +2245,46 @@ RÈGLES ABSOLUES :
     /** Initialise les boutons digest */
     function init() {
       document.getElementById('btn-generate-digest').addEventListener('click', generate);
+
+      // Bouton expand → plein écran
+      const expandBtn = document.getElementById('btn-feed-digest-expand');
+      if (expandBtn) expandBtn.addEventListener('click', () => {
+        const contentEl = document.getElementById('feed-digest-content');
+        const fsBody = document.getElementById('digest-fullscreen-body');
+        const overlay = document.getElementById('digest-fullscreen-overlay');
+        // Copier le contenu actuel dans le plein écran
+        fsBody.innerHTML = contentEl.innerHTML;
+        overlay.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+      });
+
+      // Fermer plein écran
+      document.getElementById('btn-digest-fullscreen-close').addEventListener('click', () => {
+        document.getElementById('digest-fullscreen-overlay').classList.add('hidden');
+        document.body.style.overflow = '';
+      });
+
+      // Régénérer depuis le plein écran
+      document.getElementById('btn-digest-fullscreen-regen').addEventListener('click', async () => {
+        const fsBody = document.getElementById('digest-fullscreen-body');
+        const contentEl = document.getElementById('feed-digest-content');
+        const regenBtn = document.getElementById('btn-digest-fullscreen-regen');
+        regenBtn.disabled = true;
+        regenBtn.textContent = '↺ En cours...';
+        fsBody.innerHTML = '<span class="feed-digest-placeholder">Génération en cours...</span>';
+        try {
+          const html = await AI.generateDailyDigest(STATE.articles);
+          const rendered = `<div class="feed-digest-text">${Digest.cleanHtml(html)}</div>`;
+          fsBody.innerHTML = rendered;
+          contentEl.innerHTML = rendered;
+          if (STATE.user) await DB.saveDigest(STATE.user.id, html).catch(() => {});
+        } catch {
+          fsBody.innerHTML = '<span class="feed-digest-placeholder">Erreur — réessayez</span>';
+        } finally {
+          regenBtn.disabled = false;
+          regenBtn.textContent = '↺ Régénérer';
+        }
+      });
       // Bandeau digest dans le FLUX
       const feedDigestBtn = document.getElementById('btn-feed-digest-refresh');
       if (feedDigestBtn) feedDigestBtn.addEventListener('click', async () => {
@@ -2248,7 +2306,7 @@ RÈGLES ABSOLUES :
       });
     }
 
-    return { init, generate };
+    return { init, generate, cleanHtml: cleanDigestHtml };
   })();
 
   /* ================================================================
