@@ -12,6 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Synapse" />
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon.png" type="image/png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -23,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=31" />
+  <link rel="stylesheet" href="style.css?v=33" />
   <!-- Anti-flash dark mode : appliqué avant le rendu -->
   <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
@@ -139,9 +140,10 @@
       <section class="view" id="view-home">
         <header class="view-header">
           <div class="view-header-left">
-            <h1 class="view-title">DIGEST <button class="digest-refresh-btn" id="btn-generate-digest" title="Générer le digest IA">↺</button></h1>
+            <h1 class="view-title">DIGEST</h1>
             <span class="view-date" id="digest-date"></span>
           </div>
+          <button class="digest-refresh-btn" id="btn-generate-digest" title="Générer le digest IA">↺</button>
         </header>
 
         <!-- Zone digest IA -->
@@ -294,24 +296,18 @@
           <button class="reader-btn font-size-btn" data-size="sm" title="Petite police">A−</button>
           <button class="reader-btn font-size-btn active" data-size="md" title="Taille normale">A</button>
           <button class="reader-btn font-size-btn" data-size="lg" title="Grande police">A+</button>
-          <span style="width:1px; background:var(--grey-subtle); margin: 4px 2px;"></span>
+          <span class="reader-sep"></span>
           <!-- Bookmark -->
-          <button class="reader-btn" id="btn-bookmark" title="Sauvegarder">
-            ◧
-          </button>
-          <!-- Partager -->
-          <button class="reader-btn" id="btn-share" title="Partager">
-            ↑ PARTAGER
-          </button>
-          <button class="reader-btn" id="btn-reader-mode" title="Mode lecteur">⊙ LECTEUR</button>
-          <!-- Lien original -->
-          <a class="reader-btn" id="reader-link" href="#" target="_blank" rel="noopener" title="Article original">
-            ↗ SOURCE
-          </a>
-          <!-- Mode lecteur -->
-          <button class="reader-btn" id="btn-reader-mode" title="Mode lecteur">
-            ⊙ LECTEUR
-          </button>
+          <button class="reader-btn" id="btn-bookmark" title="Sauvegarder">◧</button>
+          <!-- Menu contextuel -->
+          <div class="reader-more-wrap">
+            <button class="reader-btn" id="btn-reader-more" title="Plus d'options">···</button>
+            <div class="reader-more-menu hidden" id="reader-more-menu">
+              <button class="reader-more-item" id="btn-share-menu">↑ Partager</button>
+              <button class="reader-more-item" id="btn-reader-mode-menu">⊙ Mode lecteur</button>
+              <a class="reader-more-item" id="reader-link" href="#" target="_blank" rel="noopener">↗ Source originale</a>
+            </div>
+          </div>
           <!-- Fermer -->
           <button class="reader-btn reader-close" id="btn-close-reader">✕</button>
         </div>
@@ -357,14 +353,6 @@
   <button class="scroll-top-btn hidden" id="btn-scroll-top" title="Retour en haut">↑</button>
 
   <!-- Mode lecteur — iframe propre -->
-  <div class="reader-mode-overlay hidden" id="reader-mode-overlay">
-    <div class="reader-mode-bar">
-      <span class="reader-mode-title" id="reader-mode-title"></span>
-      <button class="reader-mode-close" id="btn-close-reader-mode">✕</button>
-    </div>
-    <iframe class="reader-mode-frame" id="reader-mode-frame" sandbox="allow-same-origin allow-scripts" loading="lazy"></iframe>
-  </div>
-
   <!-- Mode lecteur — page source clean -->
   <div class="reader-mode-overlay hidden" id="reader-mode-overlay">
     <div class="reader-mode-modal" id="reader-mode-modal">
@@ -394,6 +382,6 @@
   <!-- Scripts -->
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=33"></script>
+  <script src="app.js?v=35"></script>
 </body>
 </html>
