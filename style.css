@@ -1142,6 +1142,14 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  /* Image invisible jusqu'au fade-in */
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+/* Déclenché par JS après chargement de l'image */
+.reader-title-area.hero-visible {
+  opacity: 1;
 }
 
 /* Dégradé light mode — plus bas, image plus visible */
