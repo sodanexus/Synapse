@@ -1532,12 +1532,32 @@ RÈGLES ABSOLUES :
       Toast.show('Quota IA atteint — remise à zéro à minuit', 'info', 5000);
     }
 
-    /** Ferme le reader */
+    /** Ferme le reader avec animation */
     function close() {
-      TTS.stop(); // Stopper l'audio si en cours
+      TTS.stop();
       const overlay = document.getElementById('reader-overlay');
-      overlay.classList.add('hidden');
-      document.body.style.overflow = '';
+      const modal = document.getElementById('reader-modal');
+
+      // Animer la sortie : modal descend + fade out
+      modal.style.transition = 'transform 0.28s cubic-bezier(0.4, 0.0, 1, 1), opacity 0.22s ease';
+      modal.style.transform = 'translateY(20px)';
+      modal.style.opacity = '0';
+
+      // Overlay fade out
+      overlay.style.transition = 'opacity 0.28s ease';
+      overlay.style.opacity = '0';
+
+      // Masquer après la fin de l'animation
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+        // Reset les styles inline pour ne pas interférer avec la prochaine ouverture
+        modal.style.transition = '';
+        modal.style.transform = '';
+        modal.style.opacity = '';
+        overlay.style.transition = '';
+        overlay.style.opacity = '';
+        document.body.style.overflow = '';
+      }, 280);
     }
 
     /** Remplit le reader avec les données d'un article */
