@@ -326,14 +326,30 @@
   <!-- Modale digest plein écran -->
   <div class="digest-fullscreen-overlay hidden" id="digest-fullscreen-overlay">
     <div class="digest-fullscreen-header">
-      <span class="digest-fullscreen-title">⬡ DIGEST IA</span>
+      <div class="digest-fullscreen-meta">
+        <span class="digest-fullscreen-title">⬡ DIGEST IA</span>
+        <span class="digest-fullscreen-date" id="digest-header-date"></span>
+      </div>
       <div class="digest-fullscreen-actions">
+        <button class="digest-tts-btn" id="btn-digest-listen" title="Écouter le digest">▶</button>
         <button class="digest-fullscreen-regen" id="btn-digest-fullscreen-regen">↺ Régénérer</button>
         <button class="digest-fullscreen-close" id="btn-digest-fullscreen-close">✕</button>
       </div>
     </div>
     <div class="digest-fullscreen-body" id="digest-fullscreen-body">
-      <span class="feed-digest-placeholder">Appuyez sur ↺ Régénérer pour générer le digest</span>
+      <div class="digest-empty-state" id="digest-empty-state">
+        <div class="digest-empty-glyph">⬡</div>
+        <div class="digest-empty-label">BRIEFING DU JOUR</div>
+        <p class="digest-empty-desc">Votre synthèse IA est en cours de génération.<br>Les articles importants sont analysés et regroupés par thème.</p>
+        <div class="digest-loading-steps" id="digest-loading-steps">
+          <div class="digest-step" id="digest-step-1">Analyse des articles...</div>
+          <div class="digest-step" id="digest-step-2">Regroupement par thèmes...</div>
+          <div class="digest-step" id="digest-step-3">Rédaction du briefing...</div>
+        </div>
+      </div>
+    </div>
+    <div class="digest-fullscreen-footer" id="digest-footer" style="display:none">
+      <span class="digest-footer-meta" id="digest-footer-meta"></span>
     </div>
   </div>
 
