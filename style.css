@@ -54,27 +54,45 @@
   --t-spring: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* ── DARK MODE ── */
+/* ── DARK MODE — Charbon doux ──
+   Principe : fonds charbons (pas noirs purs), texte crème doux,
+   bordures quasi-invisibles, hiérarchie par la luminosité seule.
+   Contraste WCAG AA respecté sans agressivité visuelle.
+   ────────────────────────────────────────────────────────────── */
 body.dark {
-  --ink:         #f0f0f0;
-  --ink-2:       #e0e0e0;
-  --ink-3:       #c8c8c8;
-  --grey-deep:   #a0a0a0;
-  --grey-mid:    #707070;
-  --grey-light:  #505050;
-  --grey-subtle: #333333;
-  --grey-wash:   #1e1e1e;
-  --paper:       #111111;
-  --white:       #1a1a1a;
-  --accent:      #f0f0f0;
-  --accent-soft: rgba(240, 240, 240, 0.06);
-  --imp-1: #444444;
-  --imp-2: #606060;
-  --imp-3: #888888;
-  --imp-4: #b0b0b0;
-  --imp-5: #f0f0f0;
-  --shadow-soft: 0 1px 3px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2);
-  --shadow-lift: 0 4px 24px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.3);
+  /* Texte — crème doux, jamais blanc pur */
+  --ink:         #e8e3db;   /* Texte principal — crème chaud */
+  --ink-2:       #d4cfc7;   /* Texte fort secondaire */
+  --ink-3:       #b8b3ab;   /* Texte moyen */
+
+  /* Gris — échelonnés finement, tous chauds */
+  --grey-deep:   #8a8480;   /* Texte secondaire lisible */
+  --grey-mid:    #6a6560;   /* Labels, méta */
+  --grey-light:  #4a4642;   /* Placeholders, désactivés */
+  --grey-subtle: #2e2b28;   /* Bordures — très discrètes */
+  --grey-wash:   #252220;   /* Fonds secondaires légers */
+
+  /* Fonds — charbon par couches, jamais noir pur */
+  --paper:       #1c1a18;   /* Fond principal */
+  --white:       #232018;   /* Cards, sidebar, modals — légèrement plus chaud */
+
+  /* Accent — crème au lieu de blanc pur */
+  --accent:      #e8e3db;
+  --accent-soft: rgba(232, 227, 219, 0.05);
+
+  /* Importance — visible mais pas criard */
+  --imp-1: #3a3734;
+  --imp-2: #524e4a;
+  --imp-3: #6e6a64;
+  --imp-4: #9e9890;
+  --imp-5: #d4cfc7;
+
+  /* Ombres — très subtiles sur fond sombre */
+  --shadow-soft: 0 1px 2px rgba(0,0,0,0.25), 0 4px 12px rgba(0,0,0,0.15);
+  --shadow-lift: 0 4px 20px rgba(0,0,0,0.35), 0 1px 4px rgba(0,0,0,0.2);
+
+  /* Bordure — quasi-invisible, juste une suggestion */
+  --border: 1px solid #2a2724;
 }
 
 
@@ -993,7 +1011,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(247, 246, 243, 0.88);
+  background: rgba(28, 26, 24, 0.0);   /* Transparent — backdrop-filter suffit */
   z-index: 500;
   display: flex;
   align-items: flex-start;
@@ -1862,7 +1880,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 .digest-fullscreen-overlay {
   position: fixed;
   inset: 0;
-  background: var(--white);
+  background: var(--paper);
   z-index: 500;
   display: flex;
   flex-direction: column;
@@ -2327,4 +2345,119 @@ body.dark {
 .quota-warning-sub {
   color: var(--grey-light);
   font-size: 0.65rem;
+}
+
+
+/* ================================================================
+   DARK MODE — overrides spécifiques
+   Éléments qui ont besoin d'un traitement particulier en dark.
+   ================================================================ */
+body.dark .modal-overlay {
+  background: rgba(10, 9, 8, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+body.dark .reader-modal {
+  background: var(--white);
+  border-color: var(--grey-subtle);
+}
+
+body.dark .reader-summary {
+  background: var(--grey-wash);
+  border-color: var(--grey-subtle);
+}
+
+body.dark .reader-related {
+  background: var(--grey-wash);
+}
+
+body.dark .add-feed-form {
+  background: var(--white);
+  border-color: var(--grey-subtle);
+}
+
+body.dark .add-feed-form::before {
+  background: var(--white);
+}
+
+body.dark .digest-zone {
+  background: var(--white);
+  border-color: var(--grey-subtle);
+}
+
+body.dark .digest-zone::before {
+  background: var(--paper);
+}
+
+body.dark .tag {
+  background: var(--grey-wash);
+  color: var(--grey-deep);
+}
+
+body.dark .article-card {
+  background: var(--white);
+  border-color: var(--grey-subtle);
+}
+
+body.dark .article-card-compact {
+  background: var(--white);
+  border-color: var(--grey-subtle);
+}
+
+body.dark .article-card-compact:hover {
+  background: var(--grey-wash);
+}
+
+body.dark .sidebar {
+  background: var(--white);
+  border-color: var(--grey-subtle);
+}
+
+body.dark .reader-more-menu {
+  background: var(--white);
+  border-color: var(--grey-subtle);
+}
+
+body.dark .feed-digest-banner {
+  background: var(--grey-wash);
+  border-color: var(--grey-subtle);
+}
+
+body.dark .feed-digest-header {
+  border-color: var(--grey-subtle);
+}
+
+/* Bordures globales adoucies en dark */
+body.dark .article-row {
+  border-color: var(--grey-subtle);
+}
+
+body.dark .nav-item.active::before {
+  background: var(--ink);
+}
+
+body.dark .filter-btn.active {
+  border-color: var(--grey-mid);
+  color: var(--ink);
+}
+
+body.dark .reader-header,
+body.dark .reader-importance,
+body.dark .reader-tags,
+body.dark .reader-footer {
+  border-color: var(--grey-subtle);
+}
+
+body.dark .auth-overlay {
+  background: var(--paper);
+}
+
+body.dark .auth-input {
+  border-color: var(--grey-subtle);
+}
+
+body.dark .quota-warning {
+  background: var(--grey-wash);
+  border-color: var(--grey-subtle);
 }
