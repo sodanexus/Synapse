@@ -1170,10 +1170,11 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.0) 0%,
-    rgba(255, 255, 255, 0.15) 45%,
-    rgba(255, 255, 255, 0.80) 72%,
-    rgba(255, 255, 255, 1.0) 100%
+    rgba(255, 255, 255, 0.0)  0%,
+    rgba(255, 255, 255, 0.20) 35%,
+    rgba(255, 255, 255, 0.92) 60%,
+    rgba(255, 255, 255, 1.0)  75%,
+    rgba(255, 255, 255, 1.0)  100%
   );
   z-index: 1;
 }
@@ -1182,10 +1183,11 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 body.dark .reader-title-area.has-hero::before {
   background: linear-gradient(
     to bottom,
-    rgba(35, 32, 24, 0.0) 0%,
-    rgba(35, 32, 24, 0.15) 45%,
-    rgba(35, 32, 24, 0.75) 72%,
-    rgba(35, 32, 24, 1.0) 100%
+    rgba(35, 32, 24, 0.0)  0%,
+    rgba(35, 32, 24, 0.20) 35%,
+    rgba(35, 32, 24, 0.92) 62%,
+    rgba(35, 32, 24, 1.0)  78%,
+    rgba(35, 32, 24, 1.0)  100%
   );
 }
 
