@@ -2332,7 +2332,7 @@ RÈGLES ABSOLUES :
 
       const icons = { idle: '▶', loading: '···', playing: '■', paused: '▶' };
       const titles = {
-        idle:    'Écouter l'article',
+        idle:    "Écouter l'article",
         loading: 'Chargement audio...',
         playing: 'Pause',
         paused:  'Reprendre',
