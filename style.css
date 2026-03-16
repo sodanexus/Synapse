@@ -2324,6 +2324,11 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   margin-bottom: 4px;
 }
 
+/* Si une seule card — prend toute la largeur */
+.important-grid .article-card-compact:only-child {
+  grid-column: 1 / -1;
+}
+
 .article-card-compact {
   position: relative;
   background: var(--white);
