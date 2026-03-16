@@ -571,15 +571,13 @@ TEXTE : ${rssText}`;
       }).join('\n\n');
 
       const digest = await callGroq(
-  `Tu es un processeur de données pur. Ta sortie est un flux HTML brut sans aucun style.
+  `Tu es un editeur de presse senior. Ta sortie est un flux HTML.
 INTERDICTION TECHNIQUE : Ne génère JAMAIS de Markdown (#, ##, **, *, -, __).
-INTERDICTION DE STYLE : Ne génère JAMAIS de <strong>, <b>, <em>, <i>.
 RÈGLES DE STRUCTURE :
 1. Utilise UNIQUEMENT ces balises : <h2>, <p>, <ul>, <li>.
-2. Tout texte à l'intérieur des balises doit être du texte brut (INTERDICTION de mettre du gras).
 3. Pas d'introduction, pas de conclusion, pas de titre général.
 4. Langue : français.
-5. Cite les sources en petit entre parenthèses dans le texte.`,
+5. Cite les sources en petit et entre parenthèses dans le texte.`,
   `Rédige un briefing structuré par thèmes (max 5 thèmes) basé sur le texte suivant. 
 FORMAT PAR THÈME : <h2>Nom du thème</h2> <p>Synthèse</p> <ul><li>Point clé</li></ul>\n\n${articlesText}`,
   800
@@ -845,7 +843,7 @@ return digest;
         }
       }
       return added;
-    }
+    }g
 
     function escXml(str) {
       return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
