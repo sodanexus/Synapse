@@ -1409,11 +1409,11 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
     margin: 0 auto;
   }
 
-  /* Compacter les boutons du header sur mobile */
-  .feed-digest-btn { font-size: 0.55rem; padding: 4px 7px; }
-  .feed-welcome-right { gap: 2px; }
-  .feed-welcome { padding: 20px 0 8px; }
+  .feed-welcome { padding: 20px 0 8px; gap: 6px; }
   .feed-welcome-date { font-size: 1.3rem; }
+  .row-actions { display: none; }
+  .feed-digest-btn { font-size: 0.55rem; padding: 4px 7px; letter-spacing: 0.06em; }
+  .feed-welcome-right { gap: 0; }
 }
 
 /* ================================================================
@@ -2033,7 +2033,12 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   align-items: flex-start;
   justify-content: space-between;
   padding: 28px 0 12px;
-  gap: 16px;
+  gap: 8px;
+}
+
+.feed-welcome-left {
+  min-width: 0;
+  flex: 1;
 }
 
 .feed-welcome-date {
