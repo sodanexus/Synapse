@@ -1049,10 +1049,14 @@ RÈGLES ABSOLUES :
       // Si pas de filtre actif et pas de recherche → articles importants non lus en tête
       // Sinon → chronologique pur
       if (filter === 'all' && !query && STATE.searchResults === null) {
-        const breaking = filtered.filter(a => (a.importance || 0) >= 4 && !a.read);
-        const rest = filtered.filter(a => !((a.importance || 0) >= 4 && !a.read));
-        breaking.sort((a, b) => (b.importance || 0) - (a.importance || 0) || new Date(b.pub_date) - new Date(a.pub_date));
-        rest.sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
+        const breaking = filtered
+          .filter(a => (a.importance || 0) >= 4 && !a.read)
+          .sort((a, b) => (b.importance || 0) - (a.importance || 0) || new Date(b.pub_date) - new Date(a.pub_date))
+          .slice(0, 4);
+        const breakingHashes = new Set(breaking.map(a => a.hash));
+        const rest = filtered
+          .filter(a => !breakingHashes.has(a.hash))
+          .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
         filtered = [...breaking, ...rest];
 
         // Ajouter un séparateur visuel si des articles importants sont en tête
