@@ -24,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=33" />
+  <link rel="stylesheet" href="style.css?v=34" />
   <!-- Anti-flash dark mode : appliqué avant le rendu -->
   <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
@@ -149,8 +149,8 @@
         <!-- Zone digest IA -->
         <div class="digest-zone" id="digest-zone">
           <div class="digest-placeholder">
-            <span class="placeholder-icon">⬡</span>
-            <p>Cliquez sur ↺ à côté de DIGEST pour obtenir un résumé intelligent des actualités du jour.</p>
+            <span class="placeholder-icon">↺</span>
+            <p>Appuyez sur le bouton ↺ en haut pour générer un briefing intelligent de vos actualités du moment.</p>
           </div>
         </div>
 
@@ -340,8 +340,14 @@
 
       <!-- Footer reader -->
       <div class="reader-footer">
-        <button class="reader-nav-btn" id="btn-prev-article">← PRÉCÉDENT</button>
-        <button class="reader-nav-btn" id="btn-next-article">SUIVANT →</button>
+        <button class="reader-nav-btn" id="btn-prev-article">
+          <span class="reader-nav-arrow">←</span>
+          <span class="reader-nav-label" id="prev-article-title">PRÉCÉDENT</span>
+        </button>
+        <button class="reader-nav-btn reader-nav-next" id="btn-next-article">
+          <span class="reader-nav-label" id="next-article-title">SUIVANT</span>
+          <span class="reader-nav-arrow">→</span>
+        </button>
       </div>
     </div>
   </div>
@@ -382,6 +388,6 @@
   <!-- Scripts -->
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="app.js?v=35"></script>
+  <script src="app.js?v=36"></script>
 </body>
 </html>
