@@ -594,7 +594,7 @@ RÈGLES ABSOLUES :
 - Pas d'introduction, pas de conclusion, pas de titre général
 - Langue : français
 - Cite les sources entre parenthèses dans le texte`,
-        `Rédige un briefing structuré par thèmes (max 6 thèmes). Pour chaque thème : un <h2> avec le nom du thème, un <p> de synthèse, et une <ul> avec les points clés.\n\n${articlesText}`,
+        `Rédige un briefing structuré par thèmes (4 thèmes maximum, choisis les plus importants). Pour chaque thème : un <h2> avec le nom du thème, un <p> de synthèse de 2-3 phrases, et une <ul> avec 3 points clés maximum.\n\n${articlesText}`,
         800,
         0,
         CONFIG.GROQ_MODEL_DIGEST
@@ -2266,8 +2266,13 @@ RÈGLES ABSOLUES :
         _blobUrl = URL.createObjectURL(blob);
         _audio   = new Audio(_blobUrl);
 
-        _audio.onended = () => { _cleanup(); _setState('idle', btnOverride); };
-        _audio.onerror = () => { _cleanup(); _setState('idle', btnOverride); Toast.show('Erreur audio', 'error'); };
+        _audio.onended = () => { _cleanup(); _setState('idle', btnOverride); _updateProgress(0); };
+        _audio.onerror = () => { _cleanup(); _setState('idle', btnOverride); _updateProgress(0); Toast.show('Erreur audio', 'error'); };
+        _audio.ontimeupdate = () => {
+          if (_audio && _audio.duration) {
+            _updateProgress(_audio.currentTime / _audio.duration);
+          }
+        };
 
         await _audio.play();
         _setState('playing', btnOverride);
@@ -2289,11 +2294,22 @@ RÈGLES ABSOLUES :
       if (_blobUrl) { URL.revokeObjectURL(_blobUrl); _blobUrl = null; }
     }
 
+    /** Met à jour la progress bar TTS (0-1) sur tous les boutons actifs */
+    function _updateProgress(ratio) {
+      // Bouton reader
+      const readerBar = document.getElementById('tts-progress-bar');
+      if (readerBar) readerBar.style.width = `${ratio * 100}%`;
+      // Bouton digest
+      const digestBar = document.getElementById('tts-progress-bar-digest');
+      if (digestBar) digestBar.style.width = `${ratio * 100}%`;
+    }
+
     /** Arrête complètement */
     function stop() {
       _abortCtrl?.abort();
       _cleanup();
       _setState('idle');
+      _updateProgress(0);
     }
 
     /** Met à jour l'état sur le bouton reader ET sur un bouton override éventuel */
@@ -2359,6 +2375,51 @@ RÈGLES ABSOLUES :
         .trim();
 
       return html;
+    }
+
+    /** Génère la timeline chronologique des articles du jour */
+    function renderTimeline(fsBody) {
+      const today = new Date().toISOString().split('T')[0];
+      const todayArticles = STATE.articles
+        .filter(a => a.pub_date && a.pub_date.startsWith(today) && (a.ai_title || a.title))
+        .sort((a, b) => new Date(a.pub_date) - new Date(b.pub_date))
+        .slice(0, 12);
+
+      if (todayArticles.length === 0) return;
+
+      // Supprimer une timeline existante
+      const existing = fsBody.querySelector('.digest-timeline');
+      if (existing) existing.remove();
+
+      const timeline = document.createElement('div');
+      timeline.className = 'digest-timeline';
+      timeline.innerHTML = `<div class="digest-timeline-header">CHRONOLOGIE DU JOUR</div>`;
+
+      todayArticles.forEach(a => {
+        const time = new Date(a.pub_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        const score = a.importance || 1;
+        const item = document.createElement('div');
+        item.className = 'digest-timeline-item';
+        item.innerHTML = `
+          <div class="digest-timeline-time">${time}</div>
+          <div class="digest-timeline-dot imp-${score}"></div>
+          <div class="digest-timeline-content">
+            <div class="digest-timeline-source">${a.feed_name || ''}</div>
+            <div class="digest-timeline-title">${a.ai_title || a.title || ''}</div>
+          </div>
+        `;
+        item.addEventListener('click', () => {
+          // Fermer digest et ouvrir l'article
+          document.getElementById('digest-fullscreen-overlay').classList.add('hidden');
+          document.body.style.overflow = '';
+          TTS.stop();
+          const idx = STATE.articles.findIndex(art => art.hash === a.hash);
+          if (idx !== -1) Reader.open(a, idx, STATE.articles);
+        });
+        timeline.appendChild(item);
+      });
+
+      fsBody.appendChild(timeline);
     }
 
     /** Extrait le texte brut du digest pour le TTS */
@@ -2497,6 +2558,10 @@ RÈGLES ABSOLUES :
         }
 
         if (STATE.user) DB.saveDigest(STATE.user.id, html).catch(() => {});
+
+        // Timeline chronologique en bas
+        renderTimeline(fsBody);
+
         Toast.show('Digest généré ✓', 'success');
 
       } catch (err) {
@@ -2536,7 +2601,7 @@ RÈGLES ABSOLUES :
 
       // Bouton ⬡ DIGEST — ouvre le plein écran
       const openBtn = document.getElementById('btn-open-digest');
-      if (openBtn) openBtn.addEventListener('click', () => {
+      if (openBtn) openBtn.addEventListener('click', async () => {
         const overlay = document.getElementById('digest-fullscreen-overlay');
         overlay.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
@@ -2549,6 +2614,31 @@ RÈGLES ABSOLUES :
 
         if (isEmpty) {
           const regenBtn = document.getElementById('btn-digest-fullscreen-regen');
+
+          // Tenter de charger le digest du jour depuis Supabase
+          if (STATE.user) {
+            try {
+              const cached = await DB.getTodayDigest(STATE.user.id);
+              if (cached && cached.content) {
+                const cleanedHtml = cleanDigestHtml(cached.content);
+                fsBody.innerHTML = `<div class="feed-digest-text">${cleanedHtml}</div>`;
+                const analyzedCount = STATE.articles.filter(a => AI.isEnriched(a)).length;
+                updateFooter(analyzedCount, cached.created_at);
+                // Activer le bouton TTS
+                if (listenBtn) {
+                  listenBtn.style.display = '';
+                  listenBtn._digestText = extractTextForTTS(cleanedHtml);
+                }
+                // Générer la timeline depuis les articles en mémoire
+                renderTimeline(fsBody);
+                return;
+              }
+            } catch (e) {
+              console.warn('Digest cache load failed:', e);
+            }
+          }
+
+          // Pas de cache — générer
           generateAndRender(regenBtn || openBtn);
         }
       });
