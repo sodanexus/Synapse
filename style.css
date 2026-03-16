@@ -683,12 +683,12 @@ ul { list-style: none; }
 .tag {
   font-family: var(--font-mono);
   font-size: 0.58rem;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   padding: 2px 7px;
   background: var(--grey-wash);
   color: var(--grey-deep);
   border-radius: var(--radius);
-  text-transform: uppercase;
+  text-transform: lowercase;
 }
 
 /* Sentiment badges */
@@ -1591,30 +1591,6 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 .scroll-top-btn:hover { transform: translateY(-2px); }
 .scroll-top-btn:active { transform: scale(0.92); }
 
-/* Petit bouton ↺ à côté du titre DIGEST */
-.digest-refresh-btn {
-  font-family: var(--font-ui);
-  font-size: 1.2rem;
-  color: var(--grey-light);
-  cursor: pointer;
-  padding: 0 4px;
-  vertical-align: middle;
-  transition: color var(--t-fast), transform var(--t-spring);
-  line-height: 1;
-}
-.digest-refresh-btn:hover { color: var(--ink); transform: rotate(180deg); }
-.digest-refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-
-.digest-spinner {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--grey-subtle);
-  border-top-color: var(--ink);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  vertical-align: middle;
-}
 
 /* ================================================================
    MODE LECTEUR — iframe plein écran propre
@@ -1700,7 +1676,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   background: var(--white);
   border-radius: 4px;
   width: 100%;
-  max-width: 680px;
+  max-width: 860px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -1766,4 +1742,76 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   .reader-mode-overlay { padding: 0; align-items: flex-end; }
   .reader-mode-modal { max-height: 95vh; border-radius: 0; max-width: 100%; }
   .reader-mode-content { padding: 24px 20px; }
+}
+
+/* Séparateur toolbar reader */
+.reader-sep {
+  width: 1px;
+  background: var(--grey-subtle);
+  margin: 4px 2px;
+  align-self: stretch;
+}
+
+/* Menu contextuel "..." */
+.reader-more-wrap {
+  position: relative;
+}
+
+.reader-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--white);
+  border: var(--border);
+  border-radius: 4px;
+  box-shadow: var(--shadow-lift);
+  z-index: 300;
+  min-width: 180px;
+  overflow: hidden;
+  animation: fadeIn 0.15s ease;
+}
+
+.reader-more-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: var(--grey-deep);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.reader-more-item:hover {
+  background: var(--grey-wash);
+  color: var(--ink);
+}
+
+/* Bouton ↺ digest dans le header */
+.digest-refresh-btn {
+  font-family: var(--font-ui);
+  font-size: 1.4rem;
+  color: var(--grey-light);
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color var(--t-fast), transform var(--t-spring);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.digest-refresh-btn:hover { color: var(--ink); transform: rotate(180deg); }
+.digest-refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.digest-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--grey-subtle);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
 }
