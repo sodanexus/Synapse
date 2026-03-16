@@ -120,12 +120,14 @@ function parseRSSXML(xml) {
       const content = extractTag(entry, 'content') || extractTag(entry, 'summary');
       const published = extractTag(entry, 'published') || extractTag(entry, 'updated');
       if (title || link) {
+        const image = extractImage(entry);
         items.push({
           title: decodeEntities(title || ''),
           link: link || '',
           description: decodeEntities(stripCDATA(content || '')),
           content: decodeEntities(stripCDATA(content || '')),
           pubDate: published || '',
+          image: image || '',
         });
       }
     }
@@ -139,12 +141,14 @@ function parseRSSXML(xml) {
       const content = extractTag(item, 'content:encoded') || extractTag(item, 'content') || description;
       const pubDate = extractTag(item, 'pubDate') || extractTag(item, 'dc:date') || extractTag(item, 'published');
       if (title || link) {
+        const image = extractImage(item);
         items.push({
           title: decodeEntities(stripCDATA(title || '')),
           link: (stripCDATA(link || '')).trim(),
           description: decodeEntities(stripCDATA(description || '')),
           content: decodeEntities(stripCDATA(content || '')),
           pubDate: pubDate || '',
+          image: image || '',
         });
       }
     }
@@ -163,6 +167,39 @@ function extractTag(xml, tag) {
 function extractAttr(xml, tag, attr = 'href') {
   const match = xml.match(new RegExp(`<${tag}[^>]*\\s${attr}=["']([^"']+)["']`, 'i'));
   return match ? match[1].trim() : '';
+}
+
+/**
+ * Extrait l'URL de la première image trouvée dans un item RSS/Atom.
+ */
+function extractImage(xml) {
+  let m;
+
+  // media:content url="..."
+  m = xml.match(/<media:content[^>]+url="([^"]+)"[^>]*type="image/i);
+  if (m) return m[1];
+  m = xml.match(/<media:content[^>]+url='([^']+)'[^>]*type='image/i);
+  if (m) return m[1];
+  m = xml.match(/<media:content[^>]+url="([^"]+\.(?:jpg|jpeg|png|webp|gif))"/i);
+  if (m) return m[1];
+
+  // media:thumbnail
+  m = xml.match(/<media:thumbnail[^>]+url="([^"]+)"/i);
+  if (m) return m[1];
+  m = xml.match(/<media:thumbnail[^>]+url='([^']+)'/i);
+  if (m) return m[1];
+
+  // enclosure type="image/..."
+  m = xml.match(/<enclosure[^>]+type="image[^"]*"[^>]*url="([^"]+)"/i);
+  if (m) return m[1];
+  m = xml.match(/<enclosure[^>]+url="([^"]+)"[^>]*type="image[^"]*"/i);
+  if (m) return m[1];
+
+  // Première <img src="..."> dans le contenu
+  m = xml.match(/<img[^>]+src="(https?:[^"]+\.(?:jpg|jpeg|png|webp|gif)[^"]*)"/i);
+  if (m && !m[1].includes('pixel') && !m[1].includes('track')) return m[1];
+
+  return '';
 }
 
 function stripCDATA(str) {
@@ -266,12 +303,32 @@ async function handleScrape(url, corsHeaders) {
 
   const html = await response.text();
   const text = extractArticleText(html);
+  const ogImage = extractOGImage(html);
 
   if (!text || text.length < 100) {
+    // Même si pas de texte, retourner l'OG image si trouvée
+    if (ogImage) return jsonResponse({ text: '', length: 0, ogImage }, 200, corsHeaders);
     return jsonResponse({ error: 'Could not extract article content' }, 422, corsHeaders);
   }
 
-  return jsonResponse({ text, length: text.length }, 200, corsHeaders);
+  return jsonResponse({ text, length: text.length, ogImage }, 200, corsHeaders);
+}
+
+/** Extrait l'OG image d'une page HTML */
+function extractOGImage(html) {
+  // og:image
+  let m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+  if (m) return m[1];
+  m = html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+  if (m) return m[1];
+
+  // twitter:image
+  m = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i);
+  if (m) return m[1];
+  m = html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+  if (m) return m[1];
+
+  return '';
 }
 
 function extractArticleText(html) {
