@@ -571,19 +571,20 @@ TEXTE : ${rssText}`;
       }).join('\n\n');
 
       const digest = await callGroq(
-  `Tu es un editeur de presse senior. Ta sortie est un flux HTML.
-INTERDICTION TECHNIQUE : Ne génère JAMAIS de Markdown (#, ##, **, *, -, __).
-RÈGLES DE STRUCTURE :
-1. Utilise UNIQUEMENT ces balises : <h2>, <p>, <ul>, <li>.
-3. Pas d'introduction, pas de conclusion, pas de titre général.
-4. Langue : français.
-5. Cite les sources en petit et entre parenthèses dans le texte.`,
-  `Rédige un briefing structuré par thèmes (max 5 thèmes) basé sur le texte suivant. 
-FORMAT PAR THÈME : <h2>Nom du thème</h2> <p>Synthèse</p> <ul><li>Point clé</li></ul>\n\n${articlesText}`,
-  800
-);
+        `Tu es un éditeur de presse senior. Tu rédiges des briefings synthétiques.
+RÈGLES ABSOLUES :
+- Réponds UNIQUEMENT en HTML valide, JAMAIS en markdown
+- N'utilise JAMAIS #, ##, ###, **, *, - pour formater
+- N'utilise JAMAIS <strong>, <b>, <em>, <i> — aucun texte en gras ou italique
+- Utilise UNIQUEMENT ces balises : <h2>, <p>, <ul>, <li>
+- Pas d'introduction, pas de conclusion, pas de titre général
+- Langue : français
+- Cite les sources entre parenthèses dans le texte`,
+        `Rédige un briefing structuré par thèmes (max 4 thèmes). Pour chaque thème : un <h2> avec le nom du thème, un <p> de synthèse, et une <ul> avec les points clés.\n\n${articlesText}`,
+        800
+      );
 
-return digest;
+      return digest;
     }
 
     /**
@@ -843,7 +844,7 @@ return digest;
         }
       }
       return added;
-    }g
+    }
 
     function escXml(str) {
       return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
