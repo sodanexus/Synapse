@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=54" />
+  <link rel="stylesheet" href="style.css?v=47" />
   <!-- Anti-flash dark mode : appliqué avant le rendu -->
   <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
@@ -323,36 +323,51 @@
   <button class="scroll-top-btn hidden" id="btn-scroll-top" title="Retour en haut">↑</button>
 
   <!-- Mode lecteur — iframe propre -->
-  <!-- Modale digest plein écran -->
-  <div class="digest-fullscreen-overlay hidden" id="digest-fullscreen-overlay">
-    <div class="digest-fullscreen-header">
-      <div class="digest-fullscreen-meta">
-        <span class="digest-fullscreen-title">⬡ DIGEST IA</span>
-        <span class="digest-fullscreen-date" id="digest-header-date"></span>
-      </div>
-      <div class="digest-fullscreen-actions">
-        <div class="tts-btn-wrap">
-          <button class="digest-tts-btn" id="btn-digest-listen" title="Écouter le digest">▶</button>
-          <div class="tts-progress-track"><div class="tts-progress-fill" id="tts-progress-bar-digest"></div></div>
+  <!-- Modale digest — même structure que le reader -->
+  <div class="modal-overlay hidden" id="digest-fullscreen-overlay">
+    <div class="reader-modal digest-modal" id="digest-modal">
+
+      <!-- Header digest — même style que reader -->
+      <div class="reader-header" id="digest-header">
+        <div class="reader-meta">
+          <span class="reader-source">⬡ DIGEST IA</span>
+          <span class="reader-date" id="digest-header-date"></span>
         </div>
-        <button class="digest-fullscreen-regen" id="btn-digest-fullscreen-regen">↺ Régénérer</button>
-        <button class="digest-fullscreen-close" id="btn-digest-fullscreen-close">✕</button>
-      </div>
-    </div>
-    <div class="digest-fullscreen-body" id="digest-fullscreen-body">
-      <div class="digest-empty-state" id="digest-empty-state">
-        <div class="digest-empty-glyph">⬡</div>
-        <div class="digest-empty-label">BRIEFING DU JOUR</div>
-        <p class="digest-empty-desc">Votre synthèse IA est en cours de génération.<br>Les articles importants sont analysés et regroupés par thème.</p>
-        <div class="digest-loading-steps" id="digest-loading-steps">
-          <div class="digest-step" id="digest-step-1">Analyse des articles...</div>
-          <div class="digest-step" id="digest-step-2">Regroupement par thèmes...</div>
-          <div class="digest-step" id="digest-step-3">Rédaction du briefing...</div>
+        <div class="reader-controls">
+          <div class="tts-btn-wrap">
+            <button class="reader-btn" id="btn-digest-listen" title="Écouter le digest">▶</button>
+            <div class="tts-progress-track"><div class="tts-progress-fill" id="tts-progress-bar-digest"></div></div>
+          </div>
+          <span class="reader-sep"></span>
+          <button class="reader-btn" id="btn-digest-fullscreen-regen" title="Régénérer">↺</button>
+          <button class="reader-btn reader-close" id="btn-digest-fullscreen-close">✕</button>
         </div>
       </div>
-    </div>
-    <div class="digest-fullscreen-footer" id="digest-footer" style="display:none">
-      <span class="digest-footer-meta" id="digest-footer-meta"></span>
+
+      <!-- Hero image + Titre digest -->
+      <div class="reader-title-area" id="digest-title-area">
+        <h1 class="reader-title" id="digest-hero-title">BRIEFING DU JOUR</h1>
+      </div>
+
+      <!-- Corps du digest -->
+      <div class="digest-fullscreen-body reader-content" id="digest-fullscreen-body">
+        <div class="digest-empty-state" id="digest-empty-state">
+          <div class="digest-empty-glyph">⬡</div>
+          <div class="digest-empty-label">BRIEFING DU JOUR</div>
+          <p class="digest-empty-desc">Votre synthèse IA est en cours de génération.<br>Les articles importants sont analysés et regroupés par thème.</p>
+          <div class="digest-loading-steps" id="digest-loading-steps">
+            <div class="digest-step" id="digest-step-1">Analyse des articles...</div>
+            <div class="digest-step" id="digest-step-2">Regroupement par thèmes...</div>
+            <div class="digest-step" id="digest-step-3">Rédaction du briefing...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer digest -->
+      <div class="digest-fullscreen-footer" id="digest-footer" style="display:none">
+        <span class="digest-footer-meta" id="digest-footer-meta"></span>
+      </div>
+
     </div>
   </div>
 
