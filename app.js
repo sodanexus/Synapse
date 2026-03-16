@@ -2614,6 +2614,41 @@ RÈGLES ABSOLUES :
       }
     }
 
+    /** Applique l'image hero au digest depuis l'article le plus important */
+    function _setDigestHeroImage() {
+      const titleArea = document.getElementById('digest-title-area');
+      const modal = document.getElementById('digest-modal');
+      if (!titleArea) return;
+
+      // Reset
+      const oldBg = titleArea.querySelector('.hero-bg');
+      if (oldBg) oldBg.remove();
+      titleArea.classList.remove('has-hero');
+      if (modal) modal.classList.remove('hero-ready');
+
+      // Trouver l'article le plus important avec une image
+      const topArticle = STATE.articles
+        .filter(a => a.image && a.image.length > 0)
+        .sort((a, b) => (b.importance || 0) - (a.importance || 0))[0];
+
+      if (!topArticle?.image) return;
+
+      if (modal) modal.classList.add('hero-ready');
+
+      const img = new Image();
+      img.onload = () => {
+        const bg = document.createElement('div');
+        bg.className = 'hero-bg';
+        bg.style.backgroundImage = `url('${topArticle.image.replace(/'/g, "\\'")}')`;
+        titleArea.insertBefore(bg, titleArea.firstChild);
+        titleArea.classList.add('has-hero');
+        void bg.offsetHeight;
+        bg.classList.add('hero-visible');
+      };
+      img.onerror = () => {};
+      img.src = topArticle.image;
+    }
+
     function init() {
       updateHeaderDate();
 
@@ -2634,6 +2669,7 @@ RÈGLES ABSOLUES :
         overlay.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
         updateHeaderDate();
+        _setDigestHeroImage();
 
         const fsBody = document.getElementById('digest-fullscreen-body');
         const isEmpty = fsBody.querySelector('.digest-empty-state') ||
@@ -2671,16 +2707,20 @@ RÈGLES ABSOLUES :
         }
       });
 
-      // Fermer plein écran — stopper TTS
+      // Fermer plein écran — stopper TTS + reset hero
       document.getElementById('btn-digest-fullscreen-close').addEventListener('click', () => {
         TTS.stop();
         document.getElementById('digest-fullscreen-overlay').classList.add('hidden');
         document.body.style.overflow = '';
-        // Reset bouton TTS
         if (listenBtn) {
           listenBtn.textContent = '▶';
           listenBtn.classList.remove('active', 'tts-loading');
         }
+        // Reset hero
+        const titleArea = document.getElementById('digest-title-area');
+        const modal = document.getElementById('digest-modal');
+        if (titleArea) { titleArea.querySelector('.hero-bg')?.remove(); titleArea.classList.remove('has-hero'); }
+        if (modal) modal.classList.remove('hero-ready');
       });
 
       // ↺ Régénérer
@@ -2691,6 +2731,7 @@ RÈGLES ABSOLUES :
           listenBtn.textContent = '▶';
           listenBtn.classList.remove('active', 'tts-loading');
         }
+        _setDigestHeroImage();
         generateAndRender(regenBtn);
       });
     }
