@@ -2464,7 +2464,7 @@ RÈGLES ABSOLUES :
           : [];
 
         if (toEnrich.length === 0 && enrichedCount === 0) {
-          throw new Error('Aucun article enrichi disponible et quota insuffisant. Ouvrez quelques articles d'abord.');
+          throw new Error('Aucun article enrichi disponible et quota insuffisant. Ouvrez quelques articles d\'abord.');
         }
 
         for (let i = 0; i < toEnrich.length; i++) {
@@ -2507,7 +2507,7 @@ RÈGLES ABSOLUES :
             <div class="digest-empty-glyph" style="animation:none;opacity:0.2">⊘</div>
             <div class="digest-empty-label">${isQuota ? 'QUOTA ATTEINT' : 'ERREUR'}</div>
             <p class="digest-empty-desc">${isQuota
-              ? 'Quota IA atteint pour aujourd'hui.<br>Remise à zéro à minuit UTC.'
+              ? 'Quota IA atteint pour aujourd\'hui.<br>Remise à zéro à minuit UTC.'
               : 'Une erreur est survenue.<br>Réessayez dans quelques instants.'
             }</p>
           </div>
