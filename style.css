@@ -1139,6 +1139,9 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   flex-direction: column;
   justify-content: flex-end;
   background-color: var(--white);
+  /* Déborder légèrement vers le bas pour couvrir le gap de rendu */
+  margin-bottom: -2px;
+  padding-bottom: 2px;
 }
 
 /* Div image injectée par JS — fade-in indépendant du contenu */
