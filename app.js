@@ -960,10 +960,12 @@ RÈGLES ABSOLUES :
       });
 
       const bookmarkBtn = row.querySelector('[data-action="bookmark"]');
-      bookmarkBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleBookmark(article, bookmarkBtn);
-      });
+      if (bookmarkBtn) {
+        bookmarkBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleBookmark(article, bookmarkBtn);
+        });
+      }
 
       return row;
     }
