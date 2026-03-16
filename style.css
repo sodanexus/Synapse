@@ -2293,3 +2293,38 @@ body.dark {
   text-align: right;
   flex-shrink: 0;
 }
+
+
+/* ================================================================
+   QUOTA WARNING — affiché dans le reader quand quota épuisé
+   ================================================================ */
+.quota-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  background: var(--grey-wash);
+  border: var(--border);
+  border-left: 2px solid var(--grey-mid);
+}
+
+.quota-warning-icon {
+  font-size: 1.1rem;
+  color: var(--grey-mid);
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.quota-warning-text {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--grey-deep);
+  line-height: 1.7;
+  letter-spacing: 0.03em;
+}
+
+.quota-warning-sub {
+  color: var(--grey-light);
+  font-size: 0.65rem;
+}
