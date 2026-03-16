@@ -5,24 +5,16 @@
  * Routes gérées :
  *   GET  /rss?url=<encoded>   → Proxy RSS (résout CORS)
  *   POST /ai                  → Relay Groq API (clé cachée côté worker)
- *   POST /tts                 → ElevenLabs TTS (Lily, eleven_flash_v2_5, FR)
+ *   POST /tts                 → Unreal Speech TTS (Élodie, voix française)
  *
  * Variables d'environnement à configurer dans Cloudflare Dashboard :
- *   GROQ_API_KEY  → votre clé API Groq
- *   ALLOWED_ORIGIN → URL de votre site GitHub Pages (ex: https://sodanexus.github.io)
- *
- * Déploiement :
- *   1. Créer un Worker sur dash.cloudflare.com
- *   2. Coller ce fichier
- *   3. Ajouter les variables d'environnement
- *   4. Déployer — noter l'URL du worker et la mettre dans CONFIG.WORKER_URL dans app.js
+ *   GROQ_API_KEY          → votre clé API Groq
+ *   UNREALSPEECH_API_KEY  → votre clé API Unreal Speech
+ *   ALLOWED_ORIGIN        → URL de votre site GitHub Pages (ex: https://sodanexus.github.io)
  */
 
 export default {
   async fetch(request, env) {
-    // ── CORS ──
-    // En production, remplacez '*' par votre domaine GitHub Pages exact
-    // pour éviter que n'importe qui puisse utiliser votre worker
     const ALLOWED_ORIGIN = env.ALLOWED_ORIGIN || '*';
 
     const corsHeaders = {
@@ -32,7 +24,6 @@ export default {
       'Access-Control-Max-Age': '86400',
     };
 
-    // Répondre aux preflight OPTIONS
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
@@ -40,27 +31,22 @@ export default {
     const url = new URL(request.url);
 
     try {
-      // ── Route : GET /rss?url=<encoded> ──
       if (request.method === 'GET' && url.pathname === '/rss') {
         return await handleRSS(url, corsHeaders);
       }
 
-      // ── Route : POST /ai ──
       if (request.method === 'POST' && url.pathname === '/ai') {
         return await handleAI(request, env, corsHeaders);
       }
 
-      // ── Route : GET /scrape?url=<encoded> ──
       if (request.method === 'GET' && url.pathname === '/scrape') {
         return await handleScrape(url, corsHeaders);
       }
 
-      // ── Route : POST /tts ──
       if (request.method === 'POST' && url.pathname === '/tts') {
         return await handleTTS(request, env, corsHeaders);
       }
 
-      // 404 pour toute autre route
       return jsonResponse({ error: 'Route not found' }, 404, corsHeaders);
 
     } catch (err) {
@@ -80,7 +66,6 @@ async function handleRSS(url, corsHeaders) {
     return jsonResponse({ error: 'Missing ?url parameter' }, 400, corsHeaders);
   }
 
-  // Validation basique de l'URL
   let parsedUrl;
   try {
     parsedUrl = new URL(feedUrl);
@@ -91,8 +76,6 @@ async function handleRSS(url, corsHeaders) {
     return jsonResponse({ error: 'Invalid URL' }, 400, corsHeaders);
   }
 
-  // Fetch du feed RSS depuis le serveur source
-  // User-Agent réaliste de navigateur pour éviter les 403 des sites qui bloquent les bots
   const response = await fetch(feedUrl, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -101,9 +84,10 @@ async function handleRSS(url, corsHeaders) {
       'Accept-Encoding': 'gzip, deflate, br',
       'Cache-Control': 'no-cache',
       'Pragma': 'no-cache',
+      'Referer': parsedUrl.origin + '/',
     },
     redirect: 'follow',
-    cf: { cacheTtl: 300 }, // Cache Cloudflare 5 minutes
+    cf: { cacheTtl: 300 },
   });
 
   if (!response.ok) {
@@ -118,37 +102,23 @@ async function handleRSS(url, corsHeaders) {
   }
 
   const xml = await response.text();
-
-  // Parser le XML RSS/Atom vers JSON
   const items = parseRSSXML(xml);
 
   return jsonResponse({ items, count: items.length }, 200, corsHeaders);
 }
 
-/**
- * Parse un XML RSS ou Atom et retourne un tableau d'articles normalisés.
- * Utilise le DOMParser (disponible dans les Workers Cloudflare).
- */
 function parseRSSXML(xml) {
-  // Cloudflare Workers supporte l'HTMLRewriter, mais pas DOMParser directement.
-  // On utilise un parsing regex léger mais robuste pour RSS/Atom.
-
   const items = [];
-
-  // Déterminer si c'est du RSS ou de l'Atom
   const isAtom = xml.includes('<feed') && xml.includes('xmlns="http://www.w3.org/2005/Atom"');
 
   if (isAtom) {
-    // ── Parser Atom ──
     const entryMatches = [...xml.matchAll(/<entry[^>]*>([\s\S]*?)<\/entry>/gi)];
-
     for (const match of entryMatches.slice(0, 30)) {
       const entry = match[1];
       const title = extractTag(entry, 'title') || extractAttr(entry, 'title');
       const link = extractAttr(entry, 'link', 'href') || extractTag(entry, 'link');
       const content = extractTag(entry, 'content') || extractTag(entry, 'summary');
       const published = extractTag(entry, 'published') || extractTag(entry, 'updated');
-
       if (title || link) {
         items.push({
           title: decodeEntities(title || ''),
@@ -160,9 +130,7 @@ function parseRSSXML(xml) {
       }
     }
   } else {
-    // ── Parser RSS 2.0 ──
     const itemMatches = [...xml.matchAll(/<item[^>]*>([\s\S]*?)<\/item>/gi)];
-
     for (const match of itemMatches.slice(0, 30)) {
       const item = match[1];
       const title = extractTag(item, 'title');
@@ -170,7 +138,6 @@ function parseRSSXML(xml) {
       const description = extractTag(item, 'description') || extractTag(item, 'summary');
       const content = extractTag(item, 'content:encoded') || extractTag(item, 'content') || description;
       const pubDate = extractTag(item, 'pubDate') || extractTag(item, 'dc:date') || extractTag(item, 'published');
-
       if (title || link) {
         items.push({
           title: decodeEntities(stripCDATA(title || '')),
@@ -186,29 +153,22 @@ function parseRSSXML(xml) {
   return items;
 }
 
-/** Extrait le contenu d'une balise XML, gère CDATA */
 function extractTag(xml, tag) {
-  // Cas CDATA : <tag><![CDATA[...]]></tag>
   const cdataMatch = xml.match(new RegExp(`<${tag}[^>]*>\\s*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>\\s*<\\/${tag}>`, 'i'));
   if (cdataMatch) return cdataMatch[1].trim();
-
-  // Cas normal
   const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
   return match ? match[1].trim() : '';
 }
 
-/** Extrait la valeur d'un attribut d'une balise auto-fermante */
 function extractAttr(xml, tag, attr = 'href') {
   const match = xml.match(new RegExp(`<${tag}[^>]*\\s${attr}=["']([^"']+)["']`, 'i'));
   return match ? match[1].trim() : '';
 }
 
-/** Supprime les enveloppes CDATA */
 function stripCDATA(str) {
   return str.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1');
 }
 
-/** Décode les entités HTML courantes */
 function decodeEntities(str) {
   return str
     .replace(/&amp;/g, '&')
@@ -225,12 +185,10 @@ function decodeEntities(str) {
    HANDLER AI — Relay vers l'API Groq
    ================================================================ */
 async function handleAI(request, env, corsHeaders) {
-  // Vérifier la clé Groq
   if (!env.GROQ_API_KEY) {
     return jsonResponse({ error: 'GROQ_API_KEY not configured' }, 500, corsHeaders);
   }
 
-  // Lire le body de la requête
   let body;
   try {
     body = await request.json();
@@ -244,14 +202,10 @@ async function handleAI(request, env, corsHeaders) {
     return jsonResponse({ error: 'Missing prompt' }, 400, corsHeaders);
   }
 
-  // Construire les messages pour Groq
   const messages = [];
-  if (system) {
-    messages.push({ role: 'system', content: system });
-  }
+  if (system) messages.push({ role: 'system', content: system });
   messages.push({ role: 'user', content: prompt });
 
-  // Appel à l'API Groq
   const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -261,7 +215,7 @@ async function handleAI(request, env, corsHeaders) {
     body: JSON.stringify({
       model: model || 'llama-3.3-70b-versatile',
       messages,
-      max_tokens: Math.min(max_tokens, 2000), // Sécurité : max 2000 tokens
+      max_tokens: Math.min(max_tokens, 2000),
       temperature: 0.7,
     }),
   });
@@ -269,11 +223,7 @@ async function handleAI(request, env, corsHeaders) {
   if (!groqResponse.ok) {
     const errText = await groqResponse.text();
     console.error('Groq API error:', groqResponse.status, errText);
-    return jsonResponse(
-      { error: `Groq API error: ${groqResponse.status}` },
-      groqResponse.status,
-      corsHeaders
-    );
+    return jsonResponse({ error: `Groq API error: ${groqResponse.status}` }, groqResponse.status, corsHeaders);
   }
 
   const groqData = await groqResponse.json();
@@ -324,13 +274,7 @@ async function handleScrape(url, corsHeaders) {
   return jsonResponse({ text, length: text.length }, 200, corsHeaders);
 }
 
-/**
- * Extrait le texte principal d'une page HTML.
- * Stratégie : chercher les balises sémantiques dans l'ordre de priorité,
- * puis extraire uniquement les <p> à l'intérieur.
- */
 function extractArticleText(html) {
-  // Supprimer scripts, styles, nav, footer, aside, header
   let cleaned = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -340,7 +284,6 @@ function extractArticleText(html) {
     .replace(/<header[\s\S]*?<\/header>/gi, '')
     .replace(/<!--[\s\S]*?-->/g, '');
 
-  // Chercher le contenu principal dans l'ordre de priorité
   const contentPatterns = [
     /<article[^>]*>([\s\S]*?)<\/article>/i,
     /<main[^>]*>([\s\S]*?)<\/main>/i,
@@ -360,18 +303,15 @@ function extractArticleText(html) {
     }
   }
 
-  // Fallback : prendre tout le body
   if (!articleHtml) {
     const bodyMatch = cleaned.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     articleHtml = bodyMatch ? bodyMatch[1] : cleaned;
   }
 
-  // Extraire uniquement les paragraphes <p>
   const paragraphs = [];
   const pMatches = [...articleHtml.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)];
 
   for (const match of pMatches) {
-    // Supprimer les balises HTML restantes
     const text = match[1]
       .replace(/<[^>]+>/g, ' ')
       .replace(/&nbsp;/g, ' ')
@@ -383,7 +323,6 @@ function extractArticleText(html) {
       .replace(/\s+/g, ' ')
       .trim();
 
-    // Ignorer les paragraphes trop courts (navigation, labels...)
     if (text.length > 40) {
       paragraphs.push(text);
     }
@@ -393,76 +332,117 @@ function extractArticleText(html) {
 }
 
 /* ================================================================
-   HANDLER TTS — Google Cloud Text-to-Speech
-   Reçoit : { text, lang, voice }
-   Retourne : audio/mp3 (binary)
-   ================================================================ */
-/* ================================================================
-   HANDLER TTS — ElevenLabs Text-to-Speech
-   Voix : Lily (féminine, velvety, parfaite pour actualités/narration)
-   Modèle : eleven_flash_v2_5 (rapide, économe en quota)
-   Variable requise : ELEVENLABS_API_KEY dans les secrets Worker
+   HANDLER TTS — Unreal Speech Text-to-Speech
+   Voix    : Élodie (française, féminine)
+   /stream : ≤1000 chars, instantané (~300ms), MP3 brut
+   /speech : ≤3000 chars, ~1s/700 chars, retourne une URL MP3
+   Variable requise : UNREALSPEECH_API_KEY dans les secrets Worker
    ================================================================ */
 async function handleTTS(request, env, corsHeaders) {
-  if (!env.ELEVENLABS_API_KEY) {
-    return jsonResponse({ error: 'ELEVENLABS_API_KEY not configured' }, 500, corsHeaders);
+  if (!env.UNREALSPEECH_API_KEY) {
+    return jsonResponse({ error: 'UNREALSPEECH_API_KEY not configured' }, 500, corsHeaders);
   }
 
   let body;
   try { body = await request.json(); }
   catch { return jsonResponse({ error: 'Invalid JSON body' }, 400, corsHeaders); }
 
-  const { text, voiceId = 'pFZP5JQG7iQjIQuC4Bku' } = body;
-  // pFZP5JQG7iQjIQuC4Bku = Lily (féminine, britannique, velvety — parfaite pour news/narration)
+  const { text, voiceId = 'Élodie' } = body;
 
   if (!text || text.trim().length === 0) {
     return jsonResponse({ error: 'Missing text' }, 400, corsHeaders);
   }
 
-  // Tronquer à 2400 chars — sécurité quota free tier (2500 chars max par appel)
-  const truncated = text.trim().slice(0, 2400);
+  const truncated = text.trim().slice(0, 3000);
+  const useStream = truncated.length <= 1000;
 
-  const elRes = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-    {
+  if (useStream) {
+    // ── /stream — MP3 brut, réponse instantanée ──
+    const res = await fetch('https://api.v8.unrealspeech.com/stream', {
       method: 'POST',
       headers: {
-        'xi-api-key':   env.ELEVENLABS_API_KEY,
+        'Authorization': `Bearer ${env.UNREALSPEECH_API_KEY}`,
         'Content-Type': 'application/json',
-        'Accept':       'audio/mpeg',
       },
       body: JSON.stringify({
-        text: truncated,
-        model_id: 'eleven_flash_v2_5',  // rapide, économe, multilingue
-        voice_settings: {
-          stability:        0.5,   // voix stable, pas trop robotique
-          similarity_boost: 0.75,  // fidèle à la voix originale
-          style:            0.0,   // neutre pour les actualités
-          use_speaker_boost: true,
-        },
-        language_code: 'fr', // forcer le français
+        Text: truncated,
+        VoiceId: voiceId,
+        Bitrate: '192k',
+        Speed: '0',
+        Pitch: '1',
+        Codec: 'libmp3lame',
       }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('Unreal Speech stream error:', res.status, err);
+      return jsonResponse({ error: `Unreal Speech error: ${res.status}`, detail: err }, res.status, corsHeaders);
     }
-  );
 
-  if (!elRes.ok) {
-    const err = await elRes.text();
-    console.error('ElevenLabs TTS error:', elRes.status, err);
-    return jsonResponse(
-      { error: `ElevenLabs error: ${elRes.status}` },
-      elRes.status,
-      corsHeaders
-    );
+    const audioBuffer = await res.arrayBuffer();
+    const bytes = new Uint8Array(audioBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+
+    return new Response(JSON.stringify({ audioBase64: base64 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+
+  } else {
+    // ── /speech — retourne un JSON avec OutputUri (URL MP3) ──
+    const res = await fetch('https://api.v8.unrealspeech.com/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.UNREALSPEECH_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        Text: truncated,
+        VoiceId: voiceId,
+        Bitrate: '192k',
+        Speed: '0',
+        Pitch: '1',
+        TimestampType: 'sentence',
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('Unreal Speech speech error:', res.status, err);
+      return jsonResponse({ error: `Unreal Speech error: ${res.status}`, detail: err }, res.status, corsHeaders);
+    }
+
+    const data = await res.json();
+    const mp3Url = data?.OutputUri;
+
+    if (!mp3Url) {
+      return jsonResponse({ error: 'No OutputUri in response' }, 500, corsHeaders);
+    }
+
+    // Télécharger le MP3 et l'encoder en base64
+    const mp3Res = await fetch(mp3Url);
+    if (!mp3Res.ok) {
+      return jsonResponse({ error: 'Failed to fetch MP3 from OutputUri' }, 500, corsHeaders);
+    }
+
+    const audioBuffer = await mp3Res.arrayBuffer();
+    const bytes = new Uint8Array(audioBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+
+    return new Response(JSON.stringify({ audioBase64: base64 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   }
-
-  // Retourner le MP3 en base64
-  const audioBuffer = await elRes.arrayBuffer();
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
-
-  return new Response(JSON.stringify({ audioBase64: base64 }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json', ...corsHeaders },
-  });
 }
 
 /* ================================================================
