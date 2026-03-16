@@ -2102,3 +2102,21 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   .feed-welcome { padding: 20px 0 8px; }
   .feed-welcome-date { font-size: 1.3rem; }
 }
+
+/* Bouton DIGEST dans le header */
+.feed-digest-btn {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: var(--grey-mid);
+  cursor: pointer;
+  padding: 5px 10px;
+  border: var(--border);
+  border-radius: 2px;
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+  white-space: nowrap;
+}
+.feed-digest-btn:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
