@@ -1524,6 +1524,7 @@ RÈGLES ABSOLUES :
 
     /** Ferme le reader */
     function close() {
+      TTS.stop(); // Stopper l'audio si en cours
       const overlay = document.getElementById('reader-overlay');
       overlay.classList.add('hidden');
       document.body.style.overflow = '';
@@ -1730,6 +1731,8 @@ RÈGLES ABSOLUES :
       if (!modal) { callback(); return; }
       // Si le swipe gère déjà l'animation, on exécute juste le callback
       if (Reader._swipeInProgress) { callback(); return; }
+      // Stopper le TTS au changement d'article
+      if (TTS.isActive()) TTS.stop();
 
       const EASE = 'cubic-bezier(0.4, 0.0, 0.2, 1)';
 
@@ -1791,6 +1794,18 @@ RÈGLES ABSOLUES :
     /** Initialise les événements du reader */
     function init() {
       document.getElementById('btn-close-reader').addEventListener('click', close);
+
+      // Bouton écouter — TTS
+      const listenBtn = document.getElementById('btn-listen');
+      if (listenBtn) {
+        listenBtn.addEventListener('click', () => {
+          const article = STATE.currentArticleList[STATE.currentArticleIndex];
+          if (!article) return;
+          const text = article.ai_content || article.content || article.title || '';
+          const lang = (typeof summaryLang !== 'undefined' && summaryLang === 'en') ? 'en-US' : 'fr-FR';
+          TTS.toggle(text, lang);
+        });
+      }
 
       // Fermer en cliquant sur l'overlay
       document.getElementById('reader-overlay').addEventListener('click', (e) => {
@@ -2180,6 +2195,159 @@ RÈGLES ABSOLUES :
     }
 
     return { renderFeedsManager, init };
+  })();
+
+  /* ================================================================
+     TTS — Text-to-Speech via Google Cloud (proxy Cloudflare Worker)
+     Voix FR WaveNet de qualité, fallback Web Speech API si erreur.
+     État : idle | loading | playing | paused
+     ================================================================ */
+  const TTS = (() => {
+    let _audio    = null;   // HTMLAudioElement courant
+    let _state    = 'idle'; // idle | loading | playing | paused
+    let _btn      = null;   // Référence au bouton dans le reader
+
+    // Voix disponibles FR WaveNet (qualité) + fallback
+    // Voix Microsoft Edge TTS — Neural, gratuit, sans clé API
+    // FR féminine : DeniseNeural (naturelle), EloiseNeural (douce)
+    // EN féminine : JennyNeural, AriaNeural
+    const VOICES = {
+      'fr-FR': { voice: 'fr-FR-DeniseNeural' },
+      'en-US': { voice: 'en-US-JennyNeural'  },
+    };
+
+    /** Lance ou met en pause la lecture de l'article courant */
+    async function toggle(text, lang = 'fr-FR') {
+      _btn = document.getElementById('btn-listen');
+
+      // Si en lecture → pause
+      if (_state === 'playing' && _audio) {
+        _audio.pause();
+        _setState('paused');
+        return;
+      }
+
+      // Si en pause → reprendre
+      if (_state === 'paused' && _audio) {
+        _audio.play();
+        _setState('playing');
+        return;
+      }
+
+      // Si loading → annuler
+      if (_state === 'loading') {
+        stop();
+        return;
+      }
+
+      // Nouvelle lecture
+      if (!text || text.trim().length === 0) return;
+      _setState('loading');
+
+      try {
+        const voiceConfig = VOICES[lang] || VOICES['fr-FR'];
+        const res = await fetch(`${CONFIG.WORKER_URL}/tts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text:  text.slice(0, 4500),
+            voice: voiceConfig.voice,
+            rate:  '+0%',
+          }),
+          signal: AbortSignal.timeout(20000),
+        });
+
+        if (!res.ok) throw new Error(`TTS error ${res.status}`);
+
+        const data = await res.json();
+        if (!data.audioBase64) throw new Error('No audio data');
+
+        // Convertir base64 → blob → URL
+        const binary = atob(data.audioBase64);
+        const bytes  = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob   = new Blob([bytes], { type: 'audio/mpeg' });
+        const url    = URL.createObjectURL(blob);
+
+        // Créer et jouer l'audio
+        _audio = new Audio(url);
+        _audio.onended = () => {
+          URL.revokeObjectURL(url);
+          _setState('idle');
+        };
+        _audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          _fallbackWebSpeech(text, lang);
+        };
+
+        await _audio.play();
+        _setState('playing');
+
+      } catch (err) {
+        console.warn('TTS Google échoué, fallback Web Speech:', err);
+        _fallbackWebSpeech(text, lang);
+      }
+    }
+
+    /** Arrête complètement la lecture */
+    function stop() {
+      if (_audio) {
+        _audio.pause();
+        _audio.src = '';
+        _audio = null;
+      }
+      window.speechSynthesis?.cancel();
+      _setState('idle');
+    }
+
+    /** Fallback Web Speech API si Google TTS échoue */
+    function _fallbackWebSpeech(text, lang) {
+      if (!window.speechSynthesis) {
+        Toast.show('Audio non disponible', 'error');
+        _setState('idle');
+        return;
+      }
+      const utt = new SpeechSynthesisUtterance(text.slice(0, 3000));
+      utt.lang = lang;
+      utt.rate = 0.95;
+
+      // Chercher une voix FR de qualité
+      const voices = window.speechSynthesis.getVoices();
+      const frVoice = voices.find(v => v.lang.startsWith(lang) && v.localService);
+      if (frVoice) utt.voice = frVoice;
+
+      utt.onend   = () => _setState('idle');
+      utt.onerror = () => _setState('idle');
+
+      window.speechSynthesis.speak(utt);
+      _setState('playing');
+      Toast.show('Lecture via synthèse locale', 'info');
+    }
+
+    /** Met à jour l'état et le bouton */
+    function _setState(state) {
+      _state = state;
+      _btn = document.getElementById('btn-listen');
+      if (!_btn) return;
+
+      const icons = { idle: '▶', loading: '···', playing: '■', paused: '▶' };
+      const titles = {
+        idle:    'Écouter l'article',
+        loading: 'Chargement audio...',
+        playing: 'Pause',
+        paused:  'Reprendre',
+      };
+
+      _btn.textContent = icons[state] || '▶';
+      _btn.title       = titles[state] || '';
+      _btn.classList.toggle('active', state === 'playing');
+      _btn.classList.toggle('tts-loading', state === 'loading');
+    }
+
+    /** Vérifie si une lecture est en cours (pour stopper au changement d'article) */
+    function isActive() { return _state !== 'idle'; }
+
+    return { toggle, stop, isActive };
   })();
 
   /* ================================================================
