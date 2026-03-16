@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=53" />
+  <link rel="stylesheet" href="style.css?v=54" />
   <!-- Anti-flash dark mode : appliqué avant le rendu -->
   <script>if(localStorage.getItem('synapse_theme')==='dark')document.documentElement.classList.add('dark-init');</script>
 </head>
@@ -267,16 +267,10 @@
           <!-- Bookmark -->
           <button class="reader-btn" id="btn-bookmark" title="Sauvegarder">◧</button>
           <span class="reader-sep"></span>
-          <!-- Ouvrir source — accès direct sur mobile -->
+          <!-- Partager -->
+          <button class="reader-btn" id="btn-share-menu" title="Partager">↑</button>
+          <!-- Ouvrir source -->
           <button class="reader-btn" id="btn-open-source-direct" title="Ouvrir l'article complet">↗</button>
-          <!-- Menu contextuel -->
-          <div class="reader-more-wrap">
-            <button class="reader-btn" id="btn-reader-more" title="Plus d'options">···</button>
-            <div class="reader-more-menu hidden" id="reader-more-menu">
-              <button class="reader-more-item" id="btn-share-menu">↑ Partager</button>
-
-            </div>
-          </div>
           <!-- Fermer -->
           <button class="reader-btn reader-close" id="btn-close-reader">✕</button>
         </div>
