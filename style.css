@@ -1174,20 +1174,42 @@ body.dark .reader-title-area.has-hero::before {
   );
 }
 
-/* Quand hero actif — titre et tags en couleur sombre pour contraste */
+/* ── Zone hero active — tout en noir, espacement compact ── */
+
+/* Supprimer les bordures et paddings séparateurs — tout est sur l'image */
+.reader-title-area.has-hero .reader-importance {
+  border-bottom: none;
+  padding-bottom: 4px;
+  padding-top: 12px;
+}
+
+.reader-title-area.has-hero .reader-tags {
+  border-bottom: none;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.reader-title-area.has-hero .reader-title {
+  padding-top: 8px;
+  padding-bottom: 28px;
+}
+
+/* Tout en ink — titre, label importance, tags */
 .reader-title-area.has-hero .reader-title {
   color: var(--ink);
-  text-shadow: 0 1px 8px rgba(247, 246, 243, 0.4);
 }
 
+.reader-title-area.has-hero .importance-label {
+  color: var(--ink);
+  opacity: 0.7;
+}
+
+/* Tags — fond semi-transparent léger */
 .reader-title-area.has-hero .reader-tags .tag {
-  background: rgba(247, 246, 243, 0.7);
-  border-color: rgba(0,0,0,0.12);
-  backdrop-filter: blur(4px);
-}
-
-.reader-title-area.has-hero .reader-importance {
-  background: transparent;
+  background: rgba(247, 246, 243, 0.65);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: var(--ink);
+  backdrop-filter: blur(6px);
 }
 
 /* Header toolbar — fond semi-transparent quand hero actif */
