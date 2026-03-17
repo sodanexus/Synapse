@@ -38,7 +38,7 @@
     GROQ_MODEL_ENRICH: 'gemini-2.5-flash',  // Gemini 2.5 Flash pour l'enrichissement
     GROQ_MODEL_DIGEST: 'llama-3.3-70b-versatile',
     // Quota journalier estimé (req/jour free tier)
-    QUOTA_ENRICH_DAILY: 1500,   // Gemini Flash free tier : 1500 req/jour
+    QUOTA_ENRICH_DAILY: 500,    // Gemini 2.5 Flash free tier : 500 req/jour
     QUOTA_DIGEST_DAILY: 1000,
 
     // Nombre d'articles max à charger par fetch
@@ -514,6 +514,7 @@ SOURCE : ${article.feed_name}
 TEXTE : ${rssText}`;
 
       const raw = await callGroq(systemPrompt, prompt, 800);
+      console.log('[Gemini raw]', raw.substring(0, 300));
 
       try {
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
