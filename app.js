@@ -1356,6 +1356,7 @@ RÈGLES ABSOLUES :
             pub_date:         article.pub_date       || new Date().toISOString(),
             read:             article.read           || false,
             bookmarked:       article.bookmarked     || false,
+            image:            article.image          || null,
           }).catch(err => console.warn('Sauvegarde Supabase échouée:', err));
         }
 
@@ -3130,6 +3131,7 @@ RÈGLES ABSOLUES :
               pub_date:   a.pub_date   || new Date().toISOString(),
               read:       a.read       || false,
               bookmarked: a.bookmarked || false,
+              image:      a.image      || null,
             })));
           }
         }
