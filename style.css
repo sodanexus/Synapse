@@ -1549,16 +1549,18 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 
 
-  /* Digest modal — plein écran scrollable sur mobile */
+  /* Digest modal — plein écran sur mobile, scroll via modal-overlay */
   .digest-modal {
-    height: 100vh;
-    max-height: 100vh;
-    overflow-y: auto;
+    height: auto;
+    max-height: none;
+    overflow-y: visible;
     border-radius: 0;
+    width: 100vw;
   }
   .digest-fullscreen-body {
     overflow-y: visible;
     flex: none;
+    height: auto;
   }
 
   /* Boutons reader — zone de tap agrandie sur mobile */
