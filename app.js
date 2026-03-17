@@ -2727,20 +2727,37 @@ RÈGLES ABSOLUES :
         }
       });
 
-      // Fermer plein écran — stopper TTS + reset hero
+      // Fermer plein écran — animation identique au reader
       document.getElementById('btn-digest-fullscreen-close').addEventListener('click', () => {
         TTS.stop();
-        document.getElementById('digest-fullscreen-overlay').classList.add('hidden');
-        document.body.style.overflow = '';
         if (listenBtn) {
           listenBtn.textContent = '▶';
           listenBtn.classList.remove('active', 'tts-loading');
         }
-        // Reset hero
-        const titleArea = document.getElementById('digest-title-area');
+
+        const overlay = document.getElementById('digest-fullscreen-overlay');
         const modal = document.getElementById('digest-modal');
-        if (titleArea) { titleArea.querySelector('.hero-bg')?.remove(); titleArea.classList.remove('has-hero'); }
-        if (modal) modal.classList.remove('hero-ready');
+
+        // Même animation que le reader : descend + fade out
+        modal.style.transition = 'transform 0.28s cubic-bezier(0.4, 0.0, 1, 1), opacity 0.22s ease';
+        modal.style.transform = 'translateY(20px)';
+        modal.style.opacity = '0';
+        overlay.style.transition = 'opacity 0.28s ease';
+        overlay.style.opacity = '0';
+
+        setTimeout(() => {
+          overlay.classList.add('hidden');
+          modal.style.transition = '';
+          modal.style.transform = '';
+          modal.style.opacity = '';
+          overlay.style.transition = '';
+          overlay.style.opacity = '';
+          document.body.style.overflow = '';
+          // Reset hero
+          const titleArea = document.getElementById('digest-title-area');
+          if (titleArea) { titleArea.querySelector('.hero-bg')?.remove(); titleArea.classList.remove('has-hero'); }
+          if (modal) modal.classList.remove('hero-ready');
+        }, 280);
       });
 
       // ↺ Régénérer
