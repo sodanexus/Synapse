@@ -1524,6 +1524,8 @@ body.dark .reader-modal.hero-ready .reader-header {
   }
   /* Date reader — masquée sur mobile, garde la source */
   .reader-date { display: none; }
+  /* Exception : date du digest toujours visible */
+  #digest-header-date { display: block; }
 
   /* Stats et topics flux — masqués sur mobile */
   .feed-welcome-stats { display: none; }
@@ -1561,17 +1563,20 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 
 
-  /* Source reader — scrollable si longue */
+  /* Source digest — pas d'animation */
+  #digest-header .reader-source { animation: none; max-width: none; }
+
+  /* Source reader — scroll yoyo */
   .reader-source {
     max-width: 120px;
     overflow: hidden;
     text-overflow: clip;
     white-space: nowrap;
-    animation: scrollSource 6s linear infinite;
+    animation: scrollSource 3s ease-in-out infinite alternate;
   }
   @keyframes scrollSource {
-    0%, 30%   { transform: translateX(0); }
-    70%, 100% { transform: translateX(calc(-100% + 120px)); }
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(calc(-100% + 110px)); }
   }
 
   /* Digest modal — plein écran sur mobile */
