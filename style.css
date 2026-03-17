@@ -1177,9 +1177,9 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   background: linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.0)  0%,
-    rgba(255, 255, 255, 0.0)  45%,
-    rgba(255, 255, 255, 0.60) 70%,
-    rgba(255, 255, 255, 1.0)  90%,
+    rgba(255, 255, 255, 0.0)  35%,
+    rgba(255, 255, 255, 0.75) 62%,
+    rgba(255, 255, 255, 1.0)  82%,
     rgba(255, 255, 255, 1.0)  100%
   );
   z-index: 1;
@@ -1195,9 +1195,9 @@ body.dark .reader-title-area.has-hero::before {
   background: linear-gradient(
     to bottom,
     rgba(35, 32, 24, 0.0)  0%,
-    rgba(35, 32, 24, 0.0)  45%,
-    rgba(35, 32, 24, 0.60) 70%,
-    rgba(35, 32, 24, 1.0)  90%,
+    rgba(35, 32, 24, 0.0)  35%,
+    rgba(35, 32, 24, 0.75) 62%,
+    rgba(35, 32, 24, 1.0)  82%,
     rgba(35, 32, 24, 1.0)  100%
   );
 }
