@@ -1223,8 +1223,17 @@ RÈGLES ABSOLUES :
 
         groupFeeds.forEach(feed => {
           const li = document.createElement('li');
-          li.textContent = feed.name || feed.url;
           li.className = STATE.currentFeedFilter === feed.id ? 'active' : '';
+
+          // Compter les articles non lus pour ce feed
+          const unreadCount = STATE.articles.filter(a =>
+            a.feed_id === feed.id && !STATE.readArticles.has(a.id || a.hash)
+          ).length;
+
+          li.innerHTML = `
+            <span class="feed-name">${feed.name || feed.url}</span>
+            ${unreadCount > 0 ? `<span class="feed-unread-count">${unreadCount}</span>` : ''}
+          `;
           li.addEventListener('click', () => {
             STATE.currentFeedFilter = feed.id;
             STATE.searchResults = null;
@@ -1756,8 +1765,9 @@ RÈGLES ABSOLUES :
         el.classList.remove('unread');
       });
 
-      // Mettre à jour le badge en temps réel
+      // Mettre à jour le badge et les compteurs sidebar en temps réel
       Sync.updateBadge();
+      Render.renderSidebarFeeds(STATE.feeds);
 
       if (article.id && STATE.user) {
         try {
