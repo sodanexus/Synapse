@@ -1025,9 +1025,7 @@ RÈGLES ABSOLUES :
     /** Rendu vue FLUX — liste filtrée */
     function renderFeedArticles(articles, filter = 'all', query = '') {
       const container = document.getElementById('feed-articles');
-      const countEl = document.getElementById('feed-count');
-
-      // Mettre à jour les stats d'accueil à la place du count
+      // Mettre à jour les stats d'accueil
       const statsEl = document.getElementById('feed-welcome-stats');
       container.innerHTML = '';
 
@@ -1083,12 +1081,6 @@ RÈGLES ABSOLUES :
         ? `${totalCount} résultat${totalCount !== 1 ? 's' : ''} (base complète)`
         : `${totalCount} article${totalCount !== 1 ? 's' : ''}`;
 
-      if (countEl) {
-        countEl.textContent = label;
-        countEl.className = STATE.isSearching ? 'articles-count searching'
-          : STATE.searchResults !== null ? 'articles-count db-results'
-          : 'articles-count';
-      }
 
       // Mettre à jour les stats d'accueil si en mode recherche
       if (statsEl && STATE.searchResults !== null) {
