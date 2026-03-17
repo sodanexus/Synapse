@@ -1324,8 +1324,10 @@ RÈGLES ABSOLUES :
       document.body.style.overflow = 'hidden';
       document.getElementById('btn-close-reader').focus();
 
-      if (!AI.isEnriched(article)) {
-        enrichOnOpen(article);
+      // Utiliser l'objet du tableau pour que enrichOnOpen modifie la même référence que le TTS
+      const articleRef = STATE.currentArticleList[STATE.currentArticleIndex] || article;
+      if (!AI.isEnriched(articleRef)) {
+        enrichOnOpen(articleRef);
       }
     }
 
