@@ -3077,10 +3077,21 @@ RÈGLES ABSOLUES :
 
         let enriched = [...updatedExisting, ...newArticles];
 
-        // 4. Mise à jour du state
-        STATE.articles = enriched.sort((a, b) =>
+        // 4. Mise à jour du state — trier par date
+        enriched = enriched.sort((a, b) =>
           new Date(b.pub_date) - new Date(a.pub_date)
         );
+
+        // Éviction si dépassement : garder bookmarkés + les 300 plus récents
+        const MAX = 300;
+        if (enriched.length > MAX) {
+          const bookmarked = enriched.filter(a => a.bookmarked);
+          const bookmarkedHashes = new Set(bookmarked.map(a => a.hash));
+          const nonBookmarked = enriched.filter(a => !bookmarkedHashes.has(a.hash));
+          enriched = [...bookmarked, ...nonBookmarked.slice(0, MAX - bookmarked.length)];
+        }
+
+        STATE.articles = enriched;
 
         // 5. Clustering + Rendu UI
         refreshUI();
