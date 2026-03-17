@@ -61,38 +61,38 @@
    ────────────────────────────────────────────────────────────── */
 body.dark {
   /* Texte — crème doux, jamais blanc pur */
-  --ink:         #e8e3db;   /* Texte principal — crème chaud */
-  --ink-2:       #d4cfc7;   /* Texte fort secondaire */
-  --ink-3:       #b8b3ab;   /* Texte moyen */
+  --ink:         #ede8e0;   /* Texte principal — plus lumineux */
+  --ink-2:       #ddd8d0;   /* Texte fort secondaire */
+  --ink-3:       #c8c3bb;   /* Texte moyen — nettement plus lisible */
 
-  /* Gris — échelonnés finement, tous chauds */
-  --grey-deep:   #8a8480;   /* Texte secondaire lisible */
-  --grey-mid:    #6a6560;   /* Labels, méta */
-  --grey-light:  #4a4642;   /* Placeholders, désactivés */
-  --grey-subtle: #2e2b28;   /* Bordures — très discrètes */
-  --grey-wash:   #252220;   /* Fonds secondaires légers */
+  /* Gris — remontés pour meilleur contraste */
+  --grey-deep:   #a8a49e;   /* Texte secondaire lisible */
+  --grey-mid:    #8a8680;   /* Labels, méta — +20% luminosité */
+  --grey-light:  #6a6660;   /* Placeholders, désactivés — +20% */
+  --grey-subtle: #353230;   /* Bordures — légèrement plus visibles */
+  --grey-wash:   #2a2724;   /* Fonds secondaires légers */
 
-  /* Fonds — charbon par couches, jamais noir pur */
+  /* Fonds — inchangés */
   --paper:       #1c1a18;   /* Fond principal */
-  --white:       #232018;   /* Cards, sidebar, modals — légèrement plus chaud */
+  --white:       #232018;   /* Cards, sidebar, modals */
 
-  /* Accent — crème au lieu de blanc pur */
-  --accent:      #e8e3db;
-  --accent-soft: rgba(232, 227, 219, 0.05);
+  /* Accent */
+  --accent:      #ede8e0;
+  --accent-soft: rgba(237, 232, 224, 0.06);
 
-  /* Importance — visible mais pas criard */
-  --imp-1: #3a3734;
-  --imp-2: #524e4a;
-  --imp-3: #6e6a64;
-  --imp-4: #9e9890;
-  --imp-5: #d4cfc7;
+  /* Importance — plus visible */
+  --imp-1: #3e3b38;
+  --imp-2: #585450;
+  --imp-3: #787470;
+  --imp-4: #a8a49c;
+  --imp-5: #ddd8d0;
 
-  /* Ombres — très subtiles sur fond sombre */
+  /* Ombres */
   --shadow-soft: 0 1px 2px rgba(0,0,0,0.25), 0 4px 12px rgba(0,0,0,0.15);
   --shadow-lift: 0 4px 20px rgba(0,0,0,0.35), 0 1px 4px rgba(0,0,0,0.2);
 
-  /* Bordure — quasi-invisible, juste une suggestion */
-  --border: 1px solid #2a2724;
+  /* Bordure — plus visible */
+  --border: 1px solid #353230;
 }
 
 
