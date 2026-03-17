@@ -1865,6 +1865,7 @@ RÈGLES ABSOLUES :
           const article = STATE.currentArticleList[STATE.currentArticleIndex];
           if (!article) return;
           const text = article.ai_content || article.content || article.title || '';
+          console.log('[TTS] ai_content len:', (article.ai_content||'').length, 'content len:', (article.content||'').length, 'using:', article.ai_content ? 'ai_content' : 'content');
           const lang = (typeof summaryLang !== 'undefined' && summaryLang === 'en') ? 'en-US' : 'fr-FR';
           TTS.toggle(text);
         });
