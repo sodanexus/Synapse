@@ -2224,34 +2224,7 @@ RÈGLES ABSOLUES :
         }, 600);
       });
 
-      // Export OPML
-      const exportBtn = document.getElementById('btn-export-opml');
-      if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-          if (STATE.feeds.length === 0) { Toast.show('Aucun feed à exporter', 'info'); return; }
-          OPML.exportOPML(STATE.feeds);
-          Toast.show('OPML exporté ✓', 'success');
-        });
-      }
-
-      // Import OPML
-      const importInput = document.getElementById('opml-import');
-      if (importInput) {
-        importInput.addEventListener('change', async (e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-          Toast.show('Import en cours...', 'info');
-          try {
-            const added = await OPML.importOPML(file, STATE.user.id);
-            Render.renderSidebarFeeds(STATE.feeds);
-            renderFeedsManager(STATE.feeds);
-            Toast.show(`${added} feed${added > 1 ? 's' : ''} importé${added > 1 ? 's' : ''} ✓`, 'success');
-          } catch (err) {
-            Toast.show('Erreur import OPML : ' + err.message, 'error');
-          }
-          importInput.value = '';
-        });
-      }
+      // OPML — supprimé
 
       // Bouton raccourcis clavier
       const shortcutsBtn = document.getElementById('btn-shortcuts-help');
@@ -3442,48 +3415,7 @@ RÈGLES ABSOLUES :
     Sync.updateLastSyncLabel();
     setInterval(() => Sync.updateLastSyncLabel(), 60000);
 
-    // Bouton SUGGESTIONS — liste de feeds populaires par catégorie
-    const suggestBtn = document.getElementById('btn-show-suggestions');
-    const suggestZone = document.getElementById('feed-suggestions-zone');
-    if (suggestBtn && suggestZone) {
-      const SUGGESTED_FEEDS = [
-        { name: 'Le Monde', url: 'https://www.lemonde.fr/rss/une.xml', category: 'Actualités' },
-        { name: 'France Info', url: 'https://www.francetvinfo.fr/titres.rss', category: 'Actualités' },
-        { name: 'Reuters (EN)', url: 'https://feeds.reuters.com/reuters/topNews', category: 'International' },
-        { name: 'BBC News (EN)', url: 'http://feeds.bbci.co.uk/news/rss.xml', category: 'International' },
-        { name: 'The Verge (EN)', url: 'https://www.theverge.com/rss/index.xml', category: 'Tech' },
-        { name: 'Hacker News', url: 'https://news.ycombinator.com/rss', category: 'Tech' },
-        { name: 'Numerama', url: 'https://www.numerama.com/feed/', category: 'Tech' },
-        { name: 'Arte Info', url: 'https://www.arte.tv/fr/rss/', category: 'Culture' },
-        { name: 'NASA', url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss', category: 'Science' },
-        { name: 'Eurosport', url: 'https://www.eurosport.fr/rss.xml', category: 'Sport' },
-      ];
 
-      suggestBtn.addEventListener('click', () => {
-        if (!suggestZone.classList.contains('hidden')) {
-          suggestZone.classList.add('hidden');
-          suggestZone.innerHTML = '';
-          return;
-        }
-        suggestZone.classList.remove('hidden');
-        suggestZone.innerHTML = SUGGESTED_FEEDS.map(f => `
-          <button class="rss-suggestion-btn" data-url="${f.url}" data-name="${f.name}" data-cat="${f.category}">
-            <span style="font-weight:500">${f.name}</span>
-            <span style="opacity:0.5;margin-left:6px">${f.category}</span>
-          </button>
-        `).join('');
-
-        suggestZone.querySelectorAll('.rss-suggestion-btn').forEach(btn => {
-          btn.addEventListener('click', () => {
-            document.getElementById('feed-url').value = btn.dataset.url;
-            document.getElementById('feed-name').value = btn.dataset.name;
-            document.getElementById('feed-category').value = btn.dataset.cat;
-            suggestZone.classList.add('hidden');
-            suggestZone.innerHTML = '';
-          });
-        });
-      });
-    }
 
     // Filtres vue flux
     document.querySelectorAll('.filter-btn').forEach(btn => {
