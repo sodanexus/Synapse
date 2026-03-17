@@ -35,10 +35,10 @@
     // Modèles Groq — split selon la tâche
     // llama-3.1-8b-instant : 14.4K req/jour → enrichissement articles (rapide, suffisant)
     // llama-3.3-70b-versatile : 1K req/jour  → digest uniquement (complexe, rare)
-    GROQ_MODEL_ENRICH: 'llama-3.1-8b-instant',
+    GROQ_MODEL_ENRICH: 'gemini-2.5-flash',  // Gemini 2.5 Flash pour l'enrichissement
     GROQ_MODEL_DIGEST: 'llama-3.3-70b-versatile',
     // Quota journalier estimé (req/jour free tier)
-    QUOTA_ENRICH_DAILY: 14400,
+    QUOTA_ENRICH_DAILY: 1500,   // Gemini Flash free tier : 1500 req/jour
     QUOTA_DIGEST_DAILY: 1000,
 
     // Nombre d'articles max à charger par fetch
