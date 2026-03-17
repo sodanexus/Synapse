@@ -1567,17 +1567,16 @@ body.dark .reader-modal.hero-ready .reader-header {
   /* Source digest — pas d'animation */
   #digest-header .reader-source { animation: none; max-width: none; }
 
-  /* Source reader — tronquée proprement, pas d'animation débordante */
+  /* Source reader — prend la place disponible sans déborder */
   .reader-meta {
     overflow: hidden;
     min-width: 0;
+    flex: 1;
   }
   .reader-source {
-    max-width: 90px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    animation: none;
   }
 
   /* Digest modal — plein écran sur mobile */
