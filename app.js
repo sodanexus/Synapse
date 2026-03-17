@@ -3729,12 +3729,24 @@ RÈGLES ABSOLUES :
       const cachedArticles = await DB.getArticles(user.id);
 
       if (cachedArticles.length > 0) {
-        // Reconstituer le state depuis la cache
-        STATE.articles = cachedArticles.map(a => ({
-          ...a,
-          feed_name: a.feeds?.name || a.feed_name || '',
-          feed_category: a.feeds?.category || a.feed_category || '',
-        }));
+        // Reconstituer le state — réutiliser les objets existants si possible
+        const existingMap = new Map(STATE.articles.map(a => [a.hash, a]));
+        STATE.articles = cachedArticles.map(a => {
+          const existing = existingMap.get(a.hash);
+          if (existing) {
+            // Mettre à jour l'objet existant en place (préserve les références)
+            Object.assign(existing, a, {
+              feed_name: a.feeds?.name || a.feed_name || existing.feed_name || '',
+              feed_category: a.feeds?.category || a.feed_category || existing.feed_category || '',
+            });
+            return existing;
+          }
+          return {
+            ...a,
+            feed_name: a.feeds?.name || a.feed_name || '',
+            feed_category: a.feeds?.category || a.feed_category || '',
+          };
+        });
 
         STATE.bookmarks = new Set(
           cachedArticles.filter(a => a.bookmarked).map(a => a.id)
