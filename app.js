@@ -1357,10 +1357,21 @@ RÈGLES ABSOLUES :
       try {
         const result = await AI.enrichArticle(article);
 
-        article.ai_content = result.ai_content;
+        // Nettoyer ai_content — remplacer les vrais sauts de ligne par des espaces
+        const cleanAiContent = (result.ai_content || '').replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+        article.ai_content = cleanAiContent;
         article.ai_title = result.ai_title || null;
         article.importance = result.importance;
         article.ai_tags = result.ai_tags;
+
+        // Sync avec STATE.articles — même hash, même objet mis à jour
+        const stateRef = STATE.articles.find(a => a.hash === article.hash);
+        if (stateRef && stateRef !== article) {
+          stateRef.ai_content = cleanAiContent;
+          stateRef.ai_title = result.ai_title || null;
+          stateRef.importance = result.importance;
+          stateRef.ai_tags = result.ai_tags;
+        }
 
         if (STATE.user) {
           DB.upsertArticle({
@@ -1371,7 +1382,7 @@ RÈGLES ABSOLUES :
             link:             article.link           || '',
             content:          article.content        || '',
             ai_title:         result.ai_title        || null,
-            ai_content:       result.ai_content      || '',
+            ai_content:       cleanAiContent         || '',
             ai_tags:          result.ai_tags         || [],
             importance:       result.importance      || 1,
             pub_date:         article.pub_date       || new Date().toISOString(),
