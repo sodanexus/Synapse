@@ -3057,16 +3057,25 @@ RÈGLES ABSOLUES :
         // Compter les vrais nouveaux articles AVANT de mettre à jour le state
         const newCount = unique.filter(a => !existingHashes.has(a.hash)).length;
 
-        // Pour chaque article frais, on réutilise l'enrichissement IA existant s'il est déjà correct
-        let enriched = unique.map(a => {
-          const old = existingMap.get(a.hash);
-          if (old && AI.isEnriched(old)) {
-            // Récupérer l'image du RSS frais si l'ancienne version n'en a pas
-            if (!old.image && a.image) old.image = a.image;
-            return old; // Conserver la version correctement enrichie
+        // Fusionner : partir des articles Supabase (base), mettre à jour avec le RSS frais
+        // Les articles Supabase qui ne sont plus dans le feed sont conservés (enrichis ou bookmarkés)
+        const freshMap = new Map(unique.map(a => [a.hash, a]));
+
+        // 1. Mettre à jour les articles existants avec les données RSS fraîches
+        const updatedExisting = STATE.articles.map(a => {
+          const fresh = freshMap.get(a.hash);
+          if (fresh) {
+            // Copier l'image depuis le RSS frais si manquante
+            if (!a.image && fresh.image) a.image = fresh.image;
+            return a; // Garder la version enrichie en mémoire
           }
-          return a; // Nouvel article ou mal enrichi → sera re-traité à l'ouverture
+          return a; // Article plus dans le feed — conserver quand même
         });
+
+        // 2. Ajouter les nouveaux articles du RSS pas encore en mémoire
+        const newArticles = unique.filter(a => !existingHashes.has(a.hash));
+
+        let enriched = [...updatedExisting, ...newArticles];
 
         // 4. Mise à jour du state
         STATE.articles = enriched.sort((a, b) =>
