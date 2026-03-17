@@ -515,8 +515,12 @@ TEXTE : ${rssText}`;
 
       const raw = await callGroq(systemPrompt, prompt, 1200);
       try {
-        // Nettoyer les backticks markdown que Gemini peut ajouter
+        // Nettoyer les backticks markdown
         let cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+        // Corriger les sauts de ligne littéraux dans les strings JSON (bug Groq)
+        cleaned = cleaned.replace(/"([^"]*?)"/g, (match) =>
+          match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/[\x00-\x1F\x7F]/g, ' ')
+        );
 
         // Tenter d'extraire le JSON — s'il est tronqué, tenter de le réparer
         let jsonMatch = cleaned.match(/\{[\s\S]*\}/);
