@@ -1505,7 +1505,7 @@ body.dark .reader-modal.hero-ready .reader-header {
    RESPONSIVE — MOBILE
    ================================================================ */
 @media (max-width: 600px) {
-  .view { padding: 56px 20px 40px; } /* padding-top 56px pour laisser place au header mobile */
+  .view { padding: 16px 16px 40px; } /* padding-top réduit sur mobile */
   .view-title { font-size: 2.2rem; }
   .articles-grid { grid-template-columns: 1fr; gap: 12px; }
   .form-row { flex-direction: column; }
@@ -1546,6 +1546,32 @@ body.dark .reader-modal.hero-ready .reader-header {
     border-radius: 2px;
     margin: 0 auto;
   }
+
+
+
+  /* Digest modal — plein écran scrollable sur mobile */
+  .digest-modal {
+    height: 100vh;
+    max-height: 100vh;
+    overflow-y: auto;
+    border-radius: 0;
+  }
+  .digest-fullscreen-body {
+    overflow-y: visible;
+    flex: none;
+  }
+
+  /* Boutons reader — zone de tap agrandie sur mobile */
+  .reader-btn {
+    padding: 10px 12px;
+    font-size: 0.7rem;
+    min-height: 44px;
+    min-width: 36px;
+    justify-content: center;
+  }
+  .reader-controls { gap: 2px; }
+  .reader-sep { height: 20px; }
+  .reader-header { padding: 8px 16px; }
 
   .feed-welcome { padding: 20px 0 8px; gap: 6px; }
   .feed-welcome-date { font-size: 1.3rem; }
@@ -2072,6 +2098,7 @@ body.dark .reader-modal.hero-ready .reader-header {
   display: flex;
   flex-direction: column;
   max-height: 90vh;
+  overflow-y: auto;
 }
 
 /* Corps scrollable */
