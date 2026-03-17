@@ -288,11 +288,21 @@
     }
 
     /** Sauvegarde le digest du jour */
-    async function saveDigest(userId, content) {
+    async function saveDigest(userId, content, heroImage = null) {
       const today = new Date().toISOString().split('T')[0];
-      const { error } = await client()
+      const payload = { user_id: userId, date: today, content, hero_image: heroImage };
+
+      let { error } = await client()
         .from('digests')
-        .upsert({ user_id: userId, date: today, content }, { onConflict: 'user_id,date' });
+        .upsert(payload, { onConflict: 'user_id,date' });
+
+      // Compatibilité si la colonne hero_image n'existe pas encore en base
+      if (error && (error.code === 'PGRST204' || error.code === '42703')) {
+        ({ error } = await client()
+          .from('digests')
+          .upsert({ user_id: userId, date: today, content }, { onConflict: 'user_id,date' }));
+      }
+
       if (error) throw error;
     }
 
@@ -2639,7 +2649,9 @@ RÈGLES ABSOLUES :
         }
 
         STATE.digestArticles = AI.getDigestArticles(STATE.articles);
+        const heroArticle = _getDigestHeroSource();
         const html = await AI.generateDailyDigest(STATE.digestArticles);
+        const heroImage = await _resolveDigestHeroImage(heroArticle);
         stopAnimation();
 
         const cleanedHtml = cleanDigestHtml(html);
@@ -2656,7 +2668,8 @@ RÈGLES ABSOLUES :
           listenBtn._digestText = extractTextForTTS(cleanedHtml);
         }
 
-        if (STATE.user) DB.saveDigest(STATE.user.id, html).catch(() => {});
+        if (STATE.user) DB.saveDigest(STATE.user.id, html, heroImage).catch(() => {});
+        _setDigestHeroImage(heroImage);
 
         // Timeline chronologique en bas
         renderTimeline(fsBody);
@@ -2685,8 +2698,33 @@ RÈGLES ABSOLUES :
       }
     }
 
-    /** Applique l'image hero au digest depuis l'article le plus important */
-    function _setDigestHeroImage() {
+    function _getDigestHeroSource() {
+      const digestArticles = (STATE.digestArticles && STATE.digestArticles.length)
+        ? STATE.digestArticles
+        : AI.getDigestArticles(STATE.articles);
+      return digestArticles[0] || null;
+    }
+
+    async function _resolveDigestHeroImage(article) {
+      if (!article) return null;
+      if (article.image) return article.image;
+      if (!article.link) return null;
+
+      try {
+        const r = await fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`, {
+          signal: AbortSignal.timeout(8000),
+        });
+        const data = r.ok ? await r.json() : null;
+        if (!data?.ogImage) return null;
+        article.image = data.ogImage;
+        return data.ogImage;
+      } catch {
+        return null;
+      }
+    }
+
+    /** Applique l'image hero au digest depuis l'article réellement utilisé */
+    function _setDigestHeroImage(preferredUrl = null) {
       const titleArea = document.getElementById('digest-title-area');
       const modal = document.getElementById('digest-modal');
       if (!titleArea) return;
@@ -2697,12 +2735,12 @@ RÈGLES ABSOLUES :
       titleArea.classList.remove('has-hero');
       if (modal) modal.classList.remove('hero-ready');
 
-      // Prendre le premier article réellement utilisé dans le digest
-      const digestArticles = (STATE.digestArticles && STATE.digestArticles.length)
-        ? STATE.digestArticles
-        : AI.getDigestArticles(STATE.articles);
-      const topArticle = digestArticles[0];
+      if (preferredUrl) {
+        _applyDigestHero(titleArea, modal, preferredUrl);
+        return;
+      }
 
+      const topArticle = _getDigestHeroSource();
       if (!topArticle) return;
 
       // Appliquer image si déjà disponible
@@ -2762,7 +2800,6 @@ RÈGLES ABSOLUES :
         overlay.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
         updateHeaderDate();
-        _setDigestHeroImage();
 
         const fsBody = document.getElementById('digest-fullscreen-body');
         const isEmpty = fsBody.querySelector('.digest-empty-state') ||
@@ -2788,6 +2825,7 @@ RÈGLES ABSOLUES :
                 }
                 // Générer la timeline depuis les articles en mémoire
                 renderTimeline(fsBody);
+                _setDigestHeroImage(cached.hero_image || null);
                 return;
               }
             } catch (e) {
@@ -2841,7 +2879,6 @@ RÈGLES ABSOLUES :
           listenBtn.textContent = '▶';
           listenBtn.classList.remove('active', 'tts-loading');
         }
-        _setDigestHeroImage();
         generateAndRender(regenBtn);
       });
     }
