@@ -1125,11 +1125,10 @@ RÈGLES ABSOLUES :
         container.appendChild(sep);
       }
 
-      // Articles normaux — forcer les imp4/5 à s'afficher en row (pas card)
-      // en passant leur importance à 3 max pour éviter le rendu card-compact isolé
+      // Articles normaux
       restArticles.forEach((article, i) => {
-        const articleProxy = { ...article, _forceRow: true };
-        container.appendChild(articleRow(articleProxy, i + breakingCount, filtered));
+        article._forceRow = true;
+        container.appendChild(articleRow(article, i + breakingCount, filtered));
       });
 
       // Infinite scroll — sentinel en bas de liste
@@ -1319,6 +1318,12 @@ RÈGLES ABSOLUES :
     function open(article, index, articleList) {
       STATE.currentArticleIndex = index;
       STATE.currentArticleList = articleList;
+      const sa = STATE.articles.find(a => a.hash === article.hash);
+      console.log('[open]', article.hash, 'article.ai_content:', (article.ai_content||'').length, 'STATE ref ai_content:', (sa?.ai_content||'').length, 'same obj:', article === sa);
+      const inState = STATE.articles.find(a => a.hash === article.hash);
+      console.log('[open]', article.hash, 'ai_content:', (article.ai_content||'').length, '| inState ai_content:', (inState?.ai_content||'').length, '| same obj:', article === inState);
+      const sa = STATE.articles.find(a => a.hash === article.hash);
+      console.log('[open]', article.hash.slice(0,6), '| arg ai_content:', (article.ai_content||'').length, '| STATE ai_content:', (sa?.ai_content||'').length, '| same obj:', article === sa);
 
       markRead(article);
       populate(article);
@@ -1366,11 +1371,13 @@ RÈGLES ABSOLUES :
 
         // Sync avec STATE.articles — même hash, même objet mis à jour
         const stateRef = STATE.articles.find(a => a.hash === article.hash);
+        console.log('[enrich done] article===stateRef:', article === stateRef, 'stateRef ai_content:', (stateRef?.ai_content||'').length);
         if (stateRef && stateRef !== article) {
           stateRef.ai_content = cleanAiContent;
           stateRef.ai_title = result.ai_title || null;
           stateRef.importance = result.importance;
           stateRef.ai_tags = result.ai_tags;
+          console.log('[enrich sync] stateRef updated, len:', (stateRef.ai_content||'').length);
         }
 
         if (STATE.user) {
