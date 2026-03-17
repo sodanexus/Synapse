@@ -1318,12 +1318,8 @@ RÈGLES ABSOLUES :
     function open(article, index, articleList) {
       STATE.currentArticleIndex = index;
       STATE.currentArticleList = articleList;
-      const sa = STATE.articles.find(a => a.hash === article.hash);
-      console.log('[open]', article.hash, 'article.ai_content:', (article.ai_content||'').length, 'STATE ref ai_content:', (sa?.ai_content||'').length, 'same obj:', article === sa);
-      const inState = STATE.articles.find(a => a.hash === article.hash);
-      console.log('[open]', article.hash, 'ai_content:', (article.ai_content||'').length, '| inState ai_content:', (inState?.ai_content||'').length, '| same obj:', article === inState);
-      const sa = STATE.articles.find(a => a.hash === article.hash);
-      console.log('[open]', article.hash.slice(0,6), '| arg ai_content:', (article.ai_content||'').length, '| STATE ai_content:', (sa?.ai_content||'').length, '| same obj:', article === sa);
+      const _dbg = STATE.articles.find(a => a.hash === article.hash);
+      console.log('[open]', article.hash, '| arg len:', (article.ai_content||'').length, '| STATE len:', (_dbg?.ai_content||'').length, '| same:', article === _dbg);
 
       markRead(article);
       populate(article);
