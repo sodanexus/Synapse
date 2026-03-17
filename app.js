@@ -1618,19 +1618,29 @@ RÈGLES ABSOLUES :
         bookmarkBtn.textContent = isBookmarked ? '◨' : '◧';
       }
 
-      // Chapô — 2 premières phrases de ai_content
+      // Chapô — premier paragraphe de ai_content (ou 2 premières phrases)
       const chapoEl = document.getElementById('reader-chapo');
       if (chapoEl) {
-        const fullText = article.ai_content || '';
-        const sentences = fullText.match(/[^.!?]+[.!?]+/g) || [];
-        // Afficher le chapô seulement si l'article a au moins 3 phrases
-        if (sentences.length >= 3) {
-          const chapo = sentences.slice(0, 2).join(' ').trim();
-          chapoEl.textContent = chapo;
+        const fullText = (article.ai_content || '').trim();
+        // Découper par paragraphes (séparés par 
+
+ ou 
+)
+        const paragraphs = fullText.split(/\n{1,2}/).map(p => p.trim()).filter(p => p.length > 30);
+        // Afficher seulement si le contenu a au moins 2 paragraphes
+        if (paragraphs.length >= 2) {
+          chapoEl.textContent = paragraphs[0];
           chapoEl.style.display = '';
         } else {
-          chapoEl.textContent = '';
-          chapoEl.style.display = 'none';
+          // Fallback : essayer avec les phrases
+          const sentences = fullText.match(/[^.!?]+[.!?]+/g) || [];
+          if (sentences.length >= 3) {
+            chapoEl.textContent = sentences.slice(0, 2).join(' ').trim();
+            chapoEl.style.display = '';
+          } else {
+            chapoEl.textContent = '';
+            chapoEl.style.display = 'none';
+          }
         }
       }
 
