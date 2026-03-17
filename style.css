@@ -1510,7 +1510,11 @@ body.dark .reader-modal.hero-ready .reader-header {
   .articles-grid { grid-template-columns: 1fr; gap: 12px; }
   .form-row { flex-direction: column; }
   .form-input { min-width: unset; width: 100%; }
-  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-start;
+    overflow-y: auto;
+  }
   .reader-modal {
     max-height: 100vh;
     height: 100vh;
@@ -1518,6 +1522,13 @@ body.dark .reader-modal.hero-ready .reader-header {
     border-radius: 0;
     overflow-y: auto;
   }
+  /* Date reader — masquée sur mobile, garde la source */
+  .reader-date { display: none; }
+
+  /* Stats et topics flux — masqués sur mobile */
+  .feed-welcome-stats { display: none; }
+  .feed-topics { display: none; }
+  #feed-count { display: none; }
   .feed-row { grid-template-columns: 1fr auto auto; gap: 12px; }
   .feed-row-category { display: none; }
   .feed-delete { padding: 10px 12px; font-size: 0.9rem; }
@@ -1549,18 +1560,24 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 
 
-  /* Digest modal — plein écran sur mobile, scroll via modal-overlay */
+  /* Digest modal — plein écran sur mobile */
   .digest-modal {
     height: auto;
+    min-height: 100vh;
     max-height: none;
     overflow-y: visible;
     border-radius: 0;
     width: 100vw;
+    margin: 0;
   }
   .digest-fullscreen-body {
     overflow-y: visible;
     flex: none;
     height: auto;
+    padding: 20px 20px 48px;
+  }
+  #digest-title-area {
+    min-height: 0;
   }
 
   /* Boutons reader — zone de tap agrandie sur mobile */
