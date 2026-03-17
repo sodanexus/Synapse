@@ -341,6 +341,37 @@ ul { list-style: none; }
   text-overflow: ellipsis;
   cursor: pointer;
   transition: color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.feed-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.feed-unread-count {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.04em;
+  color: var(--grey-light);
+  background: var(--grey-subtle);
+  padding: 1px 5px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.feeds-list li:hover .feed-unread-count {
+  color: var(--ink);
+}
+
+.feeds-list li.active .feed-unread-count {
+  background: transparent;
+  color: var(--grey-mid);
 }
 
 .feeds-list li.sidebar-category-label {
