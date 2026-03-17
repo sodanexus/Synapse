@@ -1613,11 +1613,12 @@ RÈGLES ABSOLUES :
       const chapoEl = document.getElementById('reader-chapo');
       if (chapoEl) {
         const fullText = article.ai_content || '';
-        if (fullText) {
-          const sentences = fullText.match(/[^.!?]+[.!?]+/g) || [];
+        const sentences = fullText.match(/[^.!?]+[.!?]+/g) || [];
+        // Afficher le chapô seulement si l'article a au moins 3 phrases
+        if (sentences.length >= 3) {
           const chapo = sentences.slice(0, 2).join(' ').trim();
           chapoEl.textContent = chapo;
-          chapoEl.style.display = chapo ? '' : 'none';
+          chapoEl.style.display = '';
         } else {
           chapoEl.textContent = '';
           chapoEl.style.display = 'none';
