@@ -1319,7 +1319,6 @@ RÈGLES ABSOLUES :
     function open(article, index, articleList) {
       STATE.currentArticleIndex = index;
       STATE.currentArticleList = articleList;
-      console.log('[open] hash:', article.hash, 'ai_content len:', (article.ai_content||'').length, 'same as STATE?', STATE.articles.find(a=>a.hash===article.hash) === article);
 
       markRead(article);
       populate(article);
@@ -3158,12 +3157,9 @@ RÈGLES ABSOLUES :
         // 2. Ajouter les nouveaux articles du RSS pas encore en mémoire
         const newArticles = unique.filter(a => !existingHashes.has(a.hash));
 
-        let enriched = [...updatedExisting, ...newArticles];
-
-        // 4. Mise à jour du state — trier par date
-        STATE.articles = enriched.sort((a, b) =>
-          new Date(b.pub_date) - new Date(a.pub_date)
-        );
+        // 4. Mise à jour du state — trier en place sans recréer les objets
+        STATE.articles = [...updatedExisting, ...newArticles]
+          .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
 
         // 5. Clustering + Rendu UI
         refreshUI();
@@ -3729,16 +3725,22 @@ RÈGLES ABSOLUES :
       const cachedArticles = await DB.getArticles(user.id);
 
       if (cachedArticles.length > 0) {
-        // Reconstituer le state — réutiliser les objets existants si possible
+        // Reconstituer le state — réutiliser les objets existants, ne jamais écraser l'enrichissement IA en mémoire
         const existingMap = new Map(STATE.articles.map(a => [a.hash, a]));
         STATE.articles = cachedArticles.map(a => {
           const existing = existingMap.get(a.hash);
           if (existing) {
-            // Mettre à jour l'objet existant en place (préserve les références)
-            Object.assign(existing, a, {
-              feed_name: a.feeds?.name || a.feed_name || existing.feed_name || '',
-              feed_category: a.feeds?.category || a.feed_category || existing.feed_category || '',
-            });
+            // Mettre à jour uniquement les champs non-IA (statut lu, bookmark, image)
+            // Ne JAMAIS écraser ai_content/ai_title/ai_tags/importance si déjà enrichi en mémoire
+            existing.read = a.read;
+            existing.bookmarked = a.bookmarked;
+            existing.image = existing.image || a.image || '';
+            if (!existing.ai_content && a.ai_content) {
+              existing.ai_content = a.ai_content;
+              existing.ai_title = a.ai_title;
+              existing.ai_tags = a.ai_tags;
+              existing.importance = a.importance;
+            }
             return existing;
           }
           return {
