@@ -470,6 +470,7 @@
       }
 
       const data = await response.json();
+      console.log('[callGroq response]', JSON.stringify(data).substring(0, 500));
       return data.text || '';
     }
 
@@ -1314,6 +1315,7 @@ RÈGLES ABSOLUES :
       document.body.style.overflow = 'hidden';
       document.getElementById('btn-close-reader').focus();
 
+      console.log('[open] isEnriched:', AI.isEnriched(article), 'ai_content len:', (article.ai_content||'').length, 'ai_tags:', article.ai_tags);
       if (!AI.isEnriched(article)) {
         enrichOnOpen(article);
       }
