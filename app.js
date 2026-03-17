@@ -1609,6 +1609,21 @@ RÈGLES ABSOLUES :
         bookmarkBtn.textContent = isBookmarked ? '◨' : '◧';
       }
 
+      // Chapô — 2 premières phrases de ai_content
+      const chapoEl = document.getElementById('reader-chapo');
+      if (chapoEl) {
+        const fullText = article.ai_content || '';
+        if (fullText) {
+          const sentences = fullText.match(/[^.!?]+[.!?]+/g) || [];
+          const chapo = sentences.slice(0, 2).join(' ').trim();
+          chapoEl.textContent = chapo;
+          chapoEl.style.display = chapo ? '' : 'none';
+        } else {
+          chapoEl.textContent = '';
+          chapoEl.style.display = 'none';
+        }
+      }
+
       // Contenu IA
       setContent(article, animate);
 
