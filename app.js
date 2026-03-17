@@ -35,10 +35,10 @@
     // Modèles Groq — split selon la tâche
     // llama-3.1-8b-instant : 14.4K req/jour → enrichissement articles (rapide, suffisant)
     // llama-3.3-70b-versatile : 1K req/jour  → digest uniquement (complexe, rare)
-    GROQ_MODEL_ENRICH: 'gemini-2.5-flash',  // Gemini 2.5 Flash pour l'enrichissement
+    GROQ_MODEL_ENRICH: 'llama-3.1-8b-instant',
     GROQ_MODEL_DIGEST: 'llama-3.3-70b-versatile',
     // Quota journalier estimé (req/jour free tier)
-    QUOTA_ENRICH_DAILY: 500,    // Gemini 2.5 Flash free tier : 500 req/jour
+    QUOTA_ENRICH_DAILY: 14400,
     QUOTA_DIGEST_DAILY: 1000,
 
     // Nombre d'articles max à charger par fetch
@@ -470,7 +470,6 @@
       }
 
       const data = await response.json();
-      console.log('[callGroq response]', JSON.stringify(data).substring(0, 500));
       return data.text || '';
     }
 
@@ -505,7 +504,7 @@
         return { ai_content: article.content || article.title || '', importance: 1, ai_tags: [] };
       }
 
-      const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris ou résumes les articles RSS en prose claire et fluide. Tu supprimes tout le bruit (publicités, appels à l'action, mentions légales). Si le contenu est riche, tu réécris en 250-450 mots. Si le contenu est court ou tronqué, tu fais le meilleur résumé possible avec ce que tu as, en ajoutant du contexte général sur le sujet si nécessaire. Tu ne copies JAMAIS le texte original mot pour mot. Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks. Langue de sortie : français.`;
+      const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris ou résumes les articles RSS en prose claire et fluide. Tu supprimes tout le bruit (publicités, appels à l'action, mentions légales). Si le contenu est riche, tu réécris en 150-250 mots. Si le contenu est court ou tronqué, tu fais le meilleur résumé possible avec ce que tu as. Tu ne copies JAMAIS le texte original mot pour mot. Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks. Langue de sortie : français.`;
 
       const prompt = `Réécris ou résume cet article et retourne exactement ce JSON (et rien d'autre) :
 {"ai_title":"<titre traduit en français, concis et accrocheur, max 12 mots>","ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"]}
@@ -514,9 +513,7 @@ TITRE : ${article.title}
 SOURCE : ${article.feed_name}
 TEXTE : ${rssText}`;
 
-      const raw = await callGroq(systemPrompt, prompt, 1500);
-      console.log('[Gemini raw]', raw.substring(0, 300));
-
+      const raw = await callGroq(systemPrompt, prompt, 800);
       try {
         // Nettoyer les backticks markdown que Gemini peut ajouter
         let cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
@@ -1327,7 +1324,6 @@ RÈGLES ABSOLUES :
       document.body.style.overflow = 'hidden';
       document.getElementById('btn-close-reader').focus();
 
-      console.log('[open] isEnriched:', AI.isEnriched(article), 'ai_content len:', (article.ai_content||'').length, 'ai_tags:', article.ai_tags);
       if (!AI.isEnriched(article)) {
         enrichOnOpen(article);
       }
