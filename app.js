@@ -1864,8 +1864,13 @@ RÈGLES ABSOLUES :
         listenBtn.addEventListener('click', () => {
           const article = STATE.currentArticleList[STATE.currentArticleIndex];
           if (!article) return;
-          const text = article.ai_content || article.content || article.title || '';
-          console.log('[TTS] ai_content len:', (article.ai_content||'').length, 'content len:', (article.content||'').length, 'using:', article.ai_content ? 'ai_content' : 'content');
+          // Chercher l'article le plus à jour dans STATE.articles par hash
+          const freshArticle = STATE.articles.find(a => a.hash === article.hash) || article;
+          if (!freshArticle.ai_content) {
+            Toast.show('Article en cours de traitement, réessayez dans quelques secondes', 'info');
+            return;
+          }
+          const text = freshArticle.ai_content || freshArticle.title || '';
           const lang = (typeof summaryLang !== 'undefined' && summaryLang === 'en') ? 'en-US' : 'fr-FR';
           TTS.toggle(text);
         });
