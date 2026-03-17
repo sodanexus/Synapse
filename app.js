@@ -517,7 +517,9 @@ TEXTE : ${rssText}`;
       try {
         // Nettoyer les backticks markdown
         let cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
-        // Corriger les sauts de ligne littéraux dans les strings JSON (bug Groq)
+        // Remplacer les guillemets typographiques par des guillemets droits
+        cleaned = cleaned.replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "\'");
+        // Corriger les sauts de ligne et caractères de contrôle dans les strings JSON
         cleaned = cleaned.replace(/"([^"]*?)"/g, (match) =>
           match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/[\x00-\x1F\x7F]/g, ' ')
         );
@@ -1318,8 +1320,6 @@ RÈGLES ABSOLUES :
     function open(article, index, articleList) {
       STATE.currentArticleIndex = index;
       STATE.currentArticleList = articleList;
-      const _dbg = STATE.articles.find(a => a.hash === article.hash);
-      console.log('[open]', article.hash, '| arg len:', (article.ai_content||'').length, '| STATE len:', (_dbg?.ai_content||'').length, '| same:', article === _dbg);
 
       markRead(article);
       populate(article);
@@ -1367,13 +1367,11 @@ RÈGLES ABSOLUES :
 
         // Sync avec STATE.articles — même hash, même objet mis à jour
         const stateRef = STATE.articles.find(a => a.hash === article.hash);
-        console.log('[enrich done] article===stateRef:', article === stateRef, 'stateRef ai_content:', (stateRef?.ai_content||'').length);
         if (stateRef && stateRef !== article) {
           stateRef.ai_content = cleanAiContent;
           stateRef.ai_title = result.ai_title || null;
           stateRef.importance = result.importance;
           stateRef.ai_tags = result.ai_tags;
-          console.log('[enrich sync] stateRef updated, len:', (stateRef.ai_content||'').length);
         }
 
         if (STATE.user) {
@@ -3178,7 +3176,7 @@ RÈGLES ABSOLUES :
         // Sauvegarder les articles pas encore en base (pas d'id Supabase)
         if (STATE.user) {
           // Upsert en silence, par lots de 5 pour ne pas surcharger
-          const saveNew = enriched.filter(a => !a.id); // pas encore en base
+          const saveNew = STATE.articles.filter(a => !a.id); // pas encore en base
           for (let i = 0; i < saveNew.length; i += 5) {
             const batch = saveNew.slice(i, i + 5);
             await Promise.allSettled(batch.map(a => DB.upsertArticle({
