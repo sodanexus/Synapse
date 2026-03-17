@@ -551,20 +551,14 @@ TEXTE : ${rssText}`;
       }
     }
 
-    /**
-     * Génère le digest du jour à partir des articles importants
-     * Retourne du texte structuré (HTML simple)
-     */
-    async function generateDailyDigest(articles) {
+    function getDigestArticles(articles) {
       const today = new Date().toISOString().split('T')[0];
 
-      // Articles du jour triés par importance
       let topArticles = articles
         .filter(a => a.pub_date && a.pub_date.startsWith(today) && isEnriched(a))
         .sort((a, b) => (b.importance || 0) - (a.importance || 0))
         .slice(0, 10);
 
-      // Fallback : articles enrichis des 48h si pas assez du jour
       if (topArticles.length < 3) {
         const since = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
         topArticles = articles
@@ -573,13 +567,23 @@ TEXTE : ${rssText}`;
           .slice(0, 10);
       }
 
-      // Dernier fallback : tous les articles enrichis
       if (topArticles.length === 0) {
         topArticles = articles
           .filter(a => isEnriched(a))
           .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
           .slice(0, 10);
       }
+
+      return topArticles;
+    }
+
+
+    /**
+     * Génère le digest du jour à partir des articles importants
+     * Retourne du texte structuré (HTML simple)
+     */
+    async function generateDailyDigest(articles) {
+      const topArticles = getDigestArticles(articles);
 
       if (topArticles.length === 0) {
         throw new Error('Aucun article enrichi disponible. Ouvrez quelques articles d\'abord.');
@@ -611,7 +615,7 @@ RÈGLES ABSOLUES :
       return digest;
     }
 
-    return { enrichArticle, generateDailyDigest, callGroq, isEnriched };
+    return { enrichArticle, generateDailyDigest, callGroq, isEnriched, getDigestArticles };
   })();
 
   /* ================================================================
@@ -2634,7 +2638,8 @@ RÈGLES ABSOLUES :
           if (i < toEnrich.length - 1) await new Promise(r => setTimeout(r, CONFIG.GROQ_DIGEST_DELAY));
         }
 
-        const html = await AI.generateDailyDigest(STATE.articles);
+        STATE.digestArticles = AI.getDigestArticles(STATE.articles);
+        const html = await AI.generateDailyDigest(STATE.digestArticles);
         stopAnimation();
 
         const cleanedHtml = cleanDigestHtml(html);
@@ -2692,9 +2697,11 @@ RÈGLES ABSOLUES :
       titleArea.classList.remove('has-hero');
       if (modal) modal.classList.remove('hero-ready');
 
-      // Trouver l'article le plus important
-      const topArticle = STATE.articles
-        .sort((a, b) => (b.importance || 0) - (a.importance || 0))[0];
+      // Prendre le premier article réellement utilisé dans le digest
+      const digestArticles = (STATE.digestArticles && STATE.digestArticles.length)
+        ? STATE.digestArticles
+        : AI.getDigestArticles(STATE.articles);
+      const topArticle = digestArticles[0];
 
       if (!topArticle) return;
 
