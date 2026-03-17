@@ -1578,8 +1578,25 @@ body.dark .reader-modal.hero-ready .reader-header {
   .feed-welcome { padding: 20px 0 8px; gap: 6px; }
   .feed-welcome-date { font-size: 1.3rem; }
   .row-actions { display: none; }
-  .feed-digest-btn { font-size: 0.55rem; padding: 4px 7px; letter-spacing: 0.06em; }
-  .feed-welcome-right { gap: 0; }
+  /* Boutons flux — zone de tap 44px sur mobile */
+  .feed-digest-btn {
+    font-size: 0.6rem;
+    padding: 10px 12px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  .feed-search-toggle,
+  .btn-mark-all-read {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    font-size: 1.1rem;
+  }
+  .feed-welcome-right { gap: 4px; }
 }
 
 /* ================================================================
