@@ -1505,7 +1505,7 @@ body.dark .reader-modal.hero-ready .reader-header {
    RESPONSIVE — MOBILE
    ================================================================ */
 @media (max-width: 600px) {
-  .view { padding: 16px 16px 40px; } /* padding-top réduit sur mobile */
+  .view { padding: 8px 16px 40px; } /* padding-top minimal sur mobile */
   .view-title { font-size: 2.2rem; }
   .articles-grid { grid-template-columns: 1fr; gap: 12px; }
   .form-row { flex-direction: column; }
@@ -1560,6 +1560,20 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 
 
+
+  /* Source reader — scrollable si longue */
+  .reader-source {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: nowrap;
+    animation: scrollSource 6s linear infinite;
+  }
+  @keyframes scrollSource {
+    0%, 30%   { transform: translateX(0); }
+    70%, 100% { transform: translateX(calc(-100% + 120px)); }
+  }
+
   /* Digest modal — plein écran sur mobile */
   .digest-modal {
     height: auto;
@@ -1576,8 +1590,17 @@ body.dark .reader-modal.hero-ready .reader-header {
     height: auto;
     padding: 20px 20px 48px;
   }
-  #digest-title-area {
+  /* Hero digest — hauteur réduite sur mobile */
+  #digest-title-area.has-hero {
+    min-height: 220px;
+  }
+  #digest-title-area:not(.has-hero) {
     min-height: 0;
+    padding-top: 0;
+  }
+  #digest-hero-title {
+    font-size: 1.4rem;
+    padding: 16px 20px 20px;
   }
 
   /* Boutons reader — zone de tap agrandie sur mobile */
@@ -1595,6 +1618,22 @@ body.dark .reader-modal.hero-ready .reader-header {
   .feed-welcome { padding: 20px 0 8px; gap: 6px; }
   .feed-welcome-date { font-size: 1.3rem; }
   .row-actions { display: none; }
+
+  /* Digest — icône seulement sur mobile */
+  .digest-btn-label { display: none; }
+  .feed-digest-btn {
+    font-size: 1rem;
+    padding: 10px;
+    min-height: 44px;
+    min-width: 44px;
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .digest-btn-icon { font-size: 1rem; }
+
   /* Boutons flux — zone de tap 44px sur mobile */
   .feed-digest-btn {
     font-size: 0.6rem;
@@ -2159,6 +2198,8 @@ body.dark .reader-modal.hero-ready .reader-header {
   display: block;
 }
 
+/* Digest title area avec hero — min-height réduit sur mobile */
+
 /* Footer digest */
 .digest-fullscreen-footer {
   border-top: var(--border);
@@ -2529,7 +2570,7 @@ body.dark .reader-modal.hero-ready .reader-header {
    ================================================================ */
 .feed-welcome {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   padding: 28px 0 12px;
   gap: 8px;
@@ -2834,7 +2875,6 @@ body.dark {
 .reader-meta-bottom {
   padding: 20px 36px;
   border-top: var(--border);
-  border-bottom: var(--border);
   display: flex;
   flex-direction: row;
   align-items: center;
