@@ -1084,6 +1084,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 
 .reader-btn:hover { color: var(--ink); background: var(--grey-wash); }
 .reader-btn.active { background: var(--ink); color: var(--white); }
+.reader-btn:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
 
 /* Largeur fixe sur le bouton toggle pour éviter le layout shift IA ↔ ORIGINAL */
 #btn-toggle-content { min-width: 90px; justify-content: center; }
