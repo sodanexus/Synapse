@@ -1262,6 +1262,19 @@ body.dark .reader-modal.hero-ready .reader-header {
 .reader-summary p { font-size: 0.9rem; color: var(--grey-deep); line-height: 1.75; font-style: italic; }
 
 /* Contenu reader */
+/* Chapô — 2 premières phrases en avant-titre */
+.reader-chapo {
+  padding: 24px 36px 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+  font-style: italic;
+  border-bottom: var(--border);
+  padding-bottom: 20px;
+  margin-bottom: 0;
+}
+
 .reader-content {
   padding: 28px 36px 48px;
   font-size: 1rem;
