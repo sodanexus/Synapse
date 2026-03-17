@@ -1319,6 +1319,7 @@ RÈGLES ABSOLUES :
     function open(article, index, articleList) {
       STATE.currentArticleIndex = index;
       STATE.currentArticleList = articleList;
+      console.log('[open] hash:', article.hash, 'ai_content len:', (article.ai_content||'').length, 'same as STATE?', STATE.articles.find(a=>a.hash===article.hash) === article);
 
       markRead(article);
       populate(article);
