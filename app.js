@@ -3061,6 +3061,8 @@ RÈGLES ABSOLUES :
         let enriched = unique.map(a => {
           const old = existingMap.get(a.hash);
           if (old && AI.isEnriched(old)) {
+            // Récupérer l'image du RSS frais si l'ancienne version n'en a pas
+            if (!old.image && a.image) old.image = a.image;
             return old; // Conserver la version correctement enrichie
           }
           return a; // Nouvel article ou mal enrichi → sera re-traité à l'ouverture
