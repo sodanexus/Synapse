@@ -1567,17 +1567,17 @@ body.dark .reader-modal.hero-ready .reader-header {
   /* Source digest — pas d'animation */
   #digest-header .reader-source { animation: none; max-width: none; }
 
-  /* Source reader — scroll yoyo */
-  .reader-source {
-    max-width: 120px;
+  /* Source reader — tronquée proprement, pas d'animation débordante */
+  .reader-meta {
     overflow: hidden;
-    text-overflow: clip;
-    white-space: nowrap;
-    animation: scrollSource 3s ease-in-out infinite alternate;
+    min-width: 0;
   }
-  @keyframes scrollSource {
-    0%   { transform: translateX(0); }
-    100% { transform: translateX(calc(-100% + 110px)); }
+  .reader-source {
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    animation: none;
   }
 
   /* Digest modal — plein écran sur mobile */
