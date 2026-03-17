@@ -1353,7 +1353,6 @@ RÈGLES ABSOLUES :
         const result = await AI.enrichArticle(article);
 
         article.ai_content = result.ai_content;
-        console.log('[enrichOnOpen] hash:', article.hash, 'ai_content len:', (article.ai_content||'').length);
         article.ai_title = result.ai_title || null;
         article.importance = result.importance;
         article.ai_tags = result.ai_tags;
@@ -1867,7 +1866,6 @@ RÈGLES ABSOLUES :
         listenBtn.addEventListener('click', () => {
           const article = STATE.currentArticleList[STATE.currentArticleIndex];
           if (!article) return;
-          console.log('[TTS click] hash:', article.hash, 'ai_content len:', (article.ai_content||'').length);
           const text = article.ai_content || article.content || article.title || '';
           if (!text) return;
           const lang = (typeof summaryLang !== 'undefined' && summaryLang === 'en') ? 'en-US' : 'fr-FR';
@@ -1960,7 +1958,7 @@ RÈGLES ABSOLUES :
 
     }
 
-    return { open, close, init, goNext, goPrev, _swipeInProgress: false };
+    return { open, close, init, goNext, goPrev, _updateFeedRow, _swipeInProgress: false };
   })();
 
   /* ================================================================
@@ -3015,7 +3013,6 @@ RÈGLES ABSOLUES :
         try {
           const result = await AI.enrichArticle(article);
           article.ai_content = result.ai_content;
-        console.log('[enrichOnOpen] hash:', article.hash, 'ai_content len:', (article.ai_content||'').length);
           article.importance = result.importance;
           article.ai_tags    = result.ai_tags;
 
