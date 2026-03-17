@@ -1,6 +1,6 @@
 # SYNAPSE — Lecteur RSS augmenté par l'IA
 
-Lecteur RSS personnel, multi-utilisateurs, hébergé sur GitHub Pages. Les articles sont enrichis automatiquement par l'IA (réécriture, importance, tags, sentiment, traduction) via Groq. Données persistées dans Supabase.
+Lecteur RSS personnel, multi-utilisateurs, hébergé sur GitHub Pages. Les articles sont enrichis automatiquement par l'IA (réécriture en français, score d'importance, tags thématiques) via Groq. Données persistées dans Supabase.
 
 ## Stack
 
@@ -8,8 +8,10 @@ Lecteur RSS personnel, multi-utilisateurs, hébergé sur GitHub Pages. Les artic
 |---|---|
 | Frontend | HTML + CSS + JS vanilla (3 fichiers, zéro dépendance) |
 | Auth & DB | Supabase (Auth + PostgreSQL + RLS) |
-| IA | Groq API — `llama-3.1-8b-instant` |
-| Proxy | Cloudflare Worker (CORS + relay Groq + scraping) |
+| IA enrichissement | Groq — `llama-3.1-8b-instant` |
+| IA digest | Groq — `llama-3.3-70b-versatile` |
+| TTS | Unreal Speech (voix Élodie, française) |
+| Proxy | Cloudflare Worker (CORS + relay Groq + RSS + scraping + TTS) |
 | Hébergement | GitHub Pages |
 
 ---
@@ -21,7 +23,7 @@ synapse/
 ├── index.html              # Structure de l'app (shell + vues)
 ├── style.css               # Design complet
 ├── app.js                  # Logique complète (auth, RSS, IA, UI)
-├── worker.js               # Cloudflare Worker (proxy RSS + scraping + relay Groq)
+├── worker.js               # Cloudflare Worker (proxy RSS + scraping + relay Groq + TTS)
 ├── supabase_schema.sql     # Schéma SQL à exécuter dans Supabase
 ├── manifest.json           # PWA manifest (icône écran d'accueil)
 ├── apple-touch-icon.png    # Icône iOS 180x180
@@ -53,9 +55,10 @@ CREATE OR REPLACE TRIGGER trigger_cleanup_articles
   FOR EACH STATEMENT
   EXECUTE FUNCTION cleanup_old_articles();
 ```
-4. Exécuter ce SQL pour la colonne `ai_title` :
+4. Exécuter ce SQL pour les colonnes supplémentaires :
 ```sql
 ALTER TABLE articles ADD COLUMN IF NOT EXISTS ai_title TEXT DEFAULT NULL;
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS image TEXT DEFAULT NULL;
 ```
 5. Dans **Settings > API**, noter :
    - `Project URL` → `SUPABASE_URL`
@@ -67,8 +70,9 @@ ALTER TABLE articles ADD COLUMN IF NOT EXISTS ai_title TEXT DEFAULT NULL;
 2. Créer un nouveau Worker nommé `synapse-worker`
 3. Coller le contenu de `worker.js` dans l'éditeur
 4. Dans **Settings > Variables** du worker, ajouter :
-   - `GROQ_API_KEY` = votre clé depuis [console.groq.com](https://console.groq.com)
-   - `ALLOWED_ORIGIN` = `https://VOTRE_USERNAME.github.io` (ou `*` en dev)
+   - `GROQ_API_KEY` — clé depuis [console.groq.com](https://console.groq.com)
+   - `UNREALSPEECH_API_KEY` — clé depuis [unrealspeech.com](https://unrealspeech.com)
+   - `ALLOWED_ORIGIN` — `https://VOTRE_USERNAME.github.io` (ou `*` en dev)
 5. Déployer — noter l'URL du worker
 
 ### 3. Configurer app.js
@@ -77,12 +81,21 @@ Ouvrir `app.js` et remplir la section `CONFIG` (ligne ~26) :
 
 ```js
 const CONFIG = {
-  SUPABASE_URL:      'https://VOTRE_PROJET.supabase.co',
-  SUPABASE_ANON_KEY: 'VOTRE_ANON_KEY',
-  WORKER_URL:        'https://synapse-worker.VOTRE_COMPTE.workers.dev',
-  GROQ_MODEL:        'llama-3.1-8b-instant',
-  MAX_ARTICLES_PER_FEED: 10,
-  GROQ_REQUEST_DELAY: 3000,
+  SUPABASE_URL:          'https://VOTRE_PROJET.supabase.co',
+  SUPABASE_ANON_KEY:     'VOTRE_ANON_KEY',
+  WORKER_URL:            'https://synapse-worker.VOTRE_COMPTE.workers.dev',
+
+  GROQ_MODEL_ENRICH:     'llama-3.1-8b-instant',   // enrichissement article
+  GROQ_MODEL_DIGEST:     'llama-3.3-70b-versatile', // digest quotidien
+
+  QUOTA_ENRICH_DAILY:    14400,  // req/jour free tier Groq
+  QUOTA_DIGEST_DAILY:    1000,
+
+  MAX_ARTICLES_PER_FEED: 20,     // articles fetchés par feed RSS
+  DEDUP_THRESHOLD:       0.65,   // seuil de déduplication
+
+  GROQ_REQUEST_DELAY:    3000,   // ms entre chaque enrichissement
+  GROQ_DIGEST_DELAY:     1000,   // ms délai digest
 };
 ```
 
@@ -102,55 +115,72 @@ Safari → ouvrir le site → bouton partage ↑ → "Sur l'écran d'accueil"
 ## Fonctionnalités
 
 ### Lecture
-- **Flux RSS** — fetch via Cloudflare Worker (contourne le CORS), 10 articles par source
-- **Enrichissement IA à la demande** — à l'ouverture d'un article : réécriture en français, score d'importance 1-5, tags thématiques, sentiment (positif/négatif/neutre), traduction du titre
-- **Scraping de la page source** — le worker tente de récupérer le contenu complet avant d'envoyer à Groq (en parallèle, sans délai)
-- **Enrichissement en arrière-plan** — les articles sont enrichis silencieusement pendant la lecture, par ordre d'importance
-- **Reader** — mode focus avec navigation clavier (← →) et swipe mobile
-- **Infinite scroll** dans la vue flux
+- **Flux RSS** — fetch via Cloudflare Worker (contourne le CORS), 20 articles par source par défaut
+- **Enrichissement IA à l'ouverture** — réécriture en français, score d'importance 1-5, tags thématiques, traduction du titre
+- **Image hero** — extraite du flux RSS (`media:content`, `media:thumbnail`, `enclosure`) ou scrapée depuis l'OG tag de la page source en fallback
+- **Scraping de la page source** — le worker extrait le contenu complet et l'image OG avant enrichissement
+- **Enrichissement en arrière-plan** — les articles sont enrichis silencieusement pendant la lecture, par ordre d'importance décroissante
+- **Reader** — mode focus plein écran avec image hero, navigation clavier (← →) et swipe mobile
+- **TTS** — lecture audio en français via Unreal Speech (voix Élodie), avec barre de progression
 
 ### Organisation
 - **Clusters thématiques** — regroupement automatique des articles par sujet via les tags IA
 - **Bookmarks** synchronisés dans Supabase
-- **Historique** — articles lus des 30 derniers jours
 - **Filtres** — tout / non lus / importants + recherche plein texte
 - **Feeds par catégorie** — regroupés dans la sidebar
 
 ### Digest IA
-- Génération à la demande d'un briefing quotidien structuré par thèmes
-- Enrichit automatiquement les articles avant de générer si nécessaire
-- Mis en cache dans Supabase (une fois par jour)
+- Génération à la demande d'un briefing quotidien structuré par thèmes (4 max)
+- Modèle dédié plus puissant (`llama-3.3-70b-versatile`)
+- Image hero depuis l'article le plus important du jour
+- Lecture audio du digest via TTS
+- Chronologie du jour en bas (articles triés par heure)
+- Mis en cache dans Supabase — régénérable manuellement
 
 ### Sync & Performance
 - **Sync conditionnel** — pas de re-fetch si moins de 15 min depuis le dernier sync
-- **Sauvegarde automatique** — tous les articles fetchés sont sauvegardés dans Supabase (pas seulement ceux ouverts)
-- **Nettoyage automatique** — les articles > 7 jours non bookmarkés sont supprimés (trigger Supabase)
+- **Sauvegarde automatique** — tous les articles fetchés sont sauvegardés dans Supabase
+- **Rétention** — 7 jours pour les articles non bookmarkés (trigger Supabase), illimité pour les bookmarks
+- **Fusion intelligente** — au sync, les articles Supabase enrichis sont conservés et mis à jour avec les images RSS fraîches
 - **Cache localStorage** — affichage instantané au rechargement
+- **Limite** — 300 articles en mémoire et en base
 
 ### UX
-- **Dark mode** — toggle dans la sidebar
+- **Dark mode** — toggle dans la sidebar, contraste optimisé
 - **Taille de police** ajustable dans le reader (A- / A / A+)
 - **Partage** — Web Share API sur mobile, copie presse-papier sur desktop
 - **Pull to refresh** sur mobile
 - **Badge breaking news** — point rouge dans la nav si article importance 5 non lu
-- **Retour en haut** — bouton flottant après 400px de scroll
 - **Raccourcis clavier** — ← → (navigation), Escape (fermer), B (bookmark), O (source), R (refresh)
+- **PWA** — installable sur iPhone via Safari
+
+---
+
+## Architecture Worker
+
+| Endpoint | Méthode | Description |
+|---|---|---|
+| `/rss?url=` | GET | Fetch et parse RSS/Atom, extrait images (`media:content`, `media:thumbnail`, `enclosure`) |
+| `/scrape?url=` | GET | Extrait contenu texte + `og:image` d'une page article |
+| `/ai` | POST | Relay vers API Groq (clé cachée côté worker), max 2000 tokens |
+| `/tts` | POST | Relay vers Unreal Speech, voix Élodie (fr-FR), ≤3000 chars |
 
 ---
 
 ## Notes techniques
 
 **Sécurité**
-- La clé Groq ne quitte jamais le Cloudflare Worker (variable d'environnement)
+- Les clés Groq et Unreal Speech ne quittent jamais le Cloudflare Worker (variables d'environnement)
 - Les clés Supabase `anon` sont sécurisées par les Row Level Security policies
 - Tout le HTML est échappé via `escapeHtml()` — pas de XSS
 
 **Rate limiting Groq**
-- Modèle `llama-3.1-8b-instant` : 14 400 req/jour, 30 req/min (free tier)
-- Délai de 3s entre chaque enrichissement
+- `llama-3.1-8b-instant` : 14 400 req/jour, 30 req/min (free tier)
+- `llama-3.3-70b-versatile` : 1 000 req/jour (free tier)
+- Délai de 3s entre chaque enrichissement d'article
 - Retry automatique avec backoff exponentiel sur les erreurs 429
 
-**Architecture Worker**
-- `GET /rss?url=` — fetch et parse RSS/Atom, gère le CDATA
-- `GET /scrape?url=` — extrait le contenu textuel d'une page article
-- `POST /ai` — relay vers l'API Groq (clé cachée côté worker)
+**TTS — Unreal Speech**
+- 250 000 caractères/mois sur le free tier
+- Voix `Élodie` (fr-FR)
+- Endpoint `/stream` pour les textes ≤1000 chars, `/speech` au-delà
