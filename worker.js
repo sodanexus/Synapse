@@ -172,32 +172,36 @@ function extractAttr(xml, tag, attr = 'href') {
 /**
  * Extrait l'URL de la première image trouvée dans un item RSS/Atom.
  */
+// Domaines à ignorer — logos/placeholders connus
+const IMAGE_BLOCKLIST = ['google.com', 'gstatic.com', 'googleusercontent.com'];
+
 function extractImage(xml) {
   let m;
+  const isBlocked = url => IMAGE_BLOCKLIST.some(d => url.includes(d));
 
   // media:content url="..."
   m = xml.match(/<media:content[^>]+url="([^"]+)"[^>]*type="image/i);
-  if (m) return m[1];
+  if (m && !isBlocked(m[1])) return m[1];
   m = xml.match(/<media:content[^>]+url='([^']+)'[^>]*type='image/i);
-  if (m) return m[1];
+  if (m && !isBlocked(m[1])) return m[1];
   m = xml.match(/<media:content[^>]+url="([^"]+\.(?:jpg|jpeg|png|webp|gif))"/i);
-  if (m) return m[1];
+  if (m && !isBlocked(m[1])) return m[1];
 
   // media:thumbnail
   m = xml.match(/<media:thumbnail[^>]+url="([^"]+)"/i);
-  if (m) return m[1];
+  if (m && !isBlocked(m[1])) return m[1];
   m = xml.match(/<media:thumbnail[^>]+url='([^']+)'/i);
-  if (m) return m[1];
+  if (m && !isBlocked(m[1])) return m[1];
 
   // enclosure type="image/..."
   m = xml.match(/<enclosure[^>]+type="image[^"]*"[^>]*url="([^"]+)"/i);
-  if (m) return m[1];
+  if (m && !isBlocked(m[1])) return m[1];
   m = xml.match(/<enclosure[^>]+url="([^"]+)"[^>]*type="image[^"]*"/i);
-  if (m) return m[1];
+  if (m && !isBlocked(m[1])) return m[1];
 
   // Première <img src="..."> dans le contenu
   m = xml.match(/<img[^>]+src="(https?:[^"]+\.(?:jpg|jpeg|png|webp|gif)[^"]*)"/i);
-  if (m && !m[1].includes('pixel') && !m[1].includes('track')) return m[1];
+  if (m && !m[1].includes('pixel') && !m[1].includes('track') && !isBlocked(m[1])) return m[1];
 
   return '';
 }
