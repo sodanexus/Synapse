@@ -3236,16 +3236,9 @@ RÈGLES ABSOLUES :
 
     /** Met à jour le badge "non lus" dans la nav */
     function updateBadge() {
-      const unreadCount = STATE.articles.filter(a => !a.read).length;
+      // Badge numérique supprimé — on garde uniquement le dot breaking news
       const badge = document.getElementById('badge-feed');
-      if (badge) {
-        if (unreadCount > 0) {
-          badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
-          badge.classList.remove('hidden');
-        } else {
-          badge.classList.add('hidden');
-        }
-      }
+      if (badge) badge.classList.add('hidden');
 
       // Badge breaking news — importance 5 non lus
       const breakingBadge = document.getElementById('badge-breaking');
