@@ -1618,34 +1618,24 @@ RÈGLES ABSOLUES :
         bookmarkBtn.textContent = isBookmarked ? '◨' : '◧';
       }
 
-      // Chapô — premier paragraphe de ai_content (ou 2 premières phrases)
+      // Chapô — 2 premières phrases, corps du texte commence après
       const chapoEl = document.getElementById('reader-chapo');
+      let chapoText = '';
       if (chapoEl) {
         const fullText = (article.ai_content || '').trim();
-        // Découper par paragraphes (séparés par 
-
- ou 
-)
-        const paragraphs = fullText.split(/\n{1,2}/).map(p => p.trim()).filter(p => p.length > 30);
-        // Afficher seulement si le contenu a au moins 2 paragraphes
-        if (paragraphs.length >= 2) {
-          chapoEl.textContent = paragraphs[0];
+        const sentences = fullText.match(/[^.!?]+[.!?]+/g) || [];
+        if (sentences.length >= 3) {
+          chapoText = sentences.slice(0, 2).join(' ').trim();
+          chapoEl.textContent = chapoText;
           chapoEl.style.display = '';
         } else {
-          // Fallback : essayer avec les phrases
-          const sentences = fullText.match(/[^.!?]+[.!?]+/g) || [];
-          if (sentences.length >= 3) {
-            chapoEl.textContent = sentences.slice(0, 2).join(' ').trim();
-            chapoEl.style.display = '';
-          } else {
-            chapoEl.textContent = '';
-            chapoEl.style.display = 'none';
-          }
+          chapoEl.textContent = '';
+          chapoEl.style.display = 'none';
         }
       }
 
-      // Contenu IA
-      setContent(article, animate);
+      // Contenu IA — on retire le chapô du début pour éviter la répétition
+      setContent(article, animate, chapoText);
 
       // Restaurer la taille de police préférée
       FontSize.set(localStorage.getItem('synapse_fontsize') || 'md', false);
@@ -1707,9 +1697,13 @@ RÈGLES ABSOLUES :
     }
 
     /** Affiche le contenu de l'article (toujours la version IA) */
-    function setContent(article, animate = false) {
+    function setContent(article, animate = false, chapoText = '') {
       const contentEl = document.getElementById('reader-content');
-      const text = article.ai_content || article.content || article.description || '';
+      let text = article.ai_content || article.content || article.description || '';
+      // Retirer le chapô du début pour éviter la répétition
+      if (chapoText && text.startsWith(chapoText)) {
+        text = text.slice(chapoText.length).trim();
+      }
 
       // Conversion texte → paragraphes HTML
       const paragraphs = text.split(/\n{2,}/).filter(p => p.trim());
