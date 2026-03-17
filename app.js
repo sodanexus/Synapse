@@ -1700,9 +1700,12 @@ RÈGLES ABSOLUES :
     function setContent(article, animate = false, chapoText = '') {
       const contentEl = document.getElementById('reader-content');
       let text = article.ai_content || article.content || article.description || '';
-      // Retirer le chapô du début pour éviter la répétition
-      if (chapoText && text.startsWith(chapoText)) {
-        text = text.slice(chapoText.length).trim();
+      // Si chapô affiché, retirer les 2 premières phrases du corps
+      if (chapoText) {
+        const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
+        if (sentences.length >= 3) {
+          text = sentences.slice(2).join('').trim();
+        }
       }
 
       // Conversion texte → paragraphes HTML
