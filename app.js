@@ -1618,16 +1618,22 @@ RÈGLES ABSOLUES :
         bookmarkBtn.textContent = isBookmarked ? '◨' : '◧';
       }
 
-      // Chapô — 2 premières phrases, corps du texte commence après
+      // Chapô — première phrase, corps commence après
       const chapoEl = document.getElementById('reader-chapo');
       let chapoText = '';
       if (chapoEl) {
         const fullText = (article.ai_content || '').trim();
-        const sentences = fullText.match(/[^.!?]+[.!?]+/g) || [];
-        if (sentences.length >= 3) {
-          chapoText = sentences.slice(0, 1).join(' ').trim();
-          chapoEl.textContent = chapoText;
-          chapoEl.style.display = '';
+        if (fullText.length > 100) {
+          // Trouver la fin de la première phrase (., !, ?)
+          const match = fullText.match(/^.{40,200}?[.!?](?=\s|$)/);
+          if (match) {
+            chapoText = match[0].trim();
+            chapoEl.textContent = chapoText;
+            chapoEl.style.display = '';
+          } else {
+            chapoEl.textContent = '';
+            chapoEl.style.display = 'none';
+          }
         } else {
           chapoEl.textContent = '';
           chapoEl.style.display = 'none';
@@ -1700,12 +1706,10 @@ RÈGLES ABSOLUES :
     function setContent(article, animate = false, chapoText = '') {
       const contentEl = document.getElementById('reader-content');
       let text = article.ai_content || article.content || article.description || '';
-      // Si chapô affiché, retirer les 2 premières phrases du corps
-      if (chapoText) {
-        const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
-        if (sentences.length >= 3) {
-          text = sentences.slice(1).join('').trim();
-        }
+      // Si chapô affiché, retirer le chapô du début du corps
+      if (chapoText && text.length > chapoText.length) {
+        const rest = text.slice(chapoText.length).trim();
+        if (rest.length > 50) text = rest;
       }
 
       // Conversion texte → paragraphes HTML
