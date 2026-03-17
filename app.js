@@ -1625,7 +1625,7 @@ RÈGLES ABSOLUES :
         const fullText = (article.ai_content || '').trim();
         const sentences = fullText.match(/[^.!?]+[.!?]+/g) || [];
         if (sentences.length >= 3) {
-          chapoText = sentences.slice(0, 2).join(' ').trim();
+          chapoText = sentences.slice(0, 1).join(' ').trim();
           chapoEl.textContent = chapoText;
           chapoEl.style.display = '';
         } else {
@@ -1704,7 +1704,7 @@ RÈGLES ABSOLUES :
       if (chapoText) {
         const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
         if (sentences.length >= 3) {
-          text = sentences.slice(2).join('').trim();
+          text = sentences.slice(1).join('').trim();
         }
       }
 
