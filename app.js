@@ -87,7 +87,7 @@
     function save(userId, articles) {
       try {
         localStorage.setItem(key(userId), JSON.stringify({
-          articles: articles.slice(0, 200),
+          articles: articles.slice(0, 300),
           savedAt: Date.now(),
         }));
       } catch (err) {
@@ -209,7 +209,7 @@
     /* ── ARTICLES ── */
 
     /** Récupère les articles d'un utilisateur (dernières 48h) */
-    async function getArticles(userId, { days = 7, limit = 200, offset = 0 } = {}) {
+    async function getArticles(userId, { days = 7, limit = 300, offset = 0 } = {}) {
       const since = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
       const { data, error } = await client()
         .from('articles')
