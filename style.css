@@ -2081,10 +2081,19 @@ body.dark .reader-modal.hero-ready .reader-header {
   padding: 28px 36px 48px;
 }
 
-/* Hero title digest */
+/* Hero title digest — toujours visible avec padding correct */
 #digest-hero-title {
   font-size: clamp(1.4rem, 3vw, 2rem);
   letter-spacing: 0.02em;
+  padding: 24px 36px 20px;
+  position: relative;
+  z-index: 2;
+}
+
+/* Zone titre digest sans image — hauteur minimale */
+#digest-title-area:not(.has-hero) {
+  min-height: 0;
+  display: block;
 }
 
 /* Footer digest */
