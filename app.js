@@ -3342,9 +3342,12 @@ RÈGLES ABSOLUES :
     // Écouter les changements d'auth
     Auth.onAuthChange(async (user, event) => {
       // Ignorer les events qui ne changent pas l'état de connexion
-      // TOKEN_REFRESHED et USER_UPDATED ne nécessitent pas de recharger toute l'app
       if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-        if (user) STATE.user = user; // Mettre à jour le user silencieusement
+        if (user) STATE.user = user;
+        return;
+      }
+      // SIGNED_IN sur un user déjà chargé = retour d'onglet, ignorer
+      if (event === 'SIGNED_IN' && STATE.user && STATE.articles.length > 0) {
         return;
       }
 
