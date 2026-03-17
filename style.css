@@ -1341,7 +1341,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 }
 
 .reader-related-headline {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 0.85rem;
   font-weight: 500;
   color: var(--ink);
@@ -2062,7 +2062,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 /* Typographie éditoriale du digest */
 .feed-digest-text {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 0.92rem;
   line-height: 1.85;
   color: var(--ink);
@@ -2086,7 +2086,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 /* Corps — DM Sans, comme le reader-content */
 .feed-digest-text p {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   margin-bottom: 14px;
   font-size: 0.92rem;
   font-weight: 400;
@@ -2105,7 +2105,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 }
 
 .feed-digest-text li {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 0.88rem;
   padding: 4px 0 4px 16px;
   position: relative;
@@ -2293,7 +2293,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 /* Typographie plein écran — plus grande, cale sur le reader */
 .digest-fullscreen-body .feed-digest-text {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 1.05rem;
   line-height: 1.9;
 }
@@ -2320,7 +2320,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 }
 
 .digest-fullscreen-body .feed-digest-text p {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 1.05rem;
   line-height: 1.9;
   color: var(--ink-3);
@@ -2328,7 +2328,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 }
 
 .digest-fullscreen-body .feed-digest-text li {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 1rem;
   line-height: 1.8;
   color: var(--ink-3);
@@ -2442,7 +2442,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 }
 
 .digest-timeline-title {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 0.88rem;
   color: var(--ink);
   line-height: 1.4;
