@@ -1951,6 +1951,20 @@ RÈGLES ABSOLUES :
         }
       });
 
+      // Ré-enrichir avec l'IA
+      document.getElementById('btn-reenrich').addEventListener('click', () => {
+        const articleRef = STATE.currentArticleList[STATE.currentArticleIndex];
+        if (!articleRef) return;
+        // Forcer le ré-enrichissement en vidant ai_content
+        articleRef.ai_content = '';
+        articleRef.ai_title = null;
+        articleRef.ai_tags = [];
+        articleRef.importance = 0;
+        populate(articleRef);
+        enrichOnOpen(articleRef);
+        Toast.show('Ré-enrichissement en cours…', 'info');
+      });
+
       // Partager
       document.getElementById('btn-share-menu').addEventListener('click', async () => {
         const article = STATE.currentArticleList[STATE.currentArticleIndex];
