@@ -1343,6 +1343,9 @@ RÈGLES ABSOLUES :
       // Indicateur de chargement sur le titre du reader
       const titleEl = document.getElementById('reader-title');
       if (titleEl) titleEl.style.opacity = '0.5';
+      // Désactiver le bouton TTS pendant l'enrichissement
+      const ttsBtn = document.getElementById('btn-listen');
+      if (ttsBtn) ttsBtn.disabled = true;
 
       try {
         const result = await AI.enrichArticle(article);
@@ -1371,6 +1374,10 @@ RÈGLES ABSOLUES :
           }).catch(err => console.warn('Sauvegarde Supabase échouée:', err));
         }
 
+        // Réactiver le bouton TTS
+        const ttsBtnAfter = document.getElementById('btn-listen');
+        if (ttsBtnAfter) ttsBtnAfter.disabled = false;
+
         const currentArticle = STATE.currentArticleList[STATE.currentArticleIndex];
         if (currentArticle && currentArticle.hash === article.hash) {
           populate(article, true);
@@ -1380,6 +1387,9 @@ RÈGLES ABSOLUES :
         _updateFeedRow(article);
 
       } catch (err) {
+        // Réactiver le bouton TTS même en cas d'erreur
+        const ttsBtnErr = document.getElementById('btn-listen');
+        if (ttsBtnErr) ttsBtnErr.disabled = false;
         if (err.message === 'QUOTA_EXHAUSTED') {
           _showQuotaWarning();
         } else {
