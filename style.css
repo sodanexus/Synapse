@@ -2926,7 +2926,8 @@ body.dark .reader-summary {
 }
 
 body.dark .reader-related {
-  background: var(--grey-wash);
+  background: var(--paper);
+  border-color: transparent;
 }
 
 body.dark .add-feed-form {
