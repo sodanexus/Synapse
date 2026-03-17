@@ -1905,6 +1905,8 @@ RÈGLES ABSOLUES :
 
       // Touche Escape
       document.addEventListener('keydown', (e) => {
+        // Ne pas intercepter les touches dans les champs de saisie
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
         if (e.key === 'Escape') close();
         if (e.key === 'ArrowRight') goNext();
         if (e.key === 'ArrowLeft') goPrev();
