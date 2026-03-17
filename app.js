@@ -585,8 +585,8 @@ RÈGLES ABSOLUES :
 - Pas d'introduction, pas de conclusion, pas de titre général
 - Langue : français
 - Cite les sources entre parenthèses dans le texte`,
-        `Rédige un briefing structuré par thèmes (4 thèmes maximum, choisis les plus importants). Pour chaque thème : un <h2> avec le nom du thème, un <p> de synthèse de 2-3 phrases, et une <ul> avec 3 points clés maximum.\n\n${articlesText}`,
-        800,
+        `Rédige un briefing très court et dense. 3 thèmes maximum. Pour chaque thème : un <h2> avec le nom du thème, un <p> de synthèse d'1 phrase maximum, et une <ul> avec 2 points clés maximum. Sois concis, va à l'essentiel.\n\n${articlesText}`,
+        1500,
         0,
         CONFIG.GROQ_MODEL_DIGEST
       );
@@ -2626,27 +2626,47 @@ RÈGLES ABSOLUES :
       titleArea.classList.remove('has-hero');
       if (modal) modal.classList.remove('hero-ready');
 
-      // Trouver l'article le plus important avec une image
+      // Trouver l'article le plus important
       const topArticle = STATE.articles
-        .filter(a => a.image && a.image.length > 0)
         .sort((a, b) => (b.importance || 0) - (a.importance || 0))[0];
 
-      if (!topArticle?.image) return;
+      if (!topArticle) return;
 
+      // Appliquer image si déjà disponible
+      if (topArticle.image) {
+        _applyDigestHero(titleArea, modal, topArticle.image);
+        return;
+      }
+
+      // Sinon scrape OG en arrière-plan
+      if (topArticle.link) {
+        fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(topArticle.link)}`, {
+          signal: AbortSignal.timeout(8000),
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (!data?.ogImage) return;
+            topArticle.image = data.ogImage;
+            _applyDigestHero(titleArea, modal, data.ogImage);
+          })
+          .catch(() => {});
+      }
+    }
+
+    function _applyDigestHero(titleArea, modal, url) {
       if (modal) modal.classList.add('hero-ready');
-
       const img = new Image();
       img.onload = () => {
         const bg = document.createElement('div');
         bg.className = 'hero-bg';
-        bg.style.backgroundImage = `url('${topArticle.image.replace(/'/g, "\\'")}')`;
+        bg.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
         titleArea.insertBefore(bg, titleArea.firstChild);
         titleArea.classList.add('has-hero');
         void bg.offsetHeight;
         bg.classList.add('hero-visible');
       };
       img.onerror = () => {};
-      img.src = topArticle.image;
+      img.src = url;
     }
 
     function init() {
