@@ -95,7 +95,6 @@ body.dark {
   --border: 1px solid #353230;
 }
 
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { font-size: 16px; scroll-behavior: smooth; }
@@ -522,13 +521,6 @@ ul { list-style: none; }
 
 .view-date,
 .view-subtitle,
-.articles-count {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--grey-mid);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
 
 /* ── Bouton primaire ── */
 .btn-primary {
@@ -656,12 +648,6 @@ ul { list-style: none; }
 /* ================================================================
    ARTICLE CARDS — grille (HOME)
    ================================================================ */
-.articles-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  margin-bottom: 56px;
-}
 
 .article-card {
   background: var(--white);
@@ -673,61 +659,6 @@ ul { list-style: none; }
 }
 
 /* Ligne d'importance en haut — très fine */
-.card-imp-bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
-.card-imp-bar.imp-1 { background: var(--imp-1); }
-.card-imp-bar.imp-2 { background: var(--imp-2); }
-.card-imp-bar.imp-3 { background: var(--imp-3); }
-.card-imp-bar.imp-4 { background: var(--imp-4); }
-.card-imp-bar.imp-5 { background: var(--imp-5); }
-
-.card-source {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.12em;
-  color: var(--grey-mid);
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-
-.card-title {
-  font-family: var(--font-display);
-  font-size: 1.05rem;
-  font-weight: 400;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
-  color: var(--ink);
-  margin-bottom: 10px;
-}
-
-.card-excerpt {
-  font-size: 0.82rem;
-  color: var(--grey-deep);
-  line-height: 1.65;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.card-footer {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: var(--border);
-}
-
-.card-date {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  color: var(--grey-light);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.card-tags { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 
 .tag {
   font-family: var(--font-mono);
@@ -873,49 +804,8 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 /* ================================================================
    CLUSTERS
    ================================================================ */
-.clusters-grid { display: flex; flex-direction: column; }
 
-.cluster-card {
-  border-bottom: var(--border);
-  animation: viewIn 0.35s var(--ease) both;
-}
-
-.cluster-card:first-child { border-top: var(--border); }
-
-.cluster-header {
-  padding: 20px 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.cluster-header:hover { opacity: 0.65; }
-
-.cluster-topic {
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 400;
-  letter-spacing: -0.01em;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.cluster-count {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  color: var(--grey-mid);
-  border: var(--border);
-  padding: 2px 7px;
-  letter-spacing: 0.05em;
-}
-
-.cluster-toggle { font-size: 0.85rem; color: var(--grey-mid); transition: transform 0.3s var(--ease); }
-.cluster-card.open .cluster-toggle { transform: rotate(180deg); }
-.cluster-articles { display: none; padding-bottom: 8px; }
-.cluster-card.open .cluster-articles { display: block; }
+.cluster-card.open 
 
 /* ================================================================
    SETTINGS — GESTION FEEDS
@@ -1098,7 +988,6 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 
 .reader-date { font-family: var(--font-mono); font-size: 0.62rem; color: var(--grey-light); }
 
-
 .reader-btn {
   font-family: var(--font-mono);
   font-size: 0.62rem;
@@ -1143,8 +1032,6 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 
 /* Tags reader */
 .reader-tags { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 36px 12px; border-bottom: var(--border); }
-
-
 
 /* Titre reader */
 .reader-title {
@@ -1258,7 +1145,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   outline: none;
   box-shadow: 0 8px 48px rgba(0,0,0,0.14);
 }
-
 
 /* Pas de séparation visuelle entre hero et contenu */
 .reader-modal.hero-ready .reader-content {
@@ -1552,7 +1438,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 @media (max-width: 600px) {
   .view { padding: 8px 16px 40px; } /* padding-top minimal sur mobile */
   .view-title { font-size: 2.2rem; }
-  .articles-grid { grid-template-columns: 1fr; gap: 12px; }
+  
   .form-row { flex-direction: column; }
   .form-input { min-width: unset; width: 100%; }
   .modal-overlay {
@@ -1604,9 +1490,6 @@ body.dark .reader-modal.hero-ready .reader-header {
     border-radius: 2px;
     margin: 0 auto;
   }
-
-
-
 
   /* Source digest — pas d'animation */
   #digest-header .reader-source { animation: none; max-width: none; }
@@ -1809,10 +1692,6 @@ body.dark .reader-modal.hero-ready .reader-header {
 .reader-btn:active { transform: scale(0.95); }
 
 /* Cluster cards */
-.cluster-card {
-  transition: box-shadow var(--t-normal), transform var(--t-normal);
-}
-.cluster-card:hover { box-shadow: var(--shadow-lift); }
 
 /* Feed rows dans settings */
 .feed-row {
@@ -1932,9 +1811,6 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 .scroll-top-btn:hover { transform: translateY(-2px); }
 .scroll-top-btn:active { transform: scale(0.92); }
-
-
-
 
 /* Résumé dans les rows de la vue FLUX */
 .row-excerpt {
@@ -2164,7 +2040,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   left: 0;
   color: var(--grey-light);
 }
-
 
 /* ================================================================
    TTS PROGRESS BAR — Reader & Digest
@@ -2398,7 +2273,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   .digest-fullscreen-date { display: none; }
 }
 
-
 /* ================================================================
    DIGEST TIMELINE CHRONOLOGIQUE
    ================================================================ */
@@ -2498,7 +2372,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-
 
 /* Articles lus dans la timeline */
 .timeline-read { opacity: 0.4; }
@@ -2825,7 +2698,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   border-color: var(--ink);
 }
 
-
 /* ================================================================
    QUOTA TRACKER — indicateur d'utilisation API Groq
    ================================================================ */
@@ -2885,7 +2757,6 @@ body.dark {
   flex-shrink: 0;
 }
 
-
 /* ================================================================
    QUOTA WARNING — affiché dans le reader quand quota épuisé
    ================================================================ */
@@ -2919,7 +2790,6 @@ body.dark {
   color: var(--grey-light);
   font-size: 0.65rem;
 }
-
 
 .reader-meta-bottom {
   padding: 20px 36px;
@@ -3063,7 +2933,6 @@ body.dark .quota-warning {
   background: var(--grey-wash);
   border-color: var(--grey-subtle);
 }
-
 
 /* ================================================================
    TTS — Bouton écouter dans le reader
