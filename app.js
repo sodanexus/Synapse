@@ -1955,12 +1955,19 @@ RÈGLES ABSOLUES :
       document.getElementById('btn-reenrich').addEventListener('click', () => {
         const articleRef = STATE.currentArticleList[STATE.currentArticleIndex];
         if (!articleRef) return;
-        // Forcer le ré-enrichissement en vidant ai_content
+        // Vider uniquement les champs IA sans re-render l'article
         articleRef.ai_content = '';
         articleRef.ai_title = null;
         articleRef.ai_tags = [];
         articleRef.importance = 0;
-        populate(articleRef);
+        // Aussi mettre à jour l'objet dans STATE.articles (même hash)
+        const stateArticle = STATE.articles.find(a => a.hash === articleRef.hash);
+        if (stateArticle) {
+          stateArticle.ai_content = '';
+          stateArticle.ai_title = null;
+          stateArticle.ai_tags = [];
+          stateArticle.importance = 0;
+        }
         enrichOnOpen(articleRef);
         Toast.show('Ré-enrichissement en cours…', 'info');
       });
