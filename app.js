@@ -514,11 +514,23 @@ TITRE : ${article.title}
 SOURCE : ${article.feed_name}
 TEXTE : ${rssText}`;
 
-      const raw = await callGroq(systemPrompt, prompt, 800);
+      const raw = await callGroq(systemPrompt, prompt, 1500);
       console.log('[Gemini raw]', raw.substring(0, 300));
 
       try {
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        // Nettoyer les backticks markdown que Gemini peut ajouter
+        let cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+
+        // Tenter d'extraire le JSON — s'il est tronqué, tenter de le réparer
+        let jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          // Tentative de réparation : fermer le JSON tronqué
+          const partial = cleaned.match(/\{[\s\S]*/);
+          if (partial) {
+            try { JSON.parse(partial[0] + '"}'); jsonMatch = [partial[0] + '"}']; } catch {}
+            if (!jsonMatch) { try { JSON.parse(partial[0] + '"}]}'); jsonMatch = [partial[0] + '"}]}']; } catch {} }
+          }
+        }
         if (!jsonMatch) throw new Error('No JSON found in response');
 
         const parsed = JSON.parse(jsonMatch[0]);
