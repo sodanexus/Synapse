@@ -1176,9 +1176,15 @@ body.dark .reader-modal.hero-ready .reader-header {
   border-bottom: none;
 }
 
+.reader-modal:has(.reader-title-area.has-hero) .reader-tags {
+  border-bottom: none;
+}
+
 .reader-modal:has(.reader-title-area.has-hero) .reader-chapo {
   border-top: none;
-  margin-top: -2px;
+  border-bottom: none;
+  margin-top: 0;
+  padding-top: 20px;
   position: relative;
   z-index: 2;
 }
