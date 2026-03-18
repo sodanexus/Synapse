@@ -1587,32 +1587,48 @@ RÈGLES ABSOLUES :
       if (modal) modal.classList.remove('hero-ready');
     }
 
-    /** Injecte ou remplace un div.hero-bg avec transition douce */
+    /** Injecte ou remplace un div.hero-bg.
+     *  - Image en cache navigateur → affichage instantané (complete = true)
+     *  - Image non encore chargée → fade-in après onload
+     */
     function _applyHero(titleArea, url, existingBg) {
-      const img = new Image();
-      img.onload = () => {
-        // Si même conteneur a déjà un hero-bg différent → le remplacer sans flash
-        const old = existingBg || titleArea.querySelector('.hero-bg');
-        if (old && old.dataset.url !== url) {
-          // Cross-fade : nouvelle image par-dessus, puis retirer l'ancienne
-          const bg = _createHeroBg(url);
-          titleArea.insertBefore(bg, titleArea.firstChild);
-          titleArea.classList.add('has-hero');
-          void bg.offsetHeight;
-          bg.classList.add('hero-visible');
-          setTimeout(() => { if (old.parentNode) old.remove(); }, 650);
-        } else if (!old) {
-          // Pas d'image précédente — fade-in normal
-          const bg = _createHeroBg(url);
-          titleArea.insertBefore(bg, titleArea.firstChild);
-          titleArea.classList.add('has-hero');
+      const old = existingBg || titleArea.querySelector('.hero-bg');
+
+      // Si même URL déjà affichée → rien à faire
+      if (old && old.dataset.url === url && titleArea.classList.contains('has-hero')) return;
+
+      const probe = new Image();
+
+      const _insert = (instant) => {
+        const bg = _createHeroBg(url);
+        // Instantané : visible directement sans transition
+        if (instant) bg.classList.add('hero-visible');
+        titleArea.insertBefore(bg, titleArea.firstChild);
+        titleArea.classList.add('has-hero');
+
+        if (!instant) {
+          // Forcer reflow puis fade-in
           void bg.offsetHeight;
           bg.classList.add('hero-visible');
         }
-        // Si même URL — déjà affiché, rien à faire
+
+        // Retirer l'ancienne image après la transition
+        if (old && old !== bg) {
+          setTimeout(() => { if (old.parentNode) old.remove(); }, instant ? 0 : 650);
+        }
       };
-      img.onerror = () => {};
-      img.src = url;
+
+      probe.onload = () => {
+        // complete = true si déjà en cache au moment du onload
+        _insert(probe.complete && probe.naturalWidth > 0);
+      };
+      probe.onerror = () => {};
+
+      // Si l'image est déjà en cache, complete est true avant même onload
+      probe.src = url;
+      if (probe.complete && probe.naturalWidth > 0) {
+        _insert(true); // instantané
+      }
     }
 
     /** Crée un div.hero-bg prêt à insérer */
