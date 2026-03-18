@@ -807,22 +807,20 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   background: var(--white);
   border: var(--border);
   padding: 32px;
-  margin-top: 20px;
   margin-bottom: 40px;
   position: relative;
 }
 
-.add-feed-form::before {
-  content: 'Nouveau feed';
-  position: absolute;
-  top: -10px; left: 24px;
-  background: var(--white);
-  padding: 0 8px;
+.add-feed-form-label {
+  display: block;
   font-family: var(--font-mono);
   font-size: 0.62rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--grey-mid);
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: var(--border);
 }
 
 .form-title {
@@ -2641,10 +2639,6 @@ body.dark .reader-related {
 body.dark .add-feed-form {
   background: var(--white);
   border-color: var(--grey-subtle);
-}
-
-body.dark .add-feed-form::before {
-  background: var(--white);
 }
 
 body.dark .digest-zone {
