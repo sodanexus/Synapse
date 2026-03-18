@@ -143,6 +143,8 @@
       STATE.user = null;
       STATE.feeds = [];
       STATE.articles = [];
+      STATE.bookmarks = new Set();
+      STATE.readArticles = new Set();
     }
 
     /** Récupère la session active */
@@ -239,26 +241,23 @@
       return data || [];
     }
 
-    /** Upsert un article — insert si nouveau, ignore si hash déjà présent pour ce user */
+    /** Upsert un article — retourne l'id Supabase pour que l'appelant puisse l'assigner */
     async function upsertArticle(article) {
-      // On tente d'abord un insert simple
-      const { error } = await client()
+      const { data, error } = await client()
         .from('articles')
-        .upsert(article, {
-          onConflict: 'user_id,hash',
-          ignoreDuplicates: false,
-        });
+        .upsert(article, { onConflict: 'user_id,hash', ignoreDuplicates: false })
+        .select('id')
+        .single();
 
-      // Si la contrainte (user_id,hash) n'existe pas encore en base (400),
-      // on retombe sur onConflict: 'hash' en attendant la migration SQL
       if (error && error.code === '42P10') {
+        // Contrainte composite absente — fallback sur hash seul
         const { error: error2 } = await client()
-          .from('articles')
-          .upsert(article, { onConflict: 'hash' });
+          .from('articles').upsert(article, { onConflict: 'hash' });
         if (error2) throw error2;
-      } else if (error) {
-        throw error;
+        return null;
       }
+      if (error) throw error;
+      return data?.id ?? null;
     }
 
     /** Met à jour le statut lu/bookmark d'un article */
@@ -455,8 +454,6 @@
      */
     async function callGroq(systemPrompt, userPrompt, maxTokens = 800, retryCount = 0, model = null) {
       const usedModel = model || CONFIG.GROQ_MODEL_ENRICH;
-      // Incrémenter le compteur quota
-      QuotaTracker.increment(usedModel);
       const response = await fetch(`${CONFIG.WORKER_URL}/ai`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -488,6 +485,8 @@
         throw new Error(`Groq API error ${response.status}: ${err}`);
       }
 
+      // Incrémenter uniquement sur succès réel
+      QuotaTracker.increment(usedModel);
       const data = await response.json();
       return data.text || '';
     }
@@ -648,6 +647,7 @@ RÈGLES ABSOLUES :
     function jaccardSimilarity(str1, str2) {
       const words1 = new Set(tokenize(str1));
       const words2 = new Set(tokenize(str2));
+      if (words1.size === 0 && words2.size === 0) return 0;
       const intersection = new Set([...words1].filter(w => words2.has(w)));
       const union = new Set([...words1, ...words2]);
       return union.size === 0 ? 0 : intersection.size / union.size;
@@ -838,7 +838,8 @@ RÈGLES ABSOLUES :
       if (save) localStorage.setItem(STORAGE_KEY, size);
     }
 
-    return { init, set };
+    function getCurrent() { return current; }
+    return { init, set, getCurrent };
   })();
 
   /* ================================================================
@@ -966,7 +967,6 @@ RÈGLES ABSOLUES :
       if (isImportant) {
         // Vue card compacte pour les articles importants
         row.className = `article-card-compact${article.read ? ' read' : ''}`;
-        const isBookmarked = STATE.bookmarks.has(article.id || article.hash);
         row.innerHTML = `
           <div class="card-compact-bar imp-${score}"></div>
           <div class="card-compact-header">
@@ -1097,10 +1097,6 @@ RÈGLES ABSOLUES :
           .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
         filtered = [...breaking, ...rest];
 
-        // Ajouter un séparateur visuel si des articles importants sont en tête
-        if (breaking.length > 0) {
-          filtered._breakingCount = breaking.length;
-        }
       } else {
         filtered.sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
       }
@@ -1132,7 +1128,12 @@ RÈGLES ABSOLUES :
       const paginated = filtered.slice(0, (page + 1) * PAGE_SIZE);
 
       // Grille en tête pour les articles breaking (seulement page 0)
-      const breakingCount = (page === 0 && filtered._breakingCount) ? filtered._breakingCount : 0;
+      // Nombre d'articles breaking en tête (seulement page 0, en mode filtre all sans recherche)
+      const _bc = (page === 0 && filter === 'all' && !query && STATE.searchResults === null)
+        ? paginated.filter(a => (a.importance || 0) >= 4 && !a.read).length
+        : 0;
+      // Limiter au vrai nombre calculé précédemment (max 4)
+      const breakingCount = Math.min(_bc, 4);
       const breakingArticles = paginated.slice(0, breakingCount);
       const restArticles = paginated.slice(breakingCount);
 
@@ -1150,10 +1151,10 @@ RÈGLES ABSOLUES :
         container.appendChild(sep);
       }
 
-      // Articles normaux
+      // Articles normaux — wrapper léger pour _forceRow, sans muter l'objet original
       restArticles.forEach((article, i) => {
-        article._forceRow = true;
-        container.appendChild(articleRow(article, i + breakingCount, filtered));
+        const articleProxy = Object.assign(Object.create(null), article, { _forceRow: true });
+        container.appendChild(articleRow(articleProxy, i + breakingCount, filtered));
       });
 
       // Infinite scroll — sentinel en bas de liste
@@ -1399,20 +1400,26 @@ RÈGLES ABSOLUES :
 
         if (STATE.user) {
           DB.upsertArticle({
-            feed_id:          article.feed_id || null,
-            user_id:          STATE.user.id,
-            hash:             article.hash,
-            title:            article.title          || '',
-            link:             article.link           || '',
-            content:          article.content        || '',
-            ai_title:         result.ai_title        || null,
-            ai_content:       cleanAiContent         || '',
-            ai_tags:          result.ai_tags         || [],
-            importance:       result.importance      || 1,
-            pub_date:         article.pub_date       || new Date().toISOString(),
-            read:             article.read           || false,
-            bookmarked:       article.bookmarked     || false,
-            image:            article.image          || null,
+            feed_id:    article.feed_id    || null,
+            user_id:    STATE.user.id,
+            hash:       article.hash,
+            title:      article.title      || '',
+            link:       article.link       || '',
+            content:    article.content    || '',
+            ai_title:   result.ai_title    || null,
+            ai_content: cleanAiContent     || '',
+            ai_tags:    result.ai_tags     || [],
+            importance: result.importance  || 1,
+            pub_date:   article.pub_date   || new Date().toISOString(),
+            read:       article.read       || false,
+            bookmarked: article.bookmarked || false,
+            image:      article.image      || null,
+          }).then(newId => {
+            if (newId && !article.id) {
+              article.id = newId;
+              const stateRef2 = STATE.articles.find(a => a.hash === article.hash);
+              if (stateRef2) stateRef2.id = newId;
+            }
           }).catch(err => console.warn('Sauvegarde Supabase échouée:', err));
         }
 
@@ -1724,8 +1731,8 @@ RÈGLES ABSOLUES :
       // Contenu IA — on retire le chapô du début pour éviter la répétition
       setContent(article, animate, chapoText);
 
-      // Restaurer la taille de police préférée
-      FontSize.set(localStorage.getItem('synapse_fontsize') || 'md', false);
+      // Restaurer la taille de police préférée depuis l'état interne
+      FontSize.set(FontSize.getCurrent(), false);
 
       // Articles similaires
       renderRelated(article);
@@ -1803,20 +1810,19 @@ RÈGLES ABSOLUES :
         return;
       }
 
-      // Animation streaming : les mots apparaissent un à un
-      contentEl.innerHTML = paragraphs.map(p =>
-        `<p>${Render.escapeHtml(p.trim())}</p>`
-      ).join('');
-
       // Brider l'animation aux articles courts — évite le freeze sur mobile
       const totalWords = text.split(/\s+/).filter(Boolean).length;
       if (totalWords > 300) {
-        // Article long → affichage direct, pas d'animation
         contentEl.innerHTML = paragraphs.map(p =>
           `<p>${Render.escapeHtml(p.trim())}</p>`
         ).join('');
         return;
       }
+
+      // FIX: un seul render initial, puis animation par-dessus
+      contentEl.innerHTML = paragraphs.map(p =>
+        `<p>${Render.escapeHtml(p.trim())}</p>`
+      ).join('');
 
       // Récupérer tous les noeuds texte et animer mot par mot
       const allWords = [];
@@ -1978,7 +1984,6 @@ RÈGLES ABSOLUES :
           if (!article) return;
           const text = article.ai_content || article.content || article.title || '';
           if (!text) return;
-          const lang = (typeof summaryLang !== 'undefined' && summaryLang === 'en') ? 'en-US' : 'fr-FR';
           TTS.toggle(text);
         });
       }
@@ -2512,7 +2517,8 @@ RÈGLES ABSOLUES :
   const Digest = (() => {
     /** Nettoie et normalise le HTML du digest — convertit markdown → HTML */
     function cleanDigestHtml(raw) {
-      let html = raw.replace(/<\/?[a-z]+>?\s*$/gi, '').trim();
+      // Retirer uniquement les balises HTML incomplètes en fin de string (pas de texte)
+      let html = raw.replace(/<[a-z]+[^>]*$/i, '').trim();
 
       if (!html.includes('<h') && !html.includes('<p') && !html.includes('<ul')) {
         html = html
@@ -3034,17 +3040,21 @@ RÈGLES ABSOLUES :
       _save(data);
     }
 
-    /** Marque un modèle comme épuisé (429 reçu) */
+    /** Marque un modèle comme épuisé (429 reçu) — stocke un timestamp pour expiration auto */
     function markExhausted(model) {
       const data = _load();
-      data.exhausted[model] = true;
+      data.exhausted[model] = Date.now();
       _save(data);
     }
 
-    /** Vérifie si un modèle est épuisé */
+    /** Vérifie si un modèle est épuisé — expire après 1 heure */
     function isExhausted(model) {
       const data = _load();
-      return !!data.exhausted[model];
+      const ts = data.exhausted[model];
+      if (!ts) return false;
+      // Migration depuis ancien format boolean
+      if (ts === true) return false;
+      return (Date.now() - ts) < 60 * 60 * 1000;
     }
 
     /** Retourne le nb d'appels restants estimés */
@@ -3115,31 +3125,31 @@ RÈGLES ABSOLUES :
 
         try {
           const result = await AI.enrichArticle(article);
+          article.ai_title   = result.ai_title || null;
           article.ai_content = result.ai_content;
           article.importance = result.importance;
           article.ai_tags    = result.ai_tags;
 
-          // Sauvegarder en base
           if (STATE.user) {
             DB.upsertArticle({
-              feed_id:    article.feed_id || null,
+              feed_id:    article.feed_id    || null,
               user_id:    STATE.user.id,
               hash:       article.hash,
-              title:      article.title    || '',
-              link:       article.link     || '',
-              content:    article.content  || '',
-              ai_title:   result.ai_title  || null,
-              ai_content: result.ai_content || '',
-              ai_tags:    result.ai_tags   || [],
-              importance: result.importance || 1,
-              pub_date:   article.pub_date || new Date().toISOString(),
-              read:       article.read     || false,
+              title:      article.title      || '',
+              link:       article.link       || '',
+              content:    article.content    || '',
+              ai_title:   result.ai_title    || null,
+              ai_content: result.ai_content  || '',
+              ai_tags:    result.ai_tags     || [],
+              importance: result.importance  || 1,
+              pub_date:   article.pub_date   || new Date().toISOString(),
+              read:       article.read       || false,
               bookmarked: article.bookmarked || false,
-              image:      article.image    || null,
+              image:      article.image      || null,
+            }).then(newId => {
+              if (newId && !article.id) article.id = newId;
             }).catch(() => {});
           }
-          // Mettre à jour ai_title en mémoire aussi
-          article.ai_title = result.ai_title || null;
           // Mettre à jour la row dans le feed sans re-render complet
           Reader._updateFeedRow(article);
         } catch (err) {
@@ -3238,12 +3248,11 @@ RÈGLES ABSOLUES :
 
         // Sauvegarder les articles pas encore en base (pas d'id Supabase)
         if (STATE.user) {
-          // Upsert en silence, par lots de 5 pour ne pas surcharger
-          const saveNew = STATE.articles.filter(a => !a.id); // pas encore en base
+          const saveNew = STATE.articles.filter(a => !a.id);
           for (let i = 0; i < saveNew.length; i += 5) {
             const batch = saveNew.slice(i, i + 5);
-            await Promise.allSettled(batch.map(a => DB.upsertArticle({
-              feed_id:    a.feed_id || null,
+            const results = await Promise.allSettled(batch.map(a => DB.upsertArticle({
+              feed_id:    a.feed_id    || null,
               user_id:    STATE.user.id,
               hash:       a.hash,
               title:      a.title      || '',
@@ -3258,6 +3267,12 @@ RÈGLES ABSOLUES :
               bookmarked: a.bookmarked || false,
               image:      a.image      || null,
             })));
+            // Assigner les IDs retournés pour éviter les re-upserts au prochain sync
+            results.forEach((result, idx) => {
+              if (result.status === 'fulfilled' && result.value) {
+                batch[idx].id = result.value;
+              }
+            });
           }
         }
 
@@ -3565,6 +3580,7 @@ RÈGLES ABSOLUES :
       if (!q) {
         STATE.searchQuery = '';
         STATE.searchResults = null;
+        STATE.isSearching = false; // FIX: reset si l'utilisateur efface la query
         STATE.articlesPage = 0;
         Render.renderFeedArticles(STATE.articles, STATE.currentFilter, '');
         return;
@@ -3594,7 +3610,10 @@ RÈGLES ABSOLUES :
 
         try {
           const dbResults = await DB.searchArticles(STATE.user.id, q);
-          if (STATE.searchQuery !== q) return; // La query a changé entre temps
+          if (STATE.searchQuery !== q) {
+            STATE.isSearching = false; // FIX: toujours reset même si query obsolète
+            return;
+          }
 
           // Normaliser les résultats DB
           const normalized = dbResults.map(a => ({
@@ -3836,7 +3855,6 @@ RÈGLES ABSOLUES :
         if (minutesSinceSync > SYNC_INTERVAL_MIN) {
           setTimeout(() => Sync.run(), 1000);
         } else {
-          const remaining = Math.round(SYNC_INTERVAL_MIN - minutesSinceSync);
           Sync.updateLastSyncLabel();
         }
 
