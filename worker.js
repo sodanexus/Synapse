@@ -287,6 +287,12 @@ async function handleScrape(url, corsHeaders) {
   try {
     parsedUrl = new URL(articleUrl);
     if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Protocol not allowed');
+    // Bloquer les requêtes vers localhost / IP privées (SSRF protection)
+    const hostname = parsedUrl.hostname.toLowerCase();
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') ||
+        hostname.startsWith('10.') || hostname.startsWith('172.16.') || hostname === '::1') {
+      throw new Error('Private addresses not allowed');
+    }
   } catch {
     return jsonResponse({ error: 'Invalid URL' }, 400, corsHeaders);
   }
@@ -299,6 +305,7 @@ async function handleScrape(url, corsHeaders) {
     },
     redirect: 'follow',
     cf: { cacheTtl: 3600 },
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!response.ok) {
@@ -399,7 +406,8 @@ function extractArticleText(html) {
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
-      .replace(/&#\d+;/g, '')
+      .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code)))
+      .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
       .replace(/\s+/g, ' ')
       .trim();
 
@@ -461,13 +469,7 @@ async function handleTTS(request, env, corsHeaders) {
     }
 
     const audioBuffer = await res.arrayBuffer();
-    const bytes = new Uint8Array(audioBuffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    const base64 = btoa(binary);
-
+    const base64 = arrayBufferToBase64(audioBuffer);
     return new Response(JSON.stringify({ audioBase64: base64 }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -504,20 +506,14 @@ async function handleTTS(request, env, corsHeaders) {
       return jsonResponse({ error: 'No OutputUri in response' }, 500, corsHeaders);
     }
 
-    // Télécharger le MP3 et l'encoder en base64
-    const mp3Res = await fetch(mp3Url);
+    // Télécharger le MP3 et l'encoder en base64 — avec timeout pour éviter les blocages
+    const mp3Res = await fetch(mp3Url, { signal: AbortSignal.timeout(30000) });
     if (!mp3Res.ok) {
       return jsonResponse({ error: 'Failed to fetch MP3 from OutputUri' }, 500, corsHeaders);
     }
 
     const audioBuffer = await mp3Res.arrayBuffer();
-    const bytes = new Uint8Array(audioBuffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    const base64 = btoa(binary);
-
+    const base64 = arrayBufferToBase64(audioBuffer);
     return new Response(JSON.stringify({ audioBase64: base64 }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -528,6 +524,23 @@ async function handleTTS(request, env, corsHeaders) {
 /* ================================================================
    UTILITAIRE — Réponse JSON
    ================================================================ */
+
+/**
+ * Convertit un ArrayBuffer en base64 de manière efficace.
+ * L'approche btoa(String.fromCharCode(...bytes)) est O(n²) sur de grands buffers
+ * car elle construit une string en concaténant des chars un à un.
+ * On utilise à la place des chunks de 8192 bytes.
+ */
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 8192;
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
 function jsonResponse(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
