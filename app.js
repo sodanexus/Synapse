@@ -37,10 +37,6 @@
     // llama-3.3-70b-versatile : 1K req/jour  → digest uniquement (complexe, rare)
     GROQ_MODEL_ENRICH: 'llama-3.1-8b-instant',
     GROQ_MODEL_DIGEST: 'llama-3.3-70b-versatile',
-    // Quota journalier estimé (req/jour free tier)
-    QUOTA_ENRICH_DAILY: 14400,
-    QUOTA_DIGEST_DAILY: 1000,
-
     // Nombre d'articles max à charger par fetch
     MAX_ARTICLES_PER_FEED: 20,
 
@@ -218,7 +214,6 @@
         .select('*, feeds(name, category)')
         .eq('user_id', userId)
         .gte('pub_date', since)
-        .order('importance', { ascending: false })
         .order('pub_date', { ascending: false })
         .range(offset, offset + limit - 1);
       if (error) throw error;
@@ -234,7 +229,6 @@
         .select('*, feeds(name, category)')
         .eq('user_id', userId)
         .or(`title.ilike.%${q}%,ai_content.ilike.%${q}%,content.ilike.%${q}%`)
-        .order('importance', { ascending: false })
         .order('pub_date', { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -403,7 +397,6 @@
               // Champs IA — remplis après
               ai_content: null,
               ai_tags: [],
-              importance: 0,
               read: false,
               bookmarked: false,
             }));
@@ -494,9 +487,8 @@
     /**
      * Enrichit un article avec l'IA :
      *   - réécriture sans bruit
-     *   - score d'importance (1-5)
      *   - tags thématiques
-     * Retourne { ai_content, importance, ai_tags }
+     * Retourne { ai_content, ai_title, ai_tags }
      */
     /** Vérifie si un article a été correctement enrichi par l'IA */
     function isEnriched(article) {
@@ -519,13 +511,13 @@
       ].filter(Boolean).join('\n\n').substring(0, 4000);
 
       if (rssText.trim().length < 30) {
-        return { ai_content: article.content || article.title || '', importance: 1, ai_tags: [] };
+        return { ai_content: article.content || article.title || '', ai_tags: [] };
       }
 
       const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris ou résumes les articles RSS en prose claire et fluide. Tu supprimes tout le bruit (publicités, appels à l'action, mentions légales). Tu réécris en 300-400 mots minimum, en plusieurs paragraphes. Si le contenu source est court, ajoute du contexte pertinent sur le sujet. Tu ne copies JAMAIS le texte original mot pour mot. Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks. Langue de sortie : français.`;
 
       const prompt = `Réécris ou résume cet article et retourne exactement ce JSON (et rien d'autre) :
-{"ai_title":"<titre traduit en français, concis et accrocheur, max 12 mots>","ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"]}
+{"ai_title":"<titre traduit en français, concis et accrocheur, max 12 mots>","ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","ai_tags":["<thème1>","<thème2>","<thème3>"]}
 
 TITRE : ${article.title}
 SOURCE : ${article.feed_name}
@@ -560,12 +552,11 @@ TEXTE : ${rssText}`;
         return {
           ai_title:   parsed.ai_title || null,
           ai_content: isDistinct ? aiText : (article.content || article.title),
-          importance: Math.min(5, Math.max(1, parseInt(parsed.importance) || 1)),
           ai_tags:    Array.isArray(parsed.ai_tags) ? parsed.ai_tags.slice(0, 5) : [],
         };
       } catch (err) {
         console.warn(`Parsing JSON échoué pour "${article.title}":`, err, '\nRaw:', raw);
-        return { ai_title: null, ai_content: article.content, importance: 1, ai_tags: [] };
+        return { ai_title: null, ai_content: article.content, ai_tags: [] };
       }
     }
 
@@ -574,14 +565,14 @@ TEXTE : ${rssText}`;
 
       let topArticles = articles
         .filter(a => a.pub_date && a.pub_date.startsWith(today) && isEnriched(a))
-        .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+        .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
         .slice(0, 10);
 
       if (topArticles.length < 3) {
         const since = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
         topArticles = articles
           .filter(a => a.pub_date && a.pub_date >= since && isEnriched(a))
-          .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+          .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
           .slice(0, 10);
       }
 
@@ -611,7 +602,7 @@ TEXTE : ${rssText}`;
       const articlesText = topArticles.map((a, i) => {
         const titre = a.ai_title || a.title || '';
         const contenu = (a.ai_content || '').substring(0, 400);
-        return `[${i + 1}] ${titre} (${a.feed_name}, importance: ${a.importance}/5)\n${contenu}`;
+        return `[${i + 1}] ${titre} (${a.feed_name})\n${contenu}`;
       }).join('\n\n');
 
       const digest = await callGroq(
@@ -667,7 +658,7 @@ RÈGLES ABSOLUES :
     /**
      * Déduplique un tableau d'articles.
      * Si deux articles ont une similarité de titre > DEDUP_THRESHOLD,
-     * on garde celui avec l'importance la plus haute (ou le plus récent).
+     * on garde le plus récent.
      * Retourne { unique: [], duplicates: [] }
      */
     function deduplicate(articles) {
@@ -681,9 +672,7 @@ RÈGLES ABSOLUES :
           if (sim >= CONFIG.DEDUP_THRESHOLD) {
             isDuplicate = true;
             // Si le doublon a une importance plus élevée, mettre à jour le principal
-            if ((article.importance || 0) > (kept.importance || 0)) {
-              kept.importance = article.importance;
-            }
+
 
             duplicates.push(article);
             break;
@@ -944,54 +933,27 @@ RÈGLES ABSOLUES :
       return new Date(isoDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
     }
 
-    /** Génère les barres d'importance (1-5) */
-    function importanceBars(score) {
-      return Array.from({ length: 5 }, (_, i) => {
-        const active = i < score;
-        const color = `var(--imp-${Math.max(1, score)})`;
-        return `<div class="imp-bar" style="${active ? `background:${color}` : ''}"></div>`;
-      }).join('');
-    }
-
     /** Crée une card article (vue grille, home) */
     /** Crée une ligne article (vue liste, flux / bookmarks) */
-    function articleRow(article, index, articleList, forceRow = false) {
-      const score = article.importance || 1;
+    function articleRow(article, index, articleList) {
       const isBookmarked = STATE.bookmarks.has(article.id || article.hash);
-      const isImportant = score >= 4 && !forceRow && !article._forceRow;
 
       const row = document.createElement('div');
       row.dataset.hash = article.hash || '';
       row.style.animationDelay = `${index * 30}ms`;
 
-      if (isImportant) {
-        // Vue card compacte pour les articles importants
-        row.className = `article-card-compact${article.read ? ' read' : ''}`;
-        row.innerHTML = `
-          <div class="card-compact-bar imp-${score}"></div>
-          <div class="card-compact-header">
-            <div class="card-compact-source">${escapeHtml(article.feed_name || '')} · ${relativeTime(article.pub_date)}</div>
-            <button class="card-compact-bookmark${isBookmarked ? ' bookmarked' : ''}" data-action="bookmark" title="Sauvegarder">◧</button>
-          </div>
-          <div class="card-compact-title">${escapeHtml(article.ai_title || article.title || '')}</div>
-          ${article.ai_content ? `<div class="card-compact-excerpt">${escapeHtml(article.ai_content.substring(0, 150))}…</div>` : ''}
-        `;
-      } else {
-        // Vue row normale
-        row.className = `article-row${article.read ? ' read' : ''}`;
-        row.innerHTML = `
-          <div class="row-imp-bar imp-${score}"></div>
-          <div class="row-body">
-            <div class="row-source">${escapeHtml(article.feed_name || '')} · ${relativeTime(article.pub_date)}</div>
-            <div class="row-title">${escapeHtml(article.ai_title || article.title || '')}</div>
-            ${article.ai_content ? `<div class="row-excerpt">${escapeHtml(article.ai_content.substring(0, 120))}…</div>` : ''}
-            <div class="row-meta">${(article.ai_tags || []).slice(0, 3).join(' · ')}</div>
-          </div>
-          <div class="row-actions">
-            <button class="row-action-btn${isBookmarked ? ' bookmarked' : ''}" data-action="bookmark" title="Sauvegarder">◧</button>
-          </div>
-        `;
-      }
+      row.className = `article-row${article.read ? ' read' : ''}`;
+      row.innerHTML = `
+        <div class="row-body">
+          <div class="row-source">${escapeHtml(article.feed_name || '')} · ${relativeTime(article.pub_date)}</div>
+          <div class="row-title">${escapeHtml(article.ai_title || article.title || '')}</div>
+          ${article.ai_content ? `<div class="row-excerpt">${escapeHtml(article.ai_content.substring(0, 120))}…</div>` : ''}
+          <div class="row-meta">${(article.ai_tags || []).slice(0, 3).join(' · ')}</div>
+        </div>
+        <div class="row-actions">
+          <button class="row-action-btn${isBookmarked ? ' bookmarked' : ''}" data-action="bookmark" title="Sauvegarder">◧</button>
+        </div>
+      `;
 
       row.addEventListener('click', (e) => {
         if (!e.target.closest('[data-action]')) {
@@ -1070,7 +1032,6 @@ RÈGLES ABSOLUES :
 
       // Filtres
       if (filter === 'unread') filtered = filtered.filter(a => !a.read);
-      if (filter === 'important') filtered = filtered.filter(a => (a.importance || 0) >= 3);
 
       // Recherche locale (si pas de résultats Supabase)
       if (query && STATE.searchResults === null) {
@@ -1085,21 +1046,8 @@ RÈGLES ABSOLUES :
       // Tri intelligent :
       // Si pas de filtre actif et pas de recherche → articles importants non lus en tête
       // Sinon → chronologique pur
-      if (filter === 'all' && !query && STATE.searchResults === null) {
-        const cutoff48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
-        const breaking = filtered
-          .filter(a => (a.importance || 0) >= 4 && !a.read && (a.pub_date || '') >= cutoff48h)
-          .sort((a, b) => (b.importance || 0) - (a.importance || 0) || new Date(b.pub_date) - new Date(a.pub_date))
-          .slice(0, 4);
-        const breakingHashes = new Set(breaking.map(a => a.hash));
-        const rest = filtered
-          .filter(a => !breakingHashes.has(a.hash))
-          .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
-        filtered = [...breaking, ...rest];
-
-      } else {
-        filtered.sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
-      }
+      // Tri chronologique pur
+      filtered.sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
 
       const totalCount = filtered.length;
       const label = STATE.searchResults !== null
@@ -1128,34 +1076,6 @@ RÈGLES ABSOLUES :
       const paginated = filtered.slice(0, (page + 1) * PAGE_SIZE);
 
       // Grille en tête pour les articles breaking (seulement page 0)
-      // Nombre d'articles breaking en tête (seulement page 0, en mode filtre all sans recherche)
-      const _bc = (page === 0 && filter === 'all' && !query && STATE.searchResults === null)
-        ? paginated.filter(a => (a.importance || 0) >= 4 && !a.read).length
-        : 0;
-      // Limiter au vrai nombre calculé précédemment (max 4)
-      const breakingCount = Math.min(_bc, 4);
-      const breakingArticles = paginated.slice(0, breakingCount);
-      const restArticles = paginated.slice(breakingCount);
-
-      if (breakingArticles.length > 0) {
-        const grid = document.createElement('div');
-        grid.className = 'important-grid';
-        breakingArticles.forEach((article, i) => {
-          grid.appendChild(articleRow(article, i, filtered));
-        });
-        container.appendChild(grid);
-
-        const sep = document.createElement('div');
-        sep.className = 'feed-section-sep';
-        sep.innerHTML = '<span>AUTRES ARTICLES</span>';
-        container.appendChild(sep);
-      }
-
-      // Articles normaux — on passe forceRow en 4e param pour ne pas muter l'objet
-      restArticles.forEach((article, i) => {
-        container.appendChild(articleRow(article, i + breakingCount, filtered, true));
-      });
-
       // Infinite scroll — sentinel en bas de liste
       if (paginated.length < filtered.length) {
         const sentinel = document.createElement('div');
@@ -1289,11 +1209,9 @@ RÈGLES ABSOLUES :
 
       const unread = STATE.articles.filter(a => !a.read).length;
       const total = STATE.articles.length;
-      const important = STATE.articles.filter(a => (a.importance || 0) >= 4 && !a.read).length;
-      let statsText = date;
+            let statsText = dateStr;
       if (total > 0) statsText += ` · ${total} article${total > 1 ? 's' : ''}`;
       if (unread > 0) statsText += ` · ${unread} non lu${unread > 1 ? 's' : ''}`;
-      if (important > 0) statsText += ` · ${important} important${important > 1 ? 's' : ''}`;
       if (statsEl) statsEl.textContent = statsText;
 
       if (topicsEl) {
@@ -1330,8 +1248,7 @@ RÈGLES ABSOLUES :
     return {
       articleRow, renderFeedArticles,
       renderBookmarks, renderSidebarFeeds,
-      renderWelcome, escapeHtml, relativeTime, importanceBars
-    };
+      renderWelcome, escapeHtml, relativeTime,    };
   })();
 
   /* ================================================================
@@ -1385,7 +1302,6 @@ RÈGLES ABSOLUES :
         const cleanAiContent = (result.ai_content || '').replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim();
         article.ai_content = cleanAiContent;
         article.ai_title = result.ai_title || null;
-        article.importance = result.importance;
         article.ai_tags = result.ai_tags;
 
         // Sync avec STATE.articles — même hash, même objet mis à jour
@@ -1393,8 +1309,7 @@ RÈGLES ABSOLUES :
         if (stateRef && stateRef !== article) {
           stateRef.ai_content = cleanAiContent;
           stateRef.ai_title = result.ai_title || null;
-          stateRef.importance = result.importance;
-          stateRef.ai_tags = result.ai_tags;
+            stateRef.ai_tags = result.ai_tags;
         }
 
         if (STATE.user) {
@@ -1408,7 +1323,6 @@ RÈGLES ABSOLUES :
             ai_title:   result.ai_title    || null,
             ai_content: cleanAiContent     || '',
             ai_tags:    result.ai_tags     || [],
-            importance: result.importance  || 1,
             pub_date:   article.pub_date   || new Date().toISOString(),
             read:       article.read       || false,
             bookmarked: article.bookmarked || false,
@@ -1458,44 +1372,15 @@ RÈGLES ABSOLUES :
       const rows = document.querySelectorAll(`[data-hash="${hash}"]`);
       if (!rows.length) return;
 
-      const score = article.importance || 1;
 
       rows.forEach(row => {
-        // ── Card compacte (articles importants) ──
-        if (row.classList.contains('article-card-compact')) {
-          const titleEl  = row.querySelector('.card-compact-title');
-          const excerptEl = row.querySelector('.card-compact-excerpt');
-          const barEl    = row.querySelector('.card-compact-bar');
-
-          if (titleEl)  titleEl.textContent = article.ai_title || article.title || '';
-          if (barEl) {
-            barEl.className = `card-compact-bar imp-${score}`;
-          }
-          if (article.ai_content) {
-            if (excerptEl) {
-              excerptEl.textContent = article.ai_content.substring(0, 90) + '…';
-            } else {
-              // Créer l'excerpt s'il n'existait pas
-              const div = document.createElement('div');
-              div.className = 'card-compact-excerpt';
-              div.textContent = article.ai_content.substring(0, 90) + '…';
-              row.appendChild(div);
-            }
-          }
-        }
-
-        // ── Row normale ──
+        // ── Row ──
         if (row.classList.contains('article-row')) {
           const titleEl   = row.querySelector('.row-title');
           const excerptEl = row.querySelector('.row-excerpt');
           const metaEl    = row.querySelector('.row-meta');
-          const barEl     = row.querySelector('.row-imp-bar');
-
-          if (titleEl)  titleEl.textContent  = article.ai_title || article.title || '';
-          if (metaEl)   metaEl.textContent   = (article.ai_tags || []).slice(0, 3).join(' · ');
-          if (barEl) {
-            barEl.className = `row-imp-bar imp-${score}`;
-          }
+          if (titleEl) titleEl.textContent = article.ai_title || article.title || '';
+          if (metaEl)  metaEl.textContent  = (article.ai_tags || []).slice(0, 3).join(' · ');
           if (article.ai_content) {
             if (excerptEl) {
               excerptEl.textContent = article.ai_content.substring(0, 120) + '…';
@@ -1610,7 +1495,6 @@ RÈGLES ABSOLUES :
             ai_title:   article.ai_title   || null,
             ai_content: article.ai_content || '',
             ai_tags:    article.ai_tags    || [],
-            importance: article.importance || 1,
             pub_date:   article.pub_date   || new Date().toISOString(),
             read:       article.read       || false,
             bookmarked: article.bookmarked || false,
@@ -1684,10 +1568,6 @@ RÈGLES ABSOLUES :
       _setHeroImage(article);
 
       // Barres d'importance — dans la meta du header (sous source/date)
-      const score = article.importance || 1;
-      document.getElementById('reader-imp-bars').innerHTML = Render.importanceBars(score);
-
-
       // Tags — max 3 affichés + indicateur "+N" si plus
       const tagsEl = document.getElementById('reader-tags');
       const allTags = article.ai_tags || [];
@@ -2050,14 +1930,12 @@ RÈGLES ABSOLUES :
         articleRef.ai_content = '';
         articleRef.ai_title = null;
         articleRef.ai_tags = [];
-        articleRef.importance = 0;
         // Aussi mettre à jour l'objet dans STATE.articles (même hash)
         const stateArticle = STATE.articles.find(a => a.hash === articleRef.hash);
         if (stateArticle) {
           stateArticle.ai_content = '';
           stateArticle.ai_title = null;
           stateArticle.ai_tags = [];
-          stateArticle.importance = 0;
         }
         enrichOnOpen(articleRef);
         Toast.show('Ré-enrichissement en cours…', 'info');
@@ -2120,15 +1998,11 @@ RÈGLES ABSOLUES :
         // Calculer les stats du feed
         const feedArticles = STATE.articles.filter(a => a.feed_id === feed.id);
         const readCount = feedArticles.filter(a => a.read).length;
-        const avgImportance = feedArticles.length > 0
-          ? (feedArticles.reduce((s, a) => s + (a.importance || 1), 0) / feedArticles.length).toFixed(1)
-          : '—';
-
         row.innerHTML = `
           <div>
             <div class="feed-row-name">${Render.escapeHtml(feed.name || feed.url)}</div>
             <div class="feed-row-url">${Render.escapeHtml(feed.url)}</div>
-            <div class="feed-row-stats">${feedArticles.length} articles · ${readCount} lus · importance moy. ${avgImportance}</div>
+            <div class="feed-row-stats">${feedArticles.length} articles · ${readCount} lus</div>
           </div>
           <div class="feed-row-category">${Render.escapeHtml(feed.category || '—')}</div>
           <button class="feed-toggle${feed.active ? ' active' : ''}" data-id="${feed.id}" title="${feed.active ? 'Désactiver' : 'Activer'}"></button>
@@ -2561,13 +2435,12 @@ RÈGLES ABSOLUES :
 
       todayArticles.forEach(a => {
         const time = new Date(a.pub_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-        const score = a.importance || 1;
-        const item = document.createElement('div');
+                const item = document.createElement('div');
         item.className = 'digest-timeline-item';
         const isRead = a.read || STATE.readArticles.has(a.id || a.hash);
         item.innerHTML = `
           <div class="digest-timeline-time${isRead ? ' timeline-read' : ''}">${time}</div>
-          <div class="digest-timeline-dot imp-${score}${isRead ? ' timeline-dot-read' : ''}"></div>
+          <div class="digest-timeline-dot${isRead ? ' timeline-dot-read' : ''}"></div>
           <div class="digest-timeline-content">
             <div class="digest-timeline-source">${a.feed_name || ''}</div>
             <div class="digest-timeline-title${isRead ? ' timeline-title-read' : ''}">${a.ai_title || a.title || ''}</div>
@@ -2685,7 +2558,7 @@ RÈGLES ABSOLUES :
         const toEnrich = maxPreEnrich > 0
           ? STATE.articles
               .filter(a => !AI.isEnriched(a))
-              .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+              .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
               .slice(0, maxPreEnrich)
           : [];
 
@@ -2698,8 +2571,7 @@ RÈGLES ABSOLUES :
             const result = await AI.enrichArticle(toEnrich[i]);
             toEnrich[i].ai_content = result.ai_content;
             toEnrich[i].ai_title = result.ai_title || null;
-            toEnrich[i].importance = result.importance;
-            toEnrich[i].ai_tags = result.ai_tags;
+              toEnrich[i].ai_tags = result.ai_tags;
           } catch {}
           if (i < toEnrich.length - 1) await new Promise(r => setTimeout(r, CONFIG.GROQ_DIGEST_DELAY));
         }
@@ -3060,9 +2932,7 @@ RÈGLES ABSOLUES :
     function remaining(model) {
       const data = _load();
       const used = data.counts[model] || 0;
-      const limit = model === CONFIG.GROQ_MODEL_DIGEST
-        ? CONFIG.QUOTA_DIGEST_DAILY
-        : CONFIG.QUOTA_ENRICH_DAILY;
+      const limit = model === CONFIG.GROQ_MODEL_DIGEST ? 1000 : 14400;
       return Math.max(0, limit - used);
     }
 
@@ -3088,7 +2958,7 @@ RÈGLES ABSOLUES :
 
   /* ================================================================
      BACKGROUND ENRICH — Enrichissement silencieux en arrière-plan
-     Enrichit les articles non encore traités par ordre d'importance,
+     Enrichit les articles non encore traités silencieusement,
      sans bloquer l'UI et en respectant le rate limit Groq.
      ================================================================ */
   const BackgroundEnrich = (() => {
@@ -3107,7 +2977,7 @@ RÈGLES ABSOLUES :
       // (pas d'ai_content en base, pas juste non-enrichis en mémoire)
       const toEnrich = STATE.articles
         .filter(a => !AI.isEnriched(a)) // isEnriched() vérifie déjà ai_content
-        .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+        .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
         .slice(0, 3); // max 3 par session bg (bridé pour préserver le quota)
 
       if (toEnrich.length === 0) return;
@@ -3126,7 +2996,6 @@ RÈGLES ABSOLUES :
           const result = await AI.enrichArticle(article);
           article.ai_title   = result.ai_title || null;
           article.ai_content = result.ai_content;
-          article.importance = result.importance;
           article.ai_tags    = result.ai_tags;
 
           if (STATE.user) {
@@ -3140,7 +3009,6 @@ RÈGLES ABSOLUES :
               ai_title:   result.ai_title    || null,
               ai_content: result.ai_content  || '',
               ai_tags:    result.ai_tags     || [],
-              importance: result.importance  || 1,
               pub_date:   article.pub_date   || new Date().toISOString(),
               read:       article.read       || false,
               bookmarked: article.bookmarked || false,
@@ -3260,7 +3128,6 @@ RÈGLES ABSOLUES :
               ai_title:   a.ai_title   || null,
               ai_content: a.ai_content || '',
               ai_tags:    a.ai_tags    || [],
-              importance: a.importance || 1,
               pub_date:   a.pub_date   || new Date().toISOString(),
               read:       a.read       || false,
               bookmarked: a.bookmarked || false,
@@ -3317,11 +3184,7 @@ RÈGLES ABSOLUES :
       if (badge) badge.classList.add('hidden');
 
       // Badge breaking news — importance 5 non lus
-      const breakingBadge = document.getElementById('badge-breaking');
-      if (breakingBadge) {
-        const hasBreaking = STATE.articles.some(a => a.importance >= 5 && !a.read);
-        breakingBadge.classList.toggle('hidden', !hasBreaking);
-      }
+
     }
 
     function updateLastSyncLabel() {
@@ -3821,8 +3684,7 @@ RÈGLES ABSOLUES :
               existing.ai_content = a.ai_content;
               existing.ai_title = a.ai_title;
               existing.ai_tags = a.ai_tags;
-              existing.importance = a.importance;
-            }
+                    }
             return existing;
           }
           return {
