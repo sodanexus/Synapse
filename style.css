@@ -1452,7 +1452,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   #digest-header-date { display: block; }
 
   /* Stats et topics flux — masqués sur mobile */
-  .feed-welcome-stats { display: none; }
   .feed-topics { display: none; }
   #feed-count { display: none; }
   .feed-row { grid-template-columns: 1fr auto auto; gap: 12px; }
@@ -1540,7 +1539,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   .reader-sep { height: 20px; }
   .reader-header { padding: 8px 16px; }
 
-  .feed-welcome-date { font-size: 1.3rem; }
   .row-actions { display: none; }
 
   /* Digest — icône seulement sur mobile */
@@ -2367,28 +2365,6 @@ body.dark .reader-modal.hero-ready .reader-header {
 /* ================================================================
    EN-TÊTE D'ACCUEIL FLUX
    ================================================================ */
-.feed-welcome-date {
-  font-family: var(--font-display);
-  font-size: 1.9rem;
-  font-weight: 400;
-  color: var(--ink);
-  line-height: 1.1;
-  text-transform: capitalize;
-  letter-spacing: -0.02em;
-}
-
-.feed-welcome-stats {
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.06em;
-  color: var(--grey-mid);
-  text-transform: uppercase;
-  margin-top: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .feed-search-toggle {
   font-size: 1rem;
   color: var(--grey-mid);
@@ -2450,8 +2426,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 /* Vue mobile */
 @media (max-width: 600px) {
-  .feed-welcome-date { font-size: 1.3rem; }
-}
+  }
 
 /* Bouton DIGEST dans le header */
 .feed-digest-btn {
