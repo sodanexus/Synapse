@@ -1076,7 +1076,11 @@ RÈGLES ABSOLUES :
       const page = STATE.articlesPage || 0;
       const paginated = filtered.slice(0, (page + 1) * PAGE_SIZE);
 
-      // Grille en tête pour les articles breaking (seulement page 0)
+      // Rendu de la page courante
+      paginated.forEach((article, i) => {
+        container.appendChild(articleRow(article, i, filtered));
+      });
+
       // Infinite scroll — sentinel en bas de liste
       if (paginated.length < filtered.length) {
         const sentinel = document.createElement('div');
