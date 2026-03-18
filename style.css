@@ -1164,7 +1164,9 @@ body.dark .reader-modal.hero-ready .reader-header {
 .reader-modal.hero-ready .reader-content {
   padding-top: 20px;
   border-top: none;
-  margin-top: 0;
+  margin-top: -2px;
+  position: relative;
+  z-index: 2;
 }
 
 /* Supprimer toute ligne entre hero et contenu */
@@ -1175,6 +1177,9 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 .reader-modal:has(.reader-title-area.has-hero) .reader-chapo {
   border-top: none;
+  margin-top: -2px;
+  position: relative;
+  z-index: 2;
 }
 
 /* Zone résumé */
