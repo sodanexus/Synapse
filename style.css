@@ -2751,3 +2751,54 @@ body.dark .quota-warning {
   0%, 100% { opacity: 0.5; }
   50%       { opacity: 1; }
 }
+
+/* ================================================================
+   CONTENT SHIMMER — animation de chargement pendant enrichissement IA
+   ================================================================ */
+.content-shimmer {
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shimmer-gap { height: 16px; }
+
+.shimmer-line {
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--grey-wash) 25%,
+    var(--grey-subtle) 50%,
+    var(--grey-wash) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-sweep 1.6s ease-in-out infinite;
+  height: 13px;
+}
+
+.shimmer-line--title {
+  height: 22px;
+  width: 72%;
+  margin-bottom: 6px;
+  border-radius: 4px;
+}
+
+.shimmer-line--full  { width: 100%; }
+.shimmer-line--partial { width: 65%; }
+
+@keyframes shimmer-sweep {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+body.dark .shimmer-line {
+  background: linear-gradient(
+    90deg,
+    var(--grey-wash) 25%,
+    var(--grey-subtle) 50%,
+    var(--grey-wash) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-sweep 1.6s ease-in-out infinite;
+}
