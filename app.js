@@ -1203,10 +1203,10 @@ RÈGLES ABSOLUES :
       const statsEl = document.getElementById('feed-welcome-stats');
       const topicsEl = document.getElementById('feed-topics');
 
-      const date = new Date().toLocaleDateString('fr-FR', {
+      const dateStr = new Date().toLocaleDateString('fr-FR', {
         weekday: 'long', day: 'numeric', month: 'long'
       });
-      if (dateEl) dateEl.textContent = date;
+      if (dateEl) dateEl.textContent = dateStr;
 
       const unread = STATE.articles.filter(a => !a.read).length;
       const total = STATE.articles.length;
