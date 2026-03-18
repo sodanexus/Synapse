@@ -1061,9 +1061,19 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   flex-direction: column;
   justify-content: flex-end;
   background-color: var(--white);
-  margin-bottom: -4px;
-  padding-bottom: 4px;
-  box-shadow: 0 4px 0 0 var(--white);
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Bande blanche sous l'image hero — cache la ligne de démarcation */
+.reader-title-area.has-hero::after {
+  content: '';
+  display: block;
+  height: 20px;
+  background: var(--white);
+  position: relative;
+  z-index: 2;
+  margin-top: -1px;
 }
 
 /* Div image injectée par JS — fade-in indépendant du contenu */
@@ -1107,9 +1117,9 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   background: linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.0)  0%,
-    rgba(255, 255, 255, 0.0)  35%,
-    rgba(255, 255, 255, 0.75) 62%,
-    rgba(255, 255, 255, 1.0)  82%,
+    rgba(255, 255, 255, 0.0)  30%,
+    rgba(255, 255, 255, 0.75) 58%,
+    rgba(255, 255, 255, 1.0)  72%,
     rgba(255, 255, 255, 1.0)  100%
   );
   z-index: 1;
@@ -1128,9 +1138,9 @@ body.dark .reader-title-area.has-hero::before {
   background: linear-gradient(
     to bottom,
     rgba(35, 32, 24, 0.0)  0%,
-    rgba(35, 32, 24, 0.0)  35%,
-    rgba(35, 32, 24, 0.75) 62%,
-    rgba(35, 32, 24, 1.0)  82%,
+    rgba(35, 32, 24, 0.0)  30%,
+    rgba(35, 32, 24, 0.75) 58%,
+    rgba(35, 32, 24, 1.0)  72%,
     rgba(35, 32, 24, 1.0)  100%
   );
 }
