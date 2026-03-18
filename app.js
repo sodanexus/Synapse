@@ -1661,8 +1661,12 @@ RÈGLES ABSOLUES :
 
       document.getElementById('reader-title').textContent = article.ai_title || article.title || '';
 
-      // Image hero — fond du header avec dégradé
-      _setHeroImage(article);
+      // Image hero — ne recharger que si c'est un article différent
+      const titleArea = document.getElementById('reader-title-area');
+      if (!titleArea || titleArea.dataset.heroHash !== article.hash) {
+        _setHeroImage(article);
+        if (titleArea) titleArea.dataset.heroHash = article.hash;
+      }
 
       // Barres d'importance
       const score = article.importance || 1;
