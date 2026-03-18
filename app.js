@@ -552,11 +552,12 @@ TEXTE : ${rssText}`;
         return {
           ai_title:   parsed.ai_title || null,
           ai_content: isDistinct ? aiText : (article.content || article.title),
+          importance: Math.min(5, Math.max(1, parseInt(parsed.importance) || 1)),
           ai_tags:    Array.isArray(parsed.ai_tags) ? parsed.ai_tags.slice(0, 5) : [],
         };
       } catch (err) {
         console.warn(`Parsing JSON échoué pour "${article.title}":`, err, '\nRaw:', raw);
-        return { ai_title: null, ai_content: article.content, ai_tags: [] };
+        return { ai_title: null, ai_content: article.content, importance: 1, ai_tags: [] };
       }
     }
 
