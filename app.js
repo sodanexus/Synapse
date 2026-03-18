@@ -1286,22 +1286,83 @@ RÈGLES ABSOLUES :
       document.body.style.overflow = 'hidden';
       document.getElementById('btn-close-reader').focus();
 
-      // Fade in initial du reader-content à l'ouverture
-      const _contentEl = document.getElementById('reader-content');
-      if (_contentEl) {
-        _contentEl.style.opacity = '0';
-        requestAnimationFrame(() => {
-          _contentEl.style.transition = 'opacity 0.3s ease';
-          _contentEl.style.opacity = '1';
-          setTimeout(() => { _contentEl.style.transition = ''; }, 350);
-        });
-      }
-
-      // Utiliser l'objet du tableau pour que enrichOnOpen modifie la même référence que le TTS
       const articleRef = STATE.currentArticleList[STATE.currentArticleIndex] || article;
+
       if (!AI.isEnriched(articleRef)) {
+        // Masquer titre, chapô, contenu brut — afficher shimmer
+        _showContentLoader();
         enrichOnOpen(articleRef);
+      } else {
+        // Article déjà enrichi — fade in élégant de tout
+        _revealContent();
       }
+    }
+
+    /** Masque le contenu et affiche un shimmer pendant l'enrichissement */
+    function _showContentLoader() {
+      const titleEl   = document.getElementById('reader-title');
+      const chapoEl   = document.getElementById('reader-chapo');
+      const contentEl = document.getElementById('reader-content');
+      const tagsEl    = document.getElementById('reader-tags');
+      const impEl     = document.getElementById('reader-imp-bars');
+
+      // Masquer instantanément le contenu brut
+      [titleEl, chapoEl, tagsEl, impEl].forEach(el => {
+        if (el) { el.style.opacity = '0'; el.style.transition = 'none'; }
+      });
+
+      // Shimmer dans le contenu
+      if (contentEl) {
+        contentEl.innerHTML = `
+          <div class="content-shimmer">
+            <div class="shimmer-line shimmer-line--title"></div>
+            <div class="shimmer-line shimmer-line--full"></div>
+            <div class="shimmer-line shimmer-line--full"></div>
+            <div class="shimmer-line shimmer-line--partial"></div>
+            <div class="shimmer-gap"></div>
+            <div class="shimmer-line shimmer-line--full"></div>
+            <div class="shimmer-line shimmer-line--full"></div>
+            <div class="shimmer-line shimmer-line--partial"></div>
+            <div class="shimmer-gap"></div>
+            <div class="shimmer-line shimmer-line--full"></div>
+            <div class="shimmer-line shimmer-line--partial"></div>
+          </div>`;
+        contentEl.style.opacity = '1';
+        contentEl.style.transition = 'none';
+      }
+    }
+
+    /** Révèle le contenu enrichi avec une animation fluide et gracieuse */
+    function _revealContent(delay = 0) {
+      const titleEl   = document.getElementById('reader-title');
+      const chapoEl   = document.getElementById('reader-chapo');
+      const contentEl = document.getElementById('reader-content');
+      const tagsEl    = document.getElementById('reader-tags');
+      const impEl     = document.getElementById('reader-imp-bars');
+
+      const elements = [
+        { el: titleEl,   d: 0   },
+        { el: chapoEl,   d: 80  },
+        { el: impEl,     d: 120 },
+        { el: tagsEl,    d: 160 },
+        { el: contentEl, d: 200 },
+      ];
+
+      elements.forEach(({ el, d }) => {
+        if (!el) return;
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(12px)';
+        el.style.transition = 'none';
+        setTimeout(() => {
+          el.style.transition = 'opacity 0.5s ease, transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+          el.style.opacity = '1';
+          el.style.transform = 'translateY(0)';
+          setTimeout(() => {
+            el.style.transition = '';
+            el.style.transform = '';
+          }, 550);
+        }, delay + d);
+      });
     }
 
     /**
@@ -1371,41 +1432,9 @@ RÈGLES ABSOLUES :
 
         const currentArticle = STATE.currentArticleList[STATE.currentArticleIndex];
         if (currentArticle && currentArticle.hash === article.hash) {
-          // Fade out du contenu brut, puis populate avec animation
-          const contentEl = document.getElementById('reader-content');
-          const chapoEl   = document.getElementById('reader-chapo');
-          const titleEl2  = document.getElementById('reader-title');
-          const tagsEl2   = document.getElementById('reader-tags');
-          const impEl     = document.getElementById('reader-imp-bars');
-
-          // Éléments à faire disparaître
-          const toFade = [contentEl, chapoEl].filter(Boolean);
-          toFade.forEach(el => {
-            el.style.transition = 'opacity 0.35s ease';
-            el.style.opacity = '0';
-          });
-
-          setTimeout(() => {
-            populate(article, true);
-            // Fade in après populate
-            toFade.forEach(el => {
-              el.style.transition = 'opacity 0.4s ease';
-              el.style.opacity = '1';
-            });
-            // Légère animation sur le titre et les tags aussi
-            [titleEl2, tagsEl2, impEl].filter(Boolean).forEach(el => {
-              el.style.transition = 'opacity 0.3s ease';
-              el.style.opacity = '0.4';
-              setTimeout(() => {
-                el.style.transition = 'opacity 0.4s ease';
-                el.style.opacity = '1';
-              }, 50);
-            });
-            // Nettoyer les transitions inline après
-            setTimeout(() => {
-              toFade.forEach(el => { el.style.transition = ''; el.style.opacity = ''; });
-            }, 450);
-          }, 360);
+          // Enrichissement terminé — populate puis reveal animé
+          populate(article, false);
+          _revealContent();
         }
 
         // Mettre à jour la row dans le feed sans re-render complet
