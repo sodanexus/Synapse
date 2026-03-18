@@ -948,7 +948,10 @@ RÈGLES ABSOLUES :
         <div class="row-body">
           <div class="row-source">${escapeHtml(article.feed_name || '')} · ${relativeTime(article.pub_date)}</div>
           <div class="row-title">${escapeHtml(article.ai_title || article.title || '')}</div>
-          ${article.ai_content ? `<div class="row-excerpt">${escapeHtml(article.ai_content.substring(0, 120))}…</div>` : ''}
+          ${(() => {
+            const excerpt = article.ai_content || article.description || article.content || '';
+            return excerpt ? `<div class="row-excerpt">${escapeHtml(excerpt.substring(0, 120))}…</div>` : '';
+          })()}
           <div class="row-meta">${(article.ai_tags || []).slice(0, 3).join(' · ')}</div>
         </div>
         <div class="row-actions">
