@@ -3799,6 +3799,7 @@ RÈGLES ABSOLUES :
           if (existing) {
             // Mettre à jour uniquement les champs non-IA (statut lu, bookmark, image)
             // Ne JAMAIS écraser ai_content/ai_title/ai_tags/importance si déjà enrichi en mémoire
+            existing.id = a.id || existing.id;   // id Supabase — requis pour les UPDATE
             existing.read = a.read;
             existing.bookmarked = a.bookmarked;
             existing.image = existing.image || a.image || '';
