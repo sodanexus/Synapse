@@ -517,7 +517,7 @@
       const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris ou résumes les articles RSS en prose claire et fluide. Tu supprimes tout le bruit (publicités, appels à l'action, mentions légales). Tu réécris en 300-400 mots minimum, en plusieurs paragraphes. Si le contenu source est court, ajoute du contexte pertinent sur le sujet. Tu ne copies JAMAIS le texte original mot pour mot. Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks. Langue de sortie : français.`;
 
       const prompt = `Réécris ou résume cet article et retourne exactement ce JSON (et rien d'autre) :
-{"ai_title":"<titre traduit en français, concis et accrocheur, max 12 mots>","ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","ai_tags":["<thème1>","<thème2>","<thème3>"]}
+{"ai_title":"<titre traduit en français, concis et accrocheur, max 12 mots>","ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"]}
 
 TITRE : ${article.title}
 SOURCE : ${article.feed_name}
@@ -1315,6 +1315,7 @@ RÈGLES ABSOLUES :
         const cleanAiContent = (result.ai_content || '').replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim();
         article.ai_content = cleanAiContent;
         article.ai_title = result.ai_title || null;
+        article.importance = result.importance || 1;
         article.ai_tags = result.ai_tags;
 
         // Sync avec STATE.articles — même hash, même objet mis à jour
@@ -1322,6 +1323,7 @@ RÈGLES ABSOLUES :
         if (stateRef && stateRef !== article) {
           stateRef.ai_content = cleanAiContent;
           stateRef.ai_title = result.ai_title || null;
+          stateRef.importance = result.importance || 1;
             stateRef.ai_tags = result.ai_tags;
         }
 
