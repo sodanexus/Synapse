@@ -692,19 +692,12 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   padding: 20px 0;
   cursor: pointer;
   display: grid;
-  grid-template-columns: 3px 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: 20px;
   align-items: start;
 }
 
 .article-row:first-child { border-top: var(--border); }
-
-.row-imp-bar { height: 100%; width: 3px; min-height: 20px; border-radius: 2px; }
-.row-imp-bar.imp-1 { background: var(--imp-1); }
-.row-imp-bar.imp-2 { background: var(--imp-2); }
-.row-imp-bar.imp-3 { background: var(--imp-3); }
-.row-imp-bar.imp-4 { background: var(--imp-4); width: 4px; }
-.row-imp-bar.imp-5 { background: var(--imp-5); width: 5px; }
 
 .row-source {
   font-family: var(--font-mono);
@@ -1899,27 +1892,6 @@ body.dark .reader-modal.hero-ready .reader-header {
 }
 
 /* Séparateur dans la liste FLUX */
-.feed-section-sep {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0 8px;
-  margin: 4px 0;
-}
-.feed-section-sep::before,
-.feed-section-sep::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--grey-subtle);
-}
-.feed-section-sep span {
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.12em;
-  color: var(--grey-light);
-  white-space: nowrap;
-}
 
 /* Bandeau Digest dans le FLUX */
 .feed-digest-banner {
@@ -2395,96 +2367,11 @@ body.dark .reader-modal.hero-ready .reader-header {
 /* ================================================================
    GRILLE ARTICLES IMPORTANTS — Cards compactes 2 colonnes
    ================================================================ */
-.important-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 4px;
-}
 
 /* Si une seule card — prend toute la largeur */
-.important-grid .article-card-compact:only-child {
-  grid-column: 1 / -1;
-}
-
-.article-card-compact {
-  position: relative;
-  background: var(--white);
-  border: var(--border);
-  border-radius: 2px;
-  padding: 14px;
-  cursor: pointer;
-  transition: background var(--t-fast), box-shadow var(--t-fast);
-  animation: rowIn 0.3s var(--ease) both;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.article-card-compact:hover {
-  background: var(--grey-wash);
-  box-shadow: var(--shadow-soft);
-}
-
-.article-card-compact.read { opacity: 0.5; }
-
-.card-compact-bar {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-}
-.card-compact-bar.imp-4 { background: var(--imp-4); }
-.card-compact-bar.imp-5 { background: var(--imp-5); }
-
-.card-compact-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 4px;
-}
-
-.card-compact-source {
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.07em;
-  color: var(--grey-light);
-  text-transform: uppercase;
-}
-
-.card-compact-bookmark {
-  font-size: 0.75rem;
-  color: var(--grey-light);
-  cursor: pointer;
-  padding: 0 2px;
-  transition: color var(--t-fast);
-  flex-shrink: 0;
-}
-.card-compact-bookmark:hover { color: var(--ink); }
-.card-compact-bookmark.bookmarked { color: var(--ink); }
-
-.card-compact-title {
-  font-family: var(--font-display);
-  font-size: 0.92rem;
-  line-height: 1.3;
-  color: var(--ink);
-  font-weight: 400;
-  flex: 1;
-}
-
-.card-compact-excerpt {
-  font-size: 0.75rem;
-  color: var(--grey-deep);
-  line-height: 1.5;
-  opacity: 0.8;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
 
 @media (max-width: 600px) {
-  .important-grid { grid-template-columns: 1fr; gap: 6px; }
+  
 }
 
 /* ================================================================
@@ -2815,15 +2702,8 @@ body.dark .article-card {
   border-color: var(--grey-subtle);
 }
 
-body.dark .article-card-compact {
-  background: var(--white);
-  border-color: var(--grey-subtle);
-}
-
-body.dark .article-card-compact:hover {
-  background: var(--grey-wash);
-}
-
+body.dark 
+body.dark 
 body.dark .sidebar {
   background: var(--white);
   border-color: var(--grey-subtle);
