@@ -2981,7 +2981,6 @@ RÈGLES ABSOLUES :
       const data = _load();
       data.counts[model] = (data.counts[model] || 0) + 1;
       _save(data);
-      _updateUI();
     }
 
     /** Marque un modèle comme épuisé (429 reçu) */
@@ -2989,7 +2988,6 @@ RÈGLES ABSOLUES :
       const data = _load();
       data.exhausted[model] = true;
       _save(data);
-      _updateUI();
     }
 
     /** Vérifie si un modèle est épuisé */
@@ -3013,46 +3011,15 @@ RÈGLES ABSOLUES :
       return _load().counts[model] || 0;
     }
 
-    /** Met à jour l'indicateur dans la sidebar */
-    function _updateUI() {
-      const el = document.getElementById('quota-indicator');
-      if (!el) return;
-      const enrichUsed = used(CONFIG.GROQ_MODEL_ENRICH);
-      const digestUsed = used(CONFIG.GROQ_MODEL_DIGEST);
-      const enrichRem  = remaining(CONFIG.GROQ_MODEL_ENRICH);
-      const digestRem  = remaining(CONFIG.GROQ_MODEL_DIGEST);
-      const enrichPct  = Math.min(100, Math.round(enrichUsed / CONFIG.QUOTA_ENRICH_DAILY * 100));
-      const digestPct  = Math.min(100, Math.round(digestUsed / CONFIG.QUOTA_DIGEST_DAILY * 100));
-
-      el.innerHTML = `
-        <div class="quota-row">
-          <span class="quota-label">ENRICH</span>
-          <div class="quota-bar-wrap">
-            <div class="quota-bar" style="width:${enrichPct}%;background:${enrichPct > 80 ? 'var(--quota-warn)' : 'var(--quota-ok)'}"></div>
-          </div>
-          <span class="quota-val">${enrichUsed}/${CONFIG.QUOTA_ENRICH_DAILY}</span>
-        </div>
-        <div class="quota-row">
-          <span class="quota-label">DIGEST</span>
-          <div class="quota-bar-wrap">
-            <div class="quota-bar" style="width:${digestPct}%;background:${digestPct > 80 ? 'var(--quota-warn)' : 'var(--quota-ok)'}"></div>
-          </div>
-          <span class="quota-val">${digestUsed}/${CONFIG.QUOTA_DIGEST_DAILY}</span>
-        </div>
-      `;
-    }
-
     /** Initialise l'UI du tracker */
     function init() {
-      _updateUI();
       // Reset check toutes les heures
       setInterval(() => {
         const data = _load();
         const today = new Date().toISOString().split('T')[0];
         if (data.date !== today) {
           _save(_fresh());
-          _updateUI();
-        }
+            }
       }, 3600000);
     }
 
