@@ -2767,9 +2767,11 @@ RÈGLES ABSOLUES :
         bg.className = 'hero-bg';
         bg.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
         titleArea.insertBefore(bg, titleArea.firstChild);
+        // Déclencher la transition de hauteur d'abord
         titleArea.classList.add('has-hero');
+        // Puis fade in de l'image légèrement après pour que l'expansion soit visible
         void bg.offsetHeight;
-        bg.classList.add('hero-visible');
+        setTimeout(() => bg.classList.add('hero-visible'), 80);
       };
       img.onerror = () => {};
       img.src = url;
