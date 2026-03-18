@@ -1065,15 +1065,20 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   padding-bottom: 0;
 }
 
-/* Bande blanche sous l'image hero — cache la ligne de démarcation */
+/* Bande blanche sur le bas de l'image hero — cache la ligne de démarcation */
 .reader-title-area.has-hero::after {
   content: '';
-  display: block;
-  height: 20px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
   background: var(--white);
-  position: relative;
   z-index: 2;
-  margin-top: -1px;
+}
+
+body.dark .reader-title-area.has-hero::after {
+  background: var(--white);
 }
 
 /* Div image injectée par JS — fade-in indépendant du contenu */
