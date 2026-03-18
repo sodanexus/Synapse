@@ -746,7 +746,7 @@ RÈGLES ABSOLUES :
       // On exclut tous les boutons hamburger pour éviter le bubbling qui referme immédiatement
       const allToggles = [toggle, inlineToggle, toggleBookmarks, toggleSettings].filter(Boolean);
       document.addEventListener('click', (e) => {
-        if (window.innerWidth <= 900 &&
+        if (window.innerWidth <= 600 &&
           sidebar.classList.contains('open') &&
           !sidebar.contains(e.target) &&
           !allToggles.some(t => t.contains(e.target))) {
