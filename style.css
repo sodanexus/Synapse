@@ -1114,9 +1114,12 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   z-index: 1;
 }
 
-/* Ligne blanche de sécurité en bas de la zone hero */
+/* Ligne de sécurité en bas de la zone hero — couvre le gap de rendu */
 .reader-title-area.has-hero {
   box-shadow: 0 8px 0 0 var(--white);
+}
+body.dark .reader-title-area.has-hero {
+  box-shadow: 0 8px 0 0 #232018;
 }
 
 /* Dark mode — fond vers --white dark (#232018) */
@@ -1152,10 +1155,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 /* Supprimer le border du modal dès qu'une image est détectée (avant chargement) */
 .reader-modal.hero-ready {
-  border-left: none;
-  border-right: none;
-  border-top: none;
-  border-bottom: var(--border);
+  border: none;
   outline: none;
   box-shadow: var(--shadow-lift);
 }
