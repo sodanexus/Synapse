@@ -48,9 +48,12 @@ CREATE TABLE IF NOT EXISTS articles (
   importance    SMALLINT DEFAULT 1 CHECK (importance BETWEEN 1 AND 5),
   cluster_id    TEXT DEFAULT NULL,           -- Identifiant du cluster thématique
   pub_date      TIMESTAMPTZ DEFAULT now(),
-  read          BOOLEAN NOT NULL DEFAULT false,
-  bookmarked    BOOLEAN NOT NULL DEFAULT false,
-  created_at    TIMESTAMPTZ DEFAULT now(),
+  read             BOOLEAN NOT NULL DEFAULT false,
+  bookmarked       BOOLEAN NOT NULL DEFAULT false,
+  created_at       TIMESTAMPTZ DEFAULT now(),
+  ai_title         TEXT DEFAULT NULL,           -- Titre traduit/amélioré par IA
+  scraped_content  TEXT DEFAULT NULL,           -- Contenu scrappé depuis l'article
+  image            TEXT DEFAULT NULL,           -- URL image (RSS ou OG scrape)
   -- Contrainte d'unicité par user + hash (évite les doublons)
   UNIQUE(user_id, hash)
 );
@@ -77,6 +80,7 @@ CREATE TABLE IF NOT EXISTS digests (
   user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   date        DATE NOT NULL,                 -- Date du digest (YYYY-MM-DD)
   content     TEXT NOT NULL DEFAULT '',      -- HTML du digest généré
+  hero_image  TEXT DEFAULT NULL,             -- URL image hero du digest
   created_at  TIMESTAMPTZ DEFAULT now(),
   -- Un seul digest par utilisateur par jour
   UNIQUE(user_id, date)
