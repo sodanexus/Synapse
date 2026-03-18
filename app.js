@@ -1494,6 +1494,10 @@ RÈGLES ABSOLUES :
       const modal = document.getElementById('reader-modal');
       if (!titleArea) return;
 
+      // Si une image hero est déjà affichée, ne pas la recréer (évite le double chargement)
+      const existingBg = titleArea.querySelector('.hero-bg.hero-visible');
+      if (existingBg) return;
+
       // Reset — supprimer le hero-bg précédent
       const oldBg = titleArea.querySelector('.hero-bg');
       if (oldBg) oldBg.remove();
