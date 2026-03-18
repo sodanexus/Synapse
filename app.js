@@ -1525,27 +1525,34 @@ RÈGLES ABSOLUES :
       Toast.show('Quota IA atteint — remise à zéro à minuit', 'info', 5000);
     }
 
-    /** Applique l'image hero en fond de la zone titre */
+    /** Applique l'image hero en fond de la zone titre — sans flash ni saut de layout */
     function _setHeroImage(article) {
       const titleArea = document.getElementById('reader-title-area');
-      const modal = document.getElementById('reader-modal');
+      const modal     = document.getElementById('reader-modal');
       if (!titleArea) return;
 
-      // Reset — supprimer le hero-bg précédent
-      const oldBg = titleArea.querySelector('.hero-bg');
-      if (oldBg) oldBg.remove();
-      titleArea.classList.remove('has-hero');
-      if (modal) modal.classList.remove('hero-ready');
+      const newUrl = article.image || '';
+      const existingBg  = titleArea.querySelector('.hero-bg');
+      const currentUrl  = existingBg
+        ? (existingBg.dataset.url || '')
+        : '';
 
-      const img = article.image || '';
-      if (img) {
-        // Appliquer border:none immédiatement, avant le chargement de l'image
+      // Même image déjà affichée — rien à faire, zéro flash
+      if (newUrl && newUrl === currentUrl && titleArea.classList.contains('has-hero')) {
         if (modal) modal.classList.add('hero-ready');
-        _applyHero(titleArea, img);
         return;
       }
 
-      // Pas d'image RSS → tenter OG scrape en arrière-plan (silencieux)
+      if (newUrl) {
+        // Image connue — l'appliquer directement (probablement en cache navigateur)
+        if (modal) modal.classList.add('hero-ready');
+        _applyHero(titleArea, newUrl, existingBg);
+        return;
+      }
+
+      // Pas d'image en mémoire — reset propre puis tenter OG scrape
+      _clearHero(titleArea, modal);
+
       if (article.link) {
         fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`, {
           signal: AbortSignal.timeout(8000),
@@ -1553,32 +1560,68 @@ RÈGLES ABSOLUES :
           .then(r => r.ok ? r.json() : null)
           .then(data => {
             if (!data?.ogImage) return;
+            // Vérifier que l'utilisateur est toujours sur le même article
             const current = STATE.currentArticleList[STATE.currentArticleIndex];
             if (current?.hash !== article.hash) return;
             article.image = data.ogImage;
+            // Sauvegarder en base si article a un id
+            if (article.id && STATE.user) {
+              Auth.getClient()
+                .from('articles')
+                .update({ image: data.ogImage })
+                .eq('id', article.id)
+                .catch(() => {});
+            }
             if (modal) modal.classList.add('hero-ready');
-            _applyHero(titleArea, data.ogImage);
+            _applyHero(titleArea, data.ogImage, null);
           })
           .catch(() => {});
       }
     }
 
-    /** Injecte un div.hero-bg avec fade-in — le contenu reste visible en permanence */
-    function _applyHero(titleArea, url) {
+    /** Supprime le hero proprement */
+    function _clearHero(titleArea, modal) {
+      const oldBg = titleArea.querySelector('.hero-bg');
+      if (oldBg) oldBg.remove();
+      titleArea.classList.remove('has-hero');
+      if (modal) modal.classList.remove('hero-ready');
+    }
+
+    /** Injecte ou remplace un div.hero-bg avec transition douce */
+    function _applyHero(titleArea, url, existingBg) {
       const img = new Image();
       img.onload = () => {
-        // Créer le div image
-        const bg = document.createElement('div');
-        bg.className = 'hero-bg';
-        bg.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
-        titleArea.insertBefore(bg, titleArea.firstChild);
-        titleArea.classList.add('has-hero');
-        // Forcer reflow puis fade-in
-        void bg.offsetHeight;
-        bg.classList.add('hero-visible');
+        // Si même conteneur a déjà un hero-bg différent → le remplacer sans flash
+        const old = existingBg || titleArea.querySelector('.hero-bg');
+        if (old && old.dataset.url !== url) {
+          // Cross-fade : nouvelle image par-dessus, puis retirer l'ancienne
+          const bg = _createHeroBg(url);
+          titleArea.insertBefore(bg, titleArea.firstChild);
+          titleArea.classList.add('has-hero');
+          void bg.offsetHeight;
+          bg.classList.add('hero-visible');
+          setTimeout(() => { if (old.parentNode) old.remove(); }, 650);
+        } else if (!old) {
+          // Pas d'image précédente — fade-in normal
+          const bg = _createHeroBg(url);
+          titleArea.insertBefore(bg, titleArea.firstChild);
+          titleArea.classList.add('has-hero');
+          void bg.offsetHeight;
+          bg.classList.add('hero-visible');
+        }
+        // Si même URL — déjà affiché, rien à faire
       };
       img.onerror = () => {};
       img.src = url;
+    }
+
+    /** Crée un div.hero-bg prêt à insérer */
+    function _createHeroBg(url) {
+      const bg = document.createElement('div');
+      bg.className = 'hero-bg';
+      bg.dataset.url = url;
+      bg.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
+      return bg;
     }
 
     /** Ferme le reader avec animation */
@@ -2723,61 +2766,53 @@ RÈGLES ABSOLUES :
       }
     }
 
-    /** Applique l'image hero au digest depuis l'article réellement utilisé */
+    /** Applique l'image hero au digest — sans flash ni saut de layout */
     function _setDigestHeroImage(preferredUrl = null) {
       const titleArea = document.getElementById('digest-title-area');
-      const modal = document.getElementById('digest-modal');
+      const modal     = document.getElementById('digest-modal');
       if (!titleArea) return;
 
-      // Reset
-      const oldBg = titleArea.querySelector('.hero-bg');
-      if (oldBg) oldBg.remove();
+      const newUrl     = preferredUrl || _getDigestHeroSource()?.image || '';
+      const existingBg = titleArea.querySelector('.hero-bg');
+      const currentUrl = existingBg ? (existingBg.dataset.url || '') : '';
+
+      // Même image déjà affichée — rien à faire
+      if (newUrl && newUrl === currentUrl && titleArea.classList.contains('has-hero')) {
+        if (modal) modal.classList.add('hero-ready');
+        return;
+      }
+
+      if (newUrl) {
+        if (modal) modal.classList.add('hero-ready');
+        _applyHero(titleArea, newUrl, existingBg);
+        return;
+      }
+
+      // Pas d'image — reset + scrape OG
+      const old = existingBg;
+      if (old) old.remove();
       titleArea.classList.remove('has-hero');
       if (modal) modal.classList.remove('hero-ready');
 
-      if (preferredUrl) {
-        _applyDigestHero(titleArea, modal, preferredUrl);
-        return;
-      }
-
       const topArticle = _getDigestHeroSource();
-      if (!topArticle) return;
+      if (!topArticle?.link) return;
 
-      // Appliquer image si déjà disponible
-      if (topArticle.image) {
-        _applyDigestHero(titleArea, modal, topArticle.image);
-        return;
-      }
-
-      // Sinon scrape OG en arrière-plan
-      if (topArticle.link) {
-        fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(topArticle.link)}`, {
-          signal: AbortSignal.timeout(8000),
+      fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(topArticle.link)}`, {
+        signal: AbortSignal.timeout(8000),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data?.ogImage) return;
+          topArticle.image = data.ogImage;
+          if (modal) modal.classList.add('hero-ready');
+          _applyHero(titleArea, data.ogImage, null);
         })
-          .then(r => r.ok ? r.json() : null)
-          .then(data => {
-            if (!data?.ogImage) return;
-            topArticle.image = data.ogImage;
-            _applyDigestHero(titleArea, modal, data.ogImage);
-          })
-          .catch(() => {});
-      }
+        .catch(() => {});
     }
 
     function _applyDigestHero(titleArea, modal, url) {
       if (modal) modal.classList.add('hero-ready');
-      const img = new Image();
-      img.onload = () => {
-        const bg = document.createElement('div');
-        bg.className = 'hero-bg';
-        bg.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
-        titleArea.insertBefore(bg, titleArea.firstChild);
-        titleArea.classList.add('has-hero');
-        void bg.offsetHeight;
-        bg.classList.add('hero-visible');
-      };
-      img.onerror = () => {};
-      img.src = url;
+      _applyHero(titleArea, url, titleArea.querySelector('.hero-bg'));
     }
 
     function init() {
@@ -2866,7 +2901,11 @@ RÈGLES ABSOLUES :
           document.body.style.overflow = '';
           // Reset hero
           const titleArea = document.getElementById('digest-title-area');
-          if (titleArea) { titleArea.querySelector('.hero-bg')?.remove(); titleArea.classList.remove('has-hero'); }
+          if (titleArea) {
+            const bg = titleArea.querySelector('.hero-bg');
+            if (bg) bg.remove();
+            titleArea.classList.remove('has-hero');
+          }
           if (modal) modal.classList.remove('hero-ready');
         }, 280);
       });
