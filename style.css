@@ -1407,7 +1407,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 /* ================================================================
    RESPONSIVE — TABLET
    ================================================================ */
-@media (max-width: 900px) {
+@media (max-width: 600px) {
   .app-shell { grid-template-columns: 1fr; }
 
   .sidebar {
@@ -2467,7 +2467,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 /* Hamburger inline — visible seulement sur mobile */
 .sidebar-toggle-inline { display: none; }
-@media (max-width: 900px) {
+@media (max-width: 600px) {
   .sidebar-toggle-inline { display: flex; }
 }
 
