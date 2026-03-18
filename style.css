@@ -1152,7 +1152,10 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 /* Supprimer le border du modal dès qu'une image est détectée (avant chargement) */
 .reader-modal.hero-ready {
-  border: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  border-bottom: var(--border);
   outline: none;
   box-shadow: var(--shadow-lift);
 }
@@ -1168,6 +1171,10 @@ body.dark .reader-modal.hero-ready .reader-header {
 .reader-modal:has(.reader-title-area.has-hero) .reader-title-area {
   margin-bottom: 0;
   border-bottom: none;
+}
+
+.reader-modal:has(.reader-title-area.has-hero) .reader-chapo {
+  border-top: none;
 }
 
 /* Zone résumé */
