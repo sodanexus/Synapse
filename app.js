@@ -955,10 +955,10 @@ RÈGLES ABSOLUES :
 
     /** Crée une card article (vue grille, home) */
     /** Crée une ligne article (vue liste, flux / bookmarks) */
-    function articleRow(article, index, articleList) {
+    function articleRow(article, index, articleList, forceRow = false) {
       const score = article.importance || 1;
       const isBookmarked = STATE.bookmarks.has(article.id || article.hash);
-      const isImportant = score >= 4 && !article._forceRow;
+      const isImportant = score >= 4 && !forceRow && !article._forceRow;
 
       const row = document.createElement('div');
       row.dataset.hash = article.hash || '';
@@ -1151,10 +1151,9 @@ RÈGLES ABSOLUES :
         container.appendChild(sep);
       }
 
-      // Articles normaux — wrapper léger pour _forceRow, sans muter l'objet original
+      // Articles normaux — on passe forceRow en 4e param pour ne pas muter l'objet
       restArticles.forEach((article, i) => {
-        const articleProxy = Object.assign(Object.create(null), article, { _forceRow: true });
-        container.appendChild(articleRow(articleProxy, i + breakingCount, filtered));
+        container.appendChild(articleRow(article, i + breakingCount, filtered, true));
       });
 
       // Infinite scroll — sentinel en bas de liste
