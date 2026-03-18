@@ -273,6 +273,15 @@
       if (error) throw error;
     }
 
+    /** Met à jour l'image d'un article */
+    async function updateArticleImage(articleId, image) {
+      const { error } = await client()
+        .from('articles')
+        .update({ image })
+        .eq('id', articleId);
+      if (error) throw error;
+    }
+
     /* ── DIGEST ── */
 
     /** Récupère le digest du jour */
@@ -334,7 +343,7 @@
       return data || [];
     }
 
-    return { getFeeds, addFeed, deleteFeed, toggleFeed, getArticles, searchArticles, getBookmarks, getReadHistory, upsertArticle, updateArticleStatus, getTodayDigest, saveDigest };
+    return { getFeeds, addFeed, deleteFeed, toggleFeed, getArticles, searchArticles, getBookmarks, getReadHistory, upsertArticle, updateArticleStatus, updateArticleImage, getTodayDigest, saveDigest };
   })();
 
   /* ================================================================
@@ -1555,11 +1564,53 @@ RÈGLES ABSOLUES :
             if (!data?.ogImage) return;
             const current = STATE.currentArticleList[STATE.currentArticleIndex];
             if (current?.hash !== article.hash) return;
-            article.image = data.ogImage;
+            _persistArticleImage(article, data.ogImage);
             if (modal) modal.classList.add('hero-ready');
             _applyHero(titleArea, data.ogImage);
           })
           .catch(() => {});
+      }
+    }
+
+    /** Persiste l'image d'un article en mémoire + Supabase */
+    function _persistArticleImage(article, imageUrl) {
+      if (!imageUrl) return;
+
+      article.image = imageUrl;
+
+      // Sync avec STATE.articles
+      const stateRef = STATE.articles.find(a => a.hash === article.hash);
+      if (stateRef && stateRef !== article) {
+        stateRef.image = imageUrl;
+      }
+
+      // Persister le cache local pour éviter la perte au refresh
+      if (STATE.user) Cache.save(STATE.user.id, STATE.articles);
+
+      // Sauvegarder en base si l'article existe déjà, sinon upsert complet
+      if (STATE.user) {
+        if (article.id) {
+          DB.updateArticleImage(article.id, imageUrl).catch(err =>
+            console.warn('Sauvegarde image (update) échouée:', err)
+          );
+        } else {
+          DB.upsertArticle({
+            feed_id:    article.feed_id || null,
+            user_id:    STATE.user.id,
+            hash:       article.hash,
+            title:      article.title      || '',
+            link:       article.link       || '',
+            content:    article.content    || '',
+            ai_title:   article.ai_title   || null,
+            ai_content: article.ai_content || '',
+            ai_tags:    article.ai_tags    || [],
+            importance: article.importance || 1,
+            pub_date:   article.pub_date   || new Date().toISOString(),
+            read:       article.read       || false,
+            bookmarked: article.bookmarked || false,
+            image:      imageUrl,
+          }).catch(err => console.warn('Sauvegarde image (upsert) échouée:', err));
+        }
       }
     }
 
@@ -3084,6 +3135,7 @@ RÈGLES ABSOLUES :
               pub_date:   article.pub_date || new Date().toISOString(),
               read:       article.read     || false,
               bookmarked: article.bookmarked || false,
+              image:      article.image    || null,
             }).catch(() => {});
           }
           // Mettre à jour ai_title en mémoire aussi
