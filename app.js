@@ -1334,11 +1334,33 @@ RÈGLES ABSOLUES :
 
     /** Révèle le contenu enrichi avec une animation fluide et gracieuse */
     function _revealContent(delay = 0) {
+      const modal     = document.getElementById('reader-modal');
       const titleEl   = document.getElementById('reader-title');
       const chapoEl   = document.getElementById('reader-chapo');
       const contentEl = document.getElementById('reader-content');
       const tagsEl    = document.getElementById('reader-tags');
       const impEl     = document.getElementById('reader-imp-bars');
+
+      // Animer l'agrandissement de la modal
+      if (modal) {
+        const fromH = modal.scrollHeight;
+        modal.style.height = fromH + 'px';
+        modal.style.overflow = 'hidden';
+
+        // Laisser le DOM se mettre à jour avec le nouveau contenu
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const toH = modal.scrollHeight;
+            modal.style.transition = 'height 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+            modal.style.height = toH + 'px';
+            setTimeout(() => {
+              modal.style.height = '';
+              modal.style.overflow = '';
+              modal.style.transition = '';
+            }, 520);
+          });
+        });
+      }
 
       const elements = [
         { el: titleEl,   d: 0   },
