@@ -1376,9 +1376,6 @@ RÈGLES ABSOLUES :
         return;
       }
 
-      // Indicateur de chargement sur le titre du reader
-      const titleEl = document.getElementById('reader-title');
-      if (titleEl) titleEl.style.opacity = '0.5';
       // Désactiver le bouton TTS pendant l'enrichissement
       const ttsBtn = document.getElementById('btn-listen');
       if (ttsBtn) ttsBtn.disabled = true;
@@ -1649,9 +1646,11 @@ RÈGLES ABSOLUES :
 
     /** Remplit le reader avec les données d'un article */
     function populate(article, animate = false) {
+      const isEnriched = AI.isEnriched(article);
+
       document.getElementById('reader-source').textContent = article.feed_name || '';
 
-      // Temps de lecture estimé
+      // Date — toujours visible
       const wordCount = ((article.ai_content || article.content || '')).split(/\s+/).filter(Boolean).length;
       const readMin = Math.max(1, Math.round(wordCount / 200));
       document.getElementById('reader-date').textContent =
@@ -1659,7 +1658,12 @@ RÈGLES ABSOLUES :
           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
         }) + ` · ${readMin} min`;
 
-      document.getElementById('reader-title').textContent = article.ai_title || article.title || '';
+      // Titre — masqué si pas encore enrichi
+      const titleEl = document.getElementById('reader-title');
+      if (titleEl) {
+        titleEl.textContent = isEnriched ? (article.ai_title || article.title || '') : '';
+        titleEl.style.opacity = '';
+      }
 
       // Image hero — ne recharger que si c'est un article différent
       const titleArea = document.getElementById('reader-title-area');
@@ -1668,12 +1672,38 @@ RÈGLES ABSOLUES :
         if (titleArea) titleArea.dataset.heroHash = article.hash;
       }
 
-      // Barres d'importance
-      const score = article.importance || 1;
-      const impBarsEl = document.getElementById('reader-imp-bars');
-      if (impBarsEl) impBarsEl.innerHTML = Render.importanceBars(score);
+      // Mettre à jour l'icône bookmark — toujours visible
+      const bookmarkBtn = document.getElementById('btn-bookmark');
+      if (bookmarkBtn) {
+        const isBookmarked = STATE.bookmarks.has(article.id || article.hash) || article.bookmarked;
+        bookmarkBtn.classList.toggle('active', isBookmarked);
+        bookmarkBtn.textContent = isBookmarked ? '◨' : '◧';
+      }
 
-      // Tags — max 3 affichés + indicateur "+N" si plus
+      if (!isEnriched) {
+        // Pas encore enrichi — masquer tout le contenu, afficher loader discret
+        const impBarsEl = document.getElementById('reader-imp-bars');
+        if (impBarsEl) impBarsEl.innerHTML = '';
+        const tagsEl = document.getElementById('reader-tags');
+        if (tagsEl) tagsEl.innerHTML = '';
+        const chapoEl = document.getElementById('reader-chapo');
+        if (chapoEl) { chapoEl.textContent = ''; chapoEl.style.display = 'none'; }
+        const contentEl = document.getElementById('reader-content');
+        if (contentEl) {
+          contentEl.innerHTML = '<div class="reader-loading-indicator"></div>';
+          contentEl.style.opacity = '1';
+        }
+        const relatedZone = document.getElementById('reader-related');
+        if (relatedZone) relatedZone.style.display = 'none';
+        const metaBottom = document.getElementById('reader-meta-bottom') || document.querySelector('.reader-meta-bottom');
+        if (metaBottom) metaBottom.style.display = 'none';
+        return;
+      }
+
+      // Enrichi — afficher tout avec animation si demandée
+      const impBarsEl = document.getElementById('reader-imp-bars');
+      if (impBarsEl) impBarsEl.innerHTML = Render.importanceBars(article.importance || 1);
+
       const tagsEl = document.getElementById('reader-tags');
       const allTags = article.ai_tags || [];
       const visibleTags = allTags.slice(0, 3);
@@ -1682,13 +1712,11 @@ RÈGLES ABSOLUES :
         `<span class="tag">${Render.escapeHtml(t)}</span>`
       ).join('') + (extraCount > 0 ? `<span class="tag tag-more">+${extraCount}</span>` : '');
 
-      // Mettre à jour l'icône bookmark
-      const bookmarkBtn = document.getElementById('btn-bookmark');
-      if (bookmarkBtn) {
-        const isBookmarked = STATE.bookmarks.has(article.id || article.hash) || article.bookmarked;
-        bookmarkBtn.classList.toggle('active', isBookmarked);
-        bookmarkBtn.textContent = isBookmarked ? '◨' : '◧';
-      }
+      const metaBottom = document.getElementById('reader-meta-bottom') || document.querySelector('.reader-meta-bottom');
+      if (metaBottom) metaBottom.style.display = '';
+
+      const relatedZone = document.getElementById('reader-related');
+      if (relatedZone) relatedZone.style.display = '';
 
       // Chapô — première phrase, corps commence après
       const chapoEl = document.getElementById('reader-chapo');
@@ -1696,12 +1724,24 @@ RÈGLES ABSOLUES :
       if (chapoEl) {
         const fullText = (article.ai_content || '').trim();
         if (fullText.length > 100) {
-          // Trouver la fin de la première phrase (., !, ?)
           const match = fullText.match(/^.{40,200}?[.!?](?=\s|$)/);
           if (match) {
             chapoText = match[0].trim();
             chapoEl.textContent = chapoText;
-            chapoEl.style.display = '';
+            if (animate) {
+              chapoEl.style.opacity = '0';
+              chapoEl.style.display = '';
+              chapoEl.style.transform = 'translateY(8px)';
+              setTimeout(() => {
+                chapoEl.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+                chapoEl.style.opacity = '1';
+                chapoEl.style.transform = 'translateY(0)';
+              }, 50);
+            } else {
+              chapoEl.style.display = '';
+              chapoEl.style.opacity = '';
+              chapoEl.style.transform = '';
+            }
           } else {
             chapoEl.textContent = '';
             chapoEl.style.display = 'none';
@@ -1712,13 +1752,10 @@ RÈGLES ABSOLUES :
         }
       }
 
-      // Contenu IA — on retire le chapô du début pour éviter la répétition
+      // Contenu
       setContent(article, animate, chapoText);
 
-      // Restaurer la taille de police préférée depuis l'état interne
       FontSize.set(FontSize.getCurrent(), false);
-
-      // Articles similaires
       renderRelated(article);
     }
 
