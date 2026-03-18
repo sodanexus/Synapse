@@ -1762,14 +1762,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   vertical-align: middle;
 }
 
-.nav-badge-breaking {
-  color: #c0392b;
-  font-size: 0.6rem;
-  margin-left: 4px;
-  vertical-align: middle;
-  animation: breakingPulse 1.5s ease-in-out infinite;
-}
-
 @keyframes breakingPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
