@@ -128,15 +128,9 @@
       <!-- ── VUE : FLUX ── -->
       <section class="view active" id="view-feed">
 
-        <!-- En-tête d'accueil -->
-        <div class="feed-welcome">
-          <div class="feed-welcome-left">
-            <h1 class="view-title">FLUX</h1>
-            <div class="feed-welcome-stats" id="feed-welcome-stats">
-              <span class="feed-welcome-date" id="feed-welcome-date"></span>
-            </div>
-          </div>
-          <div class="feed-welcome-right">
+        <header class="view-header">
+          <h1 class="view-title">FLUX</h1>
+          <div style="display:flex;align-items:center;gap:10px;">
             <button class="feed-digest-btn" id="btn-open-digest" title="Générer le digest IA"><span class="digest-btn-icon">✦</span><span class="digest-btn-label"> DIGEST</span></button>
             <button class="feed-search-toggle" id="btn-search-toggle" title="Rechercher">⌕</button>
             <button class="btn-mark-all-read" id="btn-mark-all-read" title="Tout marquer comme lu">✓</button>
@@ -144,6 +138,9 @@
               <span></span><span></span><span></span>
             </button>
           </div>
+        </header>
+        <div class="feed-welcome-stats" id="feed-welcome-stats">
+          <span class="feed-welcome-date" id="feed-welcome-date"></span>
         </div>
 
         <!-- Sujets dominants -->
