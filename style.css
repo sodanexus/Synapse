@@ -1540,7 +1540,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   .reader-sep { height: 20px; }
   .reader-header { padding: 8px 16px; }
 
-  .feed-welcome { padding: 20px 0 8px; gap: 6px; }
   .feed-welcome-date { font-size: 1.3rem; }
   .row-actions { display: none; }
 
@@ -1577,8 +1576,7 @@ body.dark .reader-modal.hero-ready .reader-header {
     padding: 10px;
     font-size: 1.1rem;
   }
-  .feed-welcome-right { gap: 4px; }
-}
+  }
 
 /* ================================================================
    ANIMATIONS ENTRY — stagger via JS (style.animationDelay)
@@ -2369,19 +2367,6 @@ body.dark .reader-modal.hero-ready .reader-header {
 /* ================================================================
    EN-TÊTE D'ACCUEIL FLUX
    ================================================================ */
-.feed-welcome {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 28px 0 12px;
-  gap: 8px;
-}
-
-.feed-welcome-left {
-  min-width: 0;
-  flex: 1;
-}
-
 .feed-welcome-date {
   font-family: var(--font-display);
   font-size: 1.9rem;
@@ -2402,14 +2387,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.feed-welcome-right {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  padding-top: 4px;
 }
 
 .feed-search-toggle {
@@ -2473,7 +2450,6 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 /* Vue mobile */
 @media (max-width: 600px) {
-  .feed-welcome { padding: 20px 0 8px; }
   .feed-welcome-date { font-size: 1.3rem; }
 }
 
