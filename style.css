@@ -961,8 +961,13 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   justify-content: space-between;
   padding: 14px 36px;
   border-bottom: var(--border);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
   gap: 16px;
   flex-wrap: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--white);
 }
 
 .reader-meta { display: flex; gap: 16px; align-items: center; min-width: 0; }
@@ -1149,7 +1154,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 .reader-modal.hero-ready {
   border: none;
   outline: none;
-  box-shadow: 0 8px 48px rgba(0,0,0,0.14);
+  box-shadow: var(--shadow-lift);
 }
 
 /* Pas de séparation visuelle entre hero et contenu */
@@ -2704,6 +2709,11 @@ body.dark .nav-item.active::before {
 body.dark .filter-btn.active {
   border-color: var(--grey-mid);
   color: var(--ink);
+}
+
+body.dark .reader-header {
+  background: var(--white);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
 }
 
 body.dark .reader-header,
