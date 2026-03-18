@@ -1046,13 +1046,16 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   overflow: hidden;
 }
 
+.reader-title-area {
+  transition: min-height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .reader-title-area.has-hero {
   min-height: 360px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   background-color: var(--white);
-  /* Déborder légèrement vers le bas pour couvrir le gap de rendu */
   margin-bottom: -2px;
   padding-bottom: 2px;
 }
@@ -1065,12 +1068,14 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   background-position: center center;
   background-repeat: no-repeat;
   opacity: 0;
-  transition: opacity 0.6s ease;
+  transform: scale(1.04);
+  transition: opacity 0.7s ease, transform 0.9s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 0;
 }
 
 .hero-bg.hero-visible {
   opacity: 1;
+  transform: scale(1);
 }
 
 /* S'assurer que le contenu passe au-dessus de hero-bg et des pseudo-éléments */
@@ -1080,7 +1085,13 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 }
 
 /* Dégradé light mode — plus bas, image plus visible */
+.reader-title-area::before {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
 .reader-title-area.has-hero::before {
+  opacity: 1;
   content: '';
   position: absolute;
   top: 0;
@@ -1126,6 +1137,7 @@ body.dark .reader-title-area.has-hero::before {
   background: rgba(247, 246, 243, 0.82);
   backdrop-filter: blur(8px);
   border-bottom-color: transparent;
+  transition: background 0.5s ease, border-bottom-color 0.5s ease;
 }
 
 body.dark .reader-modal.hero-ready .reader-header {
