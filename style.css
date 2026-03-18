@@ -1116,7 +1116,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 
 /* Ligne blanche de sécurité en bas de la zone hero */
 .reader-title-area.has-hero {
-  box-shadow: 0 2px 0 0 var(--white);
+  box-shadow: 0 8px 0 0 var(--white);
 }
 
 /* Dark mode — fond vers --white dark (#232018) */
