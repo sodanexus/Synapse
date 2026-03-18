@@ -4,11 +4,12 @@
  *
  * Routes gérées :
  *   GET  /rss?url=<encoded>   → Proxy RSS (résout CORS)
- *   POST /ai                  → Relay Groq API (clé cachée côté worker)
+ *   POST /ai                  → Relay IA (Gemini Flash ou Groq selon le modèle)
  *   POST /tts                 → Unreal Speech TTS (Élodie, voix française)
  *
  * Variables d'environnement à configurer dans Cloudflare Dashboard :
- *   GROQ_API_KEY          → votre clé API Groq
+ *   GEMINI_API_KEY        → votre clé API Google Gemini (aistudio.google.com)
+ *   GROQ_API_KEY          → votre clé API Groq (fallback digest)
  *   UNREALSPEECH_API_KEY  → votre clé API Unreal Speech
  *   ALLOWED_ORIGIN        → URL de votre site GitHub Pages (ex: https://sodanexus.github.io)
  */
@@ -78,13 +79,18 @@ async function handleRSS(url, corsHeaders) {
 
   const response = await fetch(feedUrl, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml, text/html, */*',
-      'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
       'Accept-Encoding': 'gzip, deflate, br',
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'max-age=0',
       'Pragma': 'no-cache',
       'Referer': parsedUrl.origin + '/',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'same-origin',
+      'Sec-Fetch-User': '?1',
+      'Upgrade-Insecure-Requests': '1',
     },
     redirect: 'follow',
     cf: { cacheTtl: 300 },
@@ -142,9 +148,15 @@ function parseRSSXML(xml) {
       const pubDate = extractTag(item, 'pubDate') || extractTag(item, 'dc:date') || extractTag(item, 'published');
       if (title || link) {
         const image = extractImage(item);
+        let finalLink = (stripCDATA(link || '')).trim();
+        // Google News — extraire l'URL source réelle depuis <source url="...">
+        if (finalLink.includes('news.google.com')) {
+          const sourceUrl = extractAttr(item, 'source', 'url');
+          if (sourceUrl) finalLink = sourceUrl;
+        }
         items.push({
           title: decodeEntities(stripCDATA(title || '')),
-          link: (stripCDATA(link || '')).trim(),
+          link: finalLink,
           description: decodeEntities(stripCDATA(description || '')),
           content: decodeEntities(stripCDATA(content || '')),
           pubDate: pubDate || '',
@@ -223,13 +235,9 @@ function decodeEntities(str) {
 }
 
 /* ================================================================
-   HANDLER AI — Relay vers l'API Groq
+   HANDLER AI — Gemini Flash (enrich) + Groq (digest fallback)
    ================================================================ */
 async function handleAI(request, env, corsHeaders) {
-  if (!env.GROQ_API_KEY) {
-    return jsonResponse({ error: 'GROQ_API_KEY not configured' }, 500, corsHeaders);
-  }
-
   let body;
   try {
     body = await request.json();
@@ -241,6 +249,58 @@ async function handleAI(request, env, corsHeaders) {
 
   if (!prompt) {
     return jsonResponse({ error: 'Missing prompt' }, 400, corsHeaders);
+  }
+
+  // Gemini Flash pour l'enrichissement, Groq pour le digest (modèles lourds)
+  const useGemini = model && model.startsWith('gemini');
+
+  if (useGemini) {
+    return handleGemini(env, system, prompt, model, max_tokens, corsHeaders);
+  } else {
+    return handleGroq(env, system, prompt, model, max_tokens, corsHeaders);
+  }
+}
+
+async function handleGemini(env, system, prompt, model, max_tokens, corsHeaders) {
+  if (!env.GEMINI_API_KEY) {
+    return jsonResponse({ error: 'GEMINI_API_KEY not configured' }, 500, corsHeaders);
+  }
+
+  const geminiModel = model || 'gemini-2.0-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${env.GEMINI_API_KEY}`;
+
+  // Combiner system + prompt en un seul message user (Gemini ne supporte pas system séparé en basic)
+  const fullPrompt = system ? `${system}
+
+${prompt}` : prompt;
+
+  const geminiResponse = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+      generationConfig: {
+        maxOutputTokens: Math.min(max_tokens, 2000),
+        temperature: 0.7,
+      },
+    }),
+  });
+
+  if (!geminiResponse.ok) {
+    const errText = await geminiResponse.text();
+    console.error('Gemini API error:', geminiResponse.status, errText);
+    return jsonResponse({ error: `Gemini API error: ${geminiResponse.status}` }, geminiResponse.status, corsHeaders);
+  }
+
+  const geminiData = await geminiResponse.json();
+  const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+  return jsonResponse({ text }, 200, corsHeaders);
+}
+
+async function handleGroq(env, system, prompt, model, max_tokens, corsHeaders) {
+  if (!env.GROQ_API_KEY) {
+    return jsonResponse({ error: 'GROQ_API_KEY not configured' }, 500, corsHeaders);
   }
 
   const messages = [];
