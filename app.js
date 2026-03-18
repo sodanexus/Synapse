@@ -1005,6 +1005,14 @@ RÈGLES ABSOLUES :
     }
 
     /** Échappe le HTML pour éviter les XSS */
+    function importanceBars(score) {
+      return Array.from({ length: 5 }, (_, i) => {
+        const active = i < score;
+        const color = `var(--imp-${Math.max(1, score)})`;
+        return `<div class="imp-bar" style="${active ? `background:${color}` : ''}"></div>`;
+      }).join('');
+    }
+
     function escapeHtml(str) {
       return String(str)
         .replace(/&/g, '&amp;')
@@ -1253,7 +1261,7 @@ RÈGLES ABSOLUES :
     return {
       articleRow, renderFeedArticles,
       renderBookmarks, renderSidebarFeeds,
-      renderWelcome, escapeHtml, relativeTime,    };
+      renderWelcome, escapeHtml, relativeTime, importanceBars,    };
   })();
 
   /* ================================================================
@@ -1572,7 +1580,11 @@ RÈGLES ABSOLUES :
       // Image hero — fond du header avec dégradé
       _setHeroImage(article);
 
-      // Barres d'importance — dans la meta du header (sous source/date)
+      // Barres d'importance
+      const score = article.importance || 1;
+      const impBarsEl = document.getElementById('reader-imp-bars');
+      if (impBarsEl) impBarsEl.innerHTML = Render.importanceBars(score);
+
       // Tags — max 3 affichés + indicateur "+N" si plus
       const tagsEl = document.getElementById('reader-tags');
       const allTags = article.ai_tags || [];
