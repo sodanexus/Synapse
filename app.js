@@ -1286,6 +1286,17 @@ RÈGLES ABSOLUES :
       document.body.style.overflow = 'hidden';
       document.getElementById('btn-close-reader').focus();
 
+      // Fade in initial du reader-content à l'ouverture
+      const _contentEl = document.getElementById('reader-content');
+      if (_contentEl) {
+        _contentEl.style.opacity = '0';
+        requestAnimationFrame(() => {
+          _contentEl.style.transition = 'opacity 0.3s ease';
+          _contentEl.style.opacity = '1';
+          setTimeout(() => { _contentEl.style.transition = ''; }, 350);
+        });
+      }
+
       // Utiliser l'objet du tableau pour que enrichOnOpen modifie la même référence que le TTS
       const articleRef = STATE.currentArticleList[STATE.currentArticleIndex] || article;
       if (!AI.isEnriched(articleRef)) {
@@ -1360,7 +1371,41 @@ RÈGLES ABSOLUES :
 
         const currentArticle = STATE.currentArticleList[STATE.currentArticleIndex];
         if (currentArticle && currentArticle.hash === article.hash) {
-          populate(article, true);
+          // Fade out du contenu brut, puis populate avec animation
+          const contentEl = document.getElementById('reader-content');
+          const chapoEl   = document.getElementById('reader-chapo');
+          const titleEl2  = document.getElementById('reader-title');
+          const tagsEl2   = document.getElementById('reader-tags');
+          const impEl     = document.getElementById('reader-imp-bars');
+
+          // Éléments à faire disparaître
+          const toFade = [contentEl, chapoEl].filter(Boolean);
+          toFade.forEach(el => {
+            el.style.transition = 'opacity 0.35s ease';
+            el.style.opacity = '0';
+          });
+
+          setTimeout(() => {
+            populate(article, true);
+            // Fade in après populate
+            toFade.forEach(el => {
+              el.style.transition = 'opacity 0.4s ease';
+              el.style.opacity = '1';
+            });
+            // Légère animation sur le titre et les tags aussi
+            [titleEl2, tagsEl2, impEl].filter(Boolean).forEach(el => {
+              el.style.transition = 'opacity 0.3s ease';
+              el.style.opacity = '0.4';
+              setTimeout(() => {
+                el.style.transition = 'opacity 0.4s ease';
+                el.style.opacity = '1';
+              }, 50);
+            });
+            // Nettoyer les transitions inline après
+            setTimeout(() => {
+              toFade.forEach(el => { el.style.transition = ''; el.style.opacity = ''; });
+            }, 450);
+          }, 360);
         }
 
         // Mettre à jour la row dans le feed sans re-render complet
