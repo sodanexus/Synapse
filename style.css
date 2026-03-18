@@ -1215,6 +1215,34 @@ body.dark .reader-modal.hero-ready .reader-header {
   margin-bottom: 0;
 }
 
+/* Loader discret pendant enrichissement IA */
+.reader-loading-indicator {
+  width: 32px;
+  height: 2px;
+  background: var(--grey-subtle);
+  border-radius: 2px;
+  margin: 40px auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.reader-loading-indicator::after {
+  content: '';
+  position: absolute;
+  left: -100%;
+  top: 0;
+  width: 60%;
+  height: 100%;
+  background: var(--grey-mid);
+  border-radius: 2px;
+  animation: readerLoading 1.2s ease-in-out infinite;
+}
+
+@keyframes readerLoading {
+  0%   { left: -60%; }
+  100% { left: 160%; }
+}
+
 .reader-content {
   padding: 28px 36px 48px;
   font-size: 1rem;
