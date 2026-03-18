@@ -1432,9 +1432,14 @@ RÈGLES ABSOLUES :
 
         const currentArticle = STATE.currentArticleList[STATE.currentArticleIndex];
         if (currentArticle && currentArticle.hash === article.hash) {
-          // Enrichissement terminé — populate puis reveal animé
+          // Enrichissement terminé — masquer instantanément avant populate pour éviter le flash
+          const _els = ['reader-title','reader-chapo','reader-content','reader-tags','reader-imp-bars']
+            .map(id => document.getElementById(id)).filter(Boolean);
+          _els.forEach(el => { el.style.transition = 'none'; el.style.opacity = '0'; });
+
+          // Populate puis reveal animé
           populate(article, false);
-          _revealContent();
+          _revealContent(50);
         }
 
         // Mettre à jour la row dans le feed sans re-render complet
