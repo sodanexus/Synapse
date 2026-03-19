@@ -1212,11 +1212,10 @@ RÈGLES ABSOLUES :
       });
     }
 
-    /** Rendu de l'en-tête d'accueil — date, stats, sujets */
+    /** Rendu de l’en-tête d’accueil — date, compteurs, sparkline */
     function renderWelcome() {
       const dateEl   = document.getElementById('feed-welcome-date');
       const countsEl = document.getElementById('feed-welcome-counts');
-      const topicsEl = document.getElementById('feed-topics');
 
       const dateStr = new Date().toLocaleDateString('fr-FR', {
         weekday: 'long', day: 'numeric', month: 'long'
@@ -1230,38 +1229,36 @@ RÈGLES ABSOLUES :
       if (unread > 0) countsText += ` · ${unread} non lu${unread > 1 ? 's' : ''}`;
       if (countsEl) countsEl.textContent = countsText;
 
-      if (topicsEl) {
-        const tagCount = {};
-        STATE.articles.forEach(a => (a.ai_tags || []).forEach(t => {
-          const k = t.toLowerCase().trim();
-          tagCount[k] = (tagCount[k] || 0) + 1;
-        }));
-        const topTags = Object.entries(tagCount)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 4)
-          .map(([tag]) => tag);
-
-        topicsEl.innerHTML = topTags.length
-          ? topTags.map(t => `<button class="topic-chip" data-topic="${t}">${t}</button>`).join('')
-          : '';
-
-        topicsEl.querySelectorAll('.topic-chip').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const q = btn.dataset.topic;
-            const searchBar = document.getElementById('search-bar');
-            const searchInput = document.getElementById('search-input');
-            if (searchBar) searchBar.classList.remove('hidden');
-            if (searchInput) {
-              searchInput.value = q;
-              searchInput.dispatchEvent(new Event('input'));
-              searchInput.focus();
-            }
-          });
-        });
-      }
+      _renderSparkline();
     }
 
-    return {
+    /** Construit le sparkline des 7 derniers jours */
+    function _renderSparkline() {
+      const barsEl  = document.getElementById('sparkline-bars');
+      const todayEl = document.getElementById('sparkline-today');
+      const weekEl  = document.getElementById('sparkline-week');
+      if (!barsEl) return;
+
+      const counts = Array(7).fill(0);
+      const now = Date.now();
+      STATE.articles.forEach(a => {
+        if (!a.pub_date) return;
+        const diff = Math.floor((now - new Date(a.pub_date).getTime()) / 86400000);
+        if (diff >= 0 && diff < 7) counts[6 - diff]++;
+      });
+
+      const max = Math.max(...counts, 1);
+      barsEl.innerHTML = counts.map((count, i) => {
+        const h = Math.max(2, Math.round((count / max) * 24));
+        const isToday = i === 6;
+        return `<div class="sparkline-bar${isToday ? ' today' : ''}" style="height:${h}px" title="${count} article${count !== 1 ? 's' : ''}"></div>`;
+      }).join('');
+
+      if (todayEl) todayEl.textContent = counts[6];
+      if (weekEl)  weekEl.textContent  = counts.reduce((s, v) => s + v, 0);
+    }
+
+        return {
       articleRow, renderFeedArticles,
       renderBookmarks, renderSidebarFeeds,
       renderWelcome, escapeHtml, relativeTime, importanceBars,    };
