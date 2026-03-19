@@ -389,6 +389,30 @@ ul { list-style: none; }
 
 .feeds-list li:hover { color: var(--ink); }
 
+/* Drag & drop handles */
+.feed-drag-handle {
+  font-size: 0.7rem;
+  color: var(--grey-light);
+  cursor: grab;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+  user-select: none;
+  line-height: 1;
+}
+
+.feeds-list li:hover .feed-drag-handle {
+  opacity: 1;
+}
+
+.feeds-list li.dragging {
+  opacity: 0.4;
+}
+
+.feeds-list li.drag-over {
+  border-top: 1px solid var(--ink);
+}
+
 .feeds-list li.has-new::after {
   content: '·';
   color: var(--ink);
