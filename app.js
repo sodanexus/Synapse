@@ -2196,9 +2196,9 @@ TEXTE : ${rssText}`;
         if (!AI.isEnriched(article)) {
           _showContentLoader();
           enrichOnOpen(article);
-        } else {
-          _revealContent(40);
         }
+        // _setHeroImage (appelé dans populate) déclenche _revealContent
+        // Si pas d'image du tout, il appellera _revealContent directement
       });
     }
 
@@ -2215,9 +2215,9 @@ TEXTE : ${rssText}`;
         if (!AI.isEnriched(article)) {
           _showContentLoader();
           enrichOnOpen(article);
-        } else {
-          _revealContent(40);
         }
+        // _setHeroImage (appelé dans populate) déclenche _revealContent
+        // Si pas d'image du tout, il appellera _revealContent directement
       });
     }
 
