@@ -1220,28 +1220,7 @@ body.dark .reader-modal.hero-ready .reader-header {
   margin-bottom: 0;
 }
 
-/* Loader discret pendant enrichissement IA */
-.reader-loading-indicator {
-  width: 32px;
-  height: 2px;
-  background: var(--grey-subtle);
-  border-radius: 2px;
-  margin: 40px auto;
-  position: relative;
-  overflow: hidden;
-}
 
-.reader-loading-indicator::after {
-  content: '';
-  position: absolute;
-  left: -100%;
-  top: 0;
-  width: 60%;
-  height: 100%;
-  background: var(--grey-mid);
-  border-radius: 2px;
-  animation: readerLoading 1.2s ease-in-out infinite;
-}
 
 @keyframes readerLoading {
   0%   { left: -60%; }
@@ -1267,14 +1246,7 @@ body.dark .reader-modal.hero-ready .reader-header {
   font-size: 1.3rem;
 }
 
-.content-loading {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--grey-light);
-  padding: 20px 0;
-  font-size: 0.82rem;
-}
+
 
 .spinner {
   width: 16px; height: 16px;
@@ -1720,13 +1692,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 
 
 /* Masquer aussi le skeleton pendant l'ouverture */
-.reader-modal.reader-opening .content-loading,
-.reader-modal.reader-opening .reader-loading-indicator,
-.reader-modal.reader-opening .digest-empty-state,
-.reader-modal.reader-opening .reader-content .skeleton,
-.reader-modal.reader-opening .reader-content .skeleton-line,
-.reader-modal.reader-opening .reader-content .skeleton-block,
-.reader-modal.reader-opening [class*="skeleton"] {
+.reader-modal.reader-opening .digest-empty-state {
   opacity: 0 !important;
   visibility: hidden !important;
 }
@@ -2843,55 +2809,4 @@ body.dark .quota-warning {
 @keyframes pulse {
   0%, 100% { opacity: 0.5; }
   50%       { opacity: 1; }
-}
-
-/* ================================================================
-   CONTENT SHIMMER — animation de chargement pendant enrichissement IA
-   ================================================================ */
-.content-shimmer {
-  padding: 8px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.shimmer-gap { height: 16px; }
-
-.shimmer-line {
-  border-radius: 3px;
-  background: linear-gradient(
-    90deg,
-    var(--grey-wash) 25%,
-    var(--grey-subtle) 50%,
-    var(--grey-wash) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer-sweep 1.6s ease-in-out infinite;
-  height: 13px;
-}
-
-.shimmer-line--title {
-  height: 22px;
-  width: 72%;
-  margin-bottom: 6px;
-  border-radius: 4px;
-}
-
-.shimmer-line--full  { width: 100%; }
-.shimmer-line--partial { width: 65%; }
-
-@keyframes shimmer-sweep {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-body.dark .shimmer-line {
-  background: linear-gradient(
-    90deg,
-    var(--grey-wash) 25%,
-    var(--grey-subtle) 50%,
-    var(--grey-wash) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer-sweep 1.6s ease-in-out infinite;
 }
