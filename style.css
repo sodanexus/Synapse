@@ -1486,7 +1486,7 @@ body.dark .reader-modal.hero-ready .reader-header {
   #digest-header-date { display: block; }
 
   /* Stats et topics flux — masqués sur mobile */
-  .feed-topics { display: none; }
+  .feed-sparkline { display: inline-flex; }
   #feed-count { display: none; }
   .feed-row { grid-template-columns: 1fr auto auto; gap: 12px; }
   .feed-row-category { display: none; }
@@ -2470,32 +2470,49 @@ body.dark .reader-modal.hero-ready .reader-header {
 .feed-search-toggle:hover { color: var(--ink); }
 
 /* Sujets dominants */
-.feed-topics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.feed-sparkline {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
   margin-bottom: 20px;
   margin-top: 4px;
-  min-height: 0;
 }
 
-.topic-chip {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.08em;
-  padding: 5px 12px;
-  background: transparent;
-  color: var(--grey-mid);
-  border-radius: 2px;
-  cursor: pointer;
-  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
-  text-transform: lowercase;
-  border: var(--border);
+.sparkline-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 24px;
 }
-.topic-chip:hover {
-  background: var(--grey-wash);
+
+.sparkline-bar {
+  width: 6px;
+  border-radius: 1px;
+  background: var(--grey-subtle);
+  flex-shrink: 0;
+}
+
+.sparkline-bar.today {
+  background: var(--ink);
+}
+
+.sparkline-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sparkline-stat {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--grey-mid);
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.sparkline-stat strong {
   color: var(--ink);
-  border-color: var(--grey-mid);
+  font-weight: 500;
 }
 
 /* Barre de recherche avec bouton fermer */
