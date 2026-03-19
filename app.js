@@ -525,10 +525,13 @@
         return { ai_content: article.content || article.title || '', ai_tags: [] };
       }
 
-      const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris ou résumes les articles RSS en prose claire et fluide. Tu supprimes tout le bruit (publicités, appels à l'action, mentions légales). Tu réécris en 300-400 mots minimum, en plusieurs paragraphes. Si le contenu source est court, ajoute du contexte pertinent sur le sujet. Tu ne copies JAMAIS le texte original mot pour mot. Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks. IMPORTANT : dans les valeurs JSON (ai_title, ai_content), n'utilise JAMAIS de guillemets droits " — remplace-les par des guillemets simples '. N'utilise pas non plus les deux-points : dans ai_title. Langue de sortie : français.`;
+      const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris ou résumes les articles RSS en prose claire et fluide. Tu supprimes tout le bruit (publicités, appels à l'action, mentions légales). Tu réécris en 300-400 mots minimum, en plusieurs paragraphes. Si le contenu source est court, ajoute du contexte pertinent sur le sujet. Tu ne copies JAMAIS le texte original mot pour mot. Tu réponds UNIQUEMENT en XML valide, sans markdown, sans backticks, rien d'autre. Langue de sortie : français.`;
 
-      const prompt = `Réécris ou résume cet article et retourne exactement ce JSON (et rien d'autre) :
-{"ai_title":"<titre traduit en français, concis et accrocheur, max 12 mots>","ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"]}
+      const prompt = `Réécris ou résume cet article et retourne UNIQUEMENT ce XML (rien d'autre, pas de balise racine, pas de commentaire) :
+<ai_title>titre traduit en français, concis et accrocheur, max 12 mots</ai_title>
+<ai_content>réécriture ou résumé en prose fluide, plusieurs paragraphes, jamais une copie de l'original</ai_content>
+<importance>chiffre de 1 à 5, 5=breaking news</importance>
+<ai_tags>thème1,thème2,thème3</ai_tags>
 
 TITRE : ${article.title}
 SOURCE : ${article.feed_name}
@@ -536,33 +539,17 @@ TEXTE : ${rssText}`;
 
       const raw = await callGroq(systemPrompt, prompt, 1400);
       try {
-        // Extraction directe par regex sur les clés connues — insensible aux caractères spéciaux
-        const extract = (key) => {
-          const re = new RegExp('"' + key + '"\\s*:\\s*"([\\s\\S]*?)"(?=\\s*[,}])', '');
-          const m = raw.match(re);
-          if (!m) return null;
-          return m[1]
-            .replace(/[\u201C\u201D\u00AB\u00BB\u2018\u2019\u2032]/g, "'")
-            .replace(/\n+/g, ' ')
-            .replace(/\s{2,}/g, ' ')
-            .trim();
+        // Extraction XML — robuste à tous les caractères spéciaux
+        const tag = (name) => {
+          const m = raw.match(new RegExp('<' + name + '>([\\s\\S]*?)<\\/' + name + '>'));
+          return m ? m[1].trim() : null;
         };
 
-        const extractNumber = (key) => {
-          const m = raw.match(new RegExp('"' + key + '"\\s*:\\s*(\\d+)'));
-          return m ? parseInt(m[1]) : null;
-        };
-
-        const extractArray = (key) => {
-          const m = raw.match(new RegExp('"' + key + '"\\s*:\\s*\\[([\\s\\S]*?)\\]'));
-          if (!m) return [];
-          return (m[1].match(/"([^"]+)"/g) || []).map(s => s.replace(/"/g, ''));
-        };
-
-        const ai_title   = extract('ai_title');
-        const ai_content = extract('ai_content');
-        const importance = extractNumber('importance');
-        const ai_tags    = extractArray('ai_tags');
+        const ai_title   = tag('ai_title');
+        const ai_content = tag('ai_content');
+        const importance = parseInt(tag('importance') || '1');
+        const tagsRaw    = tag('ai_tags') || '';
+        const ai_tags    = tagsRaw.split(',').map(t => t.trim()).filter(Boolean).slice(0, 5);
 
         if (!ai_content) throw new Error('No ai_content found in response');
 
@@ -571,7 +558,7 @@ TEXTE : ${rssText}`;
           ai_title:   ai_title || null,
           ai_content: isDistinct ? ai_content : (article.content || article.title),
           importance: Math.min(5, Math.max(1, importance || 1)),
-          ai_tags:    ai_tags.slice(0, 5),
+          ai_tags,
         };
       } catch (err) {
         console.warn(`Parsing échoué pour "${article.title}":`, err, '\nRaw:', raw);
