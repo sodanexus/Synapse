@@ -1443,7 +1443,11 @@ TEXTE : ${rssText}`;
         _showContentLoader();
         enrichOnOpen(articleRef);
       } else {
-        _revealContent();
+        // Si une image est déjà connue, _applyHero va déclencher _revealContent
+        // quand l'image sera chargée — pas besoin de l'appeler ici
+        if (!article.image) {
+          _revealContent();
+        }
       }
     }
 
@@ -1775,8 +1779,20 @@ TEXTE : ${rssText}`;
         titleArea.insertBefore(bg, titleArea.firstChild);
         titleArea.classList.add('has-hero');
         void bg.offsetHeight;
-        // Déclencher le déroulé complet depuis le hero
-        _revealContent(0);
+        // Attendre que la modal soit visible avant de déclencher le déroulé
+        const overlay = document.getElementById('reader-overlay');
+        if (overlay && !overlay.classList.contains('hidden')) {
+          _revealContent(0);
+        } else {
+          // La modal n'est pas encore ouverte — on attend qu'elle le soit
+          const waitForOpen = setInterval(() => {
+            if (overlay && !overlay.classList.contains('hidden')) {
+              clearInterval(waitForOpen);
+              _revealContent(0);
+            }
+          }, 30);
+          setTimeout(() => clearInterval(waitForOpen), 1500);
+        }
       };
       img.onerror = () => {};
       img.src = url;
