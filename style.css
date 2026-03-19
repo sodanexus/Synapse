@@ -1145,10 +1145,9 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   background-position: center center;
   background-repeat: no-repeat;
   opacity: 0;
-  transform: scale(1.06);
-  transition: opacity 0.55s ease, transform 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+  clip-path: inset(0 0 100% 0);
+  transition: opacity 0.4s ease, clip-path 0.7s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 0;
-  clip-path: inset(0 0 1px 0);
 }
 
 /* Défense supplémentaire si le hero est rendu avec une vraie balise <img> */
@@ -1161,7 +1160,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 
 .hero-bg.hero-visible {
   opacity: 1;
-  transform: scale(1);
+  clip-path: inset(0 0 0% 0);
 }
 
 /* S'assurer que le contenu passe au-dessus de hero-bg et des pseudo-éléments */
