@@ -1967,7 +1967,6 @@ RÈGLES ABSOLUES :
       };
 
       scheduleReaderReveal._timer = setTimeout(revealWhenReady, 360);
-    }, 360);
     }
 
     /**
