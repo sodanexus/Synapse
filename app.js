@@ -1955,9 +1955,19 @@ RÈGLES ABSOLUES :
       const modal = document.getElementById('reader-modal');
       if (!modal) return;
       clearTimeout(scheduleReaderReveal._timer);
-      scheduleReaderReveal._timer = setTimeout(() => {
+
+      const revealWhenReady = () => {
+        const hasSkeleton =
+          modal.querySelector('.content-loading, .reader-loading-indicator, [class*="skeleton"]');
+        if (hasSkeleton) {
+          scheduleReaderReveal._timer = setTimeout(revealWhenReady, 120);
+          return;
+        }
         modal.classList.remove('reader-opening');
-      }, 360);
+      };
+
+      scheduleReaderReveal._timer = setTimeout(revealWhenReady, 360);
+    }, 360);
     }
 
     /**
