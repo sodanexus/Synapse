@@ -574,13 +574,14 @@ TEXTE : ${rssText}`;
 
     /**
      * Regroupe les articles enrichis par catégorie de feed.
-     * Pour chaque catégorie : articles du jour en priorité,
-     * fallback 48h si vide, fallback général en dernier recours.
+     * Pour chaque catégorie : 1 article par feed (le plus récent), max 4 feeds.
+     * Fallback 48h puis général si pas d'articles du jour.
      * Retourne un objet { [category]: article[] }
      */
     function getDigestArticlesByCategory(articles) {
       const today = new Date().toISOString().split('T')[0];
       const since48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+      const MAX_PER_CATEGORY = 4;
 
       // Collecter toutes les catégories présentes
       const categories = [...new Set(
@@ -594,26 +595,27 @@ TEXTE : ${rssText}`;
       for (const cat of categories) {
         const pool = articles.filter(a => isEnriched(a) && (a.feed_category || 'Général') === cat);
 
-        // 1. Articles du jour
-        let selection = pool
-          .filter(a => a.pub_date && a.pub_date.startsWith(today))
+        // Sélectionner le pool temporel (jour → 48h → tout)
+        let timePool = pool.filter(a => a.pub_date && a.pub_date.startsWith(today));
+        if (timePool.length < 2) {
+          timePool = pool.filter(a => a.pub_date && a.pub_date >= since48h);
+        }
+        if (timePool.length === 0) {
+          timePool = pool;
+        }
+
+        // 1 article par feed (le plus récent), max 4 feeds
+        const byFeed = {};
+        for (const a of timePool) {
+          const fid = a.feed_id || '__unknown__';
+          if (!byFeed[fid] || new Date(a.pub_date) > new Date(byFeed[fid].pub_date)) {
+            byFeed[fid] = a;
+          }
+        }
+
+        const selection = Object.values(byFeed)
           .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
-          .slice(0, 5);
-
-        // 2. Fallback 48h si pas assez
-        if (selection.length < 2) {
-          selection = pool
-            .filter(a => a.pub_date && a.pub_date >= since48h)
-            .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
-            .slice(0, 5);
-        }
-
-        // 3. Fallback général
-        if (selection.length === 0) {
-          selection = pool
-            .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
-            .slice(0, 5);
-        }
+          .slice(0, MAX_PER_CATEGORY);
 
         if (selection.length > 0) {
           byCategory[cat] = selection;
