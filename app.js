@@ -1214,8 +1214,8 @@ RÈGLES ABSOLUES :
 
     /** Rendu de l'en-tête d'accueil — date, stats, sujets */
     function renderWelcome() {
-      const dateEl = document.getElementById('feed-welcome-date');
-      const statsEl = document.getElementById('feed-welcome-stats');
+      const dateEl   = document.getElementById('feed-welcome-date');
+      const countsEl = document.getElementById('feed-welcome-counts');
       const topicsEl = document.getElementById('feed-topics');
 
       const dateStr = new Date().toLocaleDateString('fr-FR', {
@@ -1224,11 +1224,11 @@ RÈGLES ABSOLUES :
       if (dateEl) dateEl.textContent = dateStr;
 
       const unread = STATE.articles.filter(a => !a.read).length;
-      const total = STATE.articles.length;
-            let statsText = dateStr;
-      if (total > 0) statsText += ` · ${total} article${total > 1 ? 's' : ''}`;
-      if (unread > 0) statsText += ` · ${unread} non lu${unread > 1 ? 's' : ''}`;
-      if (statsEl) statsEl.textContent = statsText;
+      const total  = STATE.articles.length;
+      let countsText = '';
+      if (total > 0)  countsText += `${total} article${total > 1 ? 's' : ''}`;
+      if (unread > 0) countsText += ` · ${unread} non lu${unread > 1 ? 's' : ''}`;
+      if (countsEl) countsEl.textContent = countsText;
 
       if (topicsEl) {
         const tagCount = {};
