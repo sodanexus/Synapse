@@ -1697,9 +1697,15 @@ TEXTE : ${rssText}`;
       const modal = document.getElementById('reader-modal');
       if (!titleArea) { _revealContent(); return; }
 
+      // Si le hero est déjà là pour cet article — le rendre visible directement
+      const existingBg = titleArea.querySelector('.hero-bg');
+      if (existingBg && titleArea.dataset.heroHash === article.hash) {
+        existingBg.classList.add('hero-visible');
+        return;
+      }
+
       // Reset — supprimer le hero-bg précédent
-      const oldBg = titleArea.querySelector('.hero-bg');
-      if (oldBg) oldBg.remove();
+      if (existingBg) existingBg.remove();
       titleArea.classList.remove('has-hero');
       if (modal) modal.classList.remove('hero-ready');
 
