@@ -11,7 +11,7 @@
 - 📰 **Agrège tes feeds RSS** — fetch via Cloudflare Worker, 20 articles par source
 - 🤖 **Enrichit chaque article à l'ouverture** — réécriture en français, score d'importance 1–5, tags thématiques, extraction d'image
 - 🎙️ **Lit les articles à voix haute** — TTS français via Unreal Speech (voix Élodie)
-- 📋 **Génère un digest quotidien** — briefing structuré par thèmes, lu à voix haute
+- 📋 **Génère un digest quotidien** — briefing structuré par catégorie de feed, 1 article par source, lu à voix haute
 - 🔖 **Synchronise tes bookmarks** — persistés dans Supabase, accessibles partout
 - 📱 **Installable sur iPhone** — PWA, fonctionne comme une app native
 
@@ -52,7 +52,7 @@ synapse/
 ### 1. Supabase
 
 1. Créer un projet sur [supabase.com](https://supabase.com)
-2. **SQL Editor** → coller et exécuter `supabase_schema.sql`
+2. **SQL Editor** → coller et exécuter `supabase_schema.sql` (inclut toutes les migrations)
 3. Ajouter le trigger de nettoyage automatique (articles > 7 jours) :
 
 ```sql
@@ -72,14 +72,7 @@ CREATE OR REPLACE TRIGGER trigger_cleanup_articles
   EXECUTE FUNCTION cleanup_old_articles();
 ```
 
-4. Ajouter les colonnes supplémentaires :
-
-```sql
-ALTER TABLE articles ADD COLUMN IF NOT EXISTS ai_title TEXT DEFAULT NULL;
-ALTER TABLE articles ADD COLUMN IF NOT EXISTS image TEXT DEFAULT NULL;
-```
-
-5. **Settings > API** → noter `Project URL` et `anon public key`
+4. **Settings > API** → noter `Project URL` et `anon public key`
 
 ---
 
@@ -140,15 +133,21 @@ Safari → ouvrir le site → bouton partage **↑** → **"Sur l'écran d'accue
 ### Lecture & enrichissement
 - Fetch RSS via le Worker (contourne le CORS), parsing des formats RSS 2.0 et Atom
 - À l'ouverture d'un article : scraping de la page source, enrichissement IA (titre FR, résumé, score 1–5, tags), extraction d'image OG
-- Enrichissement silencieux en arrière-plan par ordre d'importance décroissante
+- Enrichissement silencieux en arrière-plan au moment du sync — 1 article par feed sélectionné en round-robin par catégorie (max 5 par catégorie), pour que le digest soit prêt sans intervention
 - Reader plein écran avec image hero, navigation clavier `← →` et swipe mobile
 
 ### Digest IA
-- Briefing quotidien structuré en 4 thèmes max, généré à la demande
+- Briefing quotidien structuré **par catégorie de feed** — une section par catégorie, 1 article par source (max 4 feeds par catégorie)
+- Articles du jour en priorité, fallback 48h puis général si nécessaire
 - Modèle dédié plus puissant (`llama-3.3-70b-versatile`)
 - Lecture audio complète via TTS
 - Chronologie du jour en bas (articles triés par heure)
 - Mis en cache dans Supabase — régénérable manuellement
+
+### Sidebar & organisation
+- Feeds groupés par catégorie, drag & drop pour réordonner les feeds **et** les catégories
+- L'ordre des feeds est persisté dans Supabase (synchronisé sur tous les appareils)
+- L'ordre des catégories est persisté dans `localStorage`
 
 ### Sync & performance
 - Sync conditionnel — pas de re-fetch si < 15 min depuis le dernier sync
@@ -191,3 +190,17 @@ Safari → ouvrir le site → bouton partage **↑** → **"Sur l'écran d'accue
 **TTS — Unreal Speech (free tier)**
 - 250 000 caractères/mois
 - Endpoint `/stream` pour les textes ≤ 1 000 chars, `/speech` au-delà
+
+---
+
+## Nettoyage de la base
+
+Pour vider articles et digests (feeds conservés) :
+```sql
+TRUNCATE TABLE articles, digests RESTART IDENTITY CASCADE;
+```
+
+Pour tout réinitialiser :
+```sql
+TRUNCATE TABLE feeds, articles, digests RESTART IDENTITY CASCADE;
+```
