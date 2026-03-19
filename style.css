@@ -760,12 +760,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   opacity: 1;
 }
 
-.article-row:hover .row-excerpt,
-.article-row:hover .row-meta {
-  opacity: 0;
-  max-height: 0;
-  margin-top: 0;
-}
+/* pas de disparition au hover — le résumé reste visible */
 
 .article-row:first-child { border-top: var(--border); }
 
