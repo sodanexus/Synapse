@@ -543,32 +543,55 @@ TEXTE : ${rssText}`;
         // 1. Extraire le bloc JSON brut
         const jsonBlock = cleaned.match(/\{[\s\S]*\}/)?.[0] || cleaned;
 
-        // 2. Nettoyer caractère par caractère les valeurs string
-        // Remplacer guillemets français «» et typographiques "" à l'intérieur des valeurs par des guillemets échappés
-        // On ne touche pas aux guillemets structurels du JSON
+        // 2. Nettoyer les valeurs string du JSON de façon robuste
+        // Stratégie : identifier les valeurs string (après : ou dans []) et échapper leur contenu
         let result = '';
         let inString = false;
         let escape = false;
+        let afterColon = false; // on vient de lire un ":" → la prochaine string est une valeur
+
         for (let i = 0; i < jsonBlock.length; i++) {
           const ch = jsonBlock[i];
           const code = jsonBlock.charCodeAt(i);
+
           if (escape) { result += ch; escape = false; continue; }
           if (ch === '\\') { result += ch; escape = true; continue; }
-          if (ch === '"' && !inString) { inString = true; result += ch; continue; }
-          if (ch === '"' && inString) { inString = false; result += ch; continue; }
-          if (inString) {
-            // Guillemets typographiques → remplacer par apostrophe ou espace
-            if (code === 0x201C || code === 0x201D || code === 0x00AB || code === 0x00BB) {
-              result += "'"; continue;
+
+          if (!inString) {
+            if (ch === ':' || ch === '[' || ch === ',') afterColon = true;
+            else if (ch !== ' ' && ch !== '\t' && ch !== '\n' && ch !== '\r') afterColon = false;
+            if (ch === '"') { inString = true; result += ch; continue; }
+            result += ch;
+            continue;
+          }
+
+          // On est dans une string
+          // Un " non échappé après une valeur (afterColon=true au début) ferme la string normalement
+          // Un " non échappé en milieu de valeur → guillemet de citation → échapper
+          if (ch === '"') {
+            // Regarder si ce " ferme vraiment la string : suivi de espace/,/}/]/"
+            let j = i + 1;
+            while (j < jsonBlock.length && (jsonBlock[j] === ' ' || jsonBlock[j] === '\t')) j++;
+            const next = jsonBlock[j];
+            const isClosing = next === ',' || next === '}' || next === ']' || next === '\n' || next === '\r' || j >= jsonBlock.length;
+            if (isClosing) {
+              inString = false;
+              result += ch;
+            } else {
+              // Guillemet de citation dans le texte → échapper
+              result += '\\"';
             }
-            // Apostrophes typographiques → apostrophe droite
-            if (code === 0x2018 || code === 0x2019 || code === 0x2032) {
-              result += "'"; continue;
-            }
-            // Sauts de ligne → espace
-            if (ch === '\n' || ch === '\r') { result += ' '; continue; }
-            // Caractères de contrôle → espace
-            if (code < 0x20 || code === 0x7F) { result += ' '; continue; }
+            continue;
+          }
+
+          // Guillemets typographiques → apostrophe
+          if (code === 0x201C || code === 0x201D || code === 0x00AB || code === 0x00BB ||
+              code === 0x2018 || code === 0x2019 || code === 0x2032) {
+            result += "'"; continue;
+          }
+          // Sauts de ligne et contrôles → espace
+          if (ch === '\n' || ch === '\r' || code < 0x20 || code === 0x7F) {
+            result += ' '; continue;
           }
           result += ch;
         }
