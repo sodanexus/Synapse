@@ -1035,7 +1035,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 /* Titre reader */
 .reader-title {
   font-family: var(--font-display);
-  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-size: clamp(1.75rem, 3.5vw, 2.6rem);
   font-weight: 400;
   letter-spacing: -0.03em;
   line-height: 1.15;
@@ -1062,7 +1062,6 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   justify-content: flex-end;
   background-color: var(--white);
   overflow: hidden;
-  padding-bottom: 48px;
 }
 
 /* Div image injectée par JS — fade-in indépendant du contenu */
@@ -1140,7 +1139,7 @@ body.dark .reader-title-area.has-hero::before {
 /* ── Zone hero active — titre pleine hauteur ── */
 .reader-title-area.has-hero .reader-title {
   padding-top: 20px;
-  padding-bottom: 36px;
+  padding-bottom: 20px;
 }
 
 /* Header toolbar — fond semi-transparent et sans bordure quand hero actif */
