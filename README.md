@@ -9,7 +9,7 @@
 ## Ce que ça fait
 
 - 📰 **Agrège tes feeds RSS** — fetch via Cloudflare Worker, 20 articles par source
-- 🤖 **Enrichit chaque article à l'ouverture** — réécriture en français, score d'importance 1–5, tags thématiques, extraction d'image
+- 🤖 **Enrichit chaque article à l'ouverture** — réécriture en français, score d'importance 1–5, tags thématiques, extraction d'image OG
 - 🎙️ **Lit les articles à voix haute** — TTS français via Unreal Speech (voix Élodie)
 - 📋 **Génère un digest quotidien** — briefing structuré par catégorie de feed, 1 article par source, lu à voix haute
 - 🔖 **Synchronise tes bookmarks** — persistés dans Supabase, accessibles partout
@@ -134,11 +134,12 @@ Safari → ouvrir le site → bouton partage **↑** → **"Sur l'écran d'accue
 - Fetch RSS via le Worker (contourne le CORS), parsing des formats RSS 2.0 et Atom
 - À l'ouverture d'un article : scraping de la page source, enrichissement IA (titre FR, résumé, score 1–5, tags), extraction d'image OG
 - Enrichissement silencieux en arrière-plan au moment du sync — 1 article par feed sélectionné en round-robin par catégorie (max 5 par catégorie), pour que le digest soit prêt sans intervention
-- Reader plein écran avec image hero, navigation clavier `← →` et swipe mobile
+- Reader plein écran avec animation papyrus (image OG révélée de haut en bas, titre, chapo, contenu en cascade), navigation clavier `← →` et swipe mobile
 
 ### Digest IA
 - Briefing quotidien structuré **par catégorie de feed** — une section par catégorie, 1 article par source (max 4 feeds par catégorie)
 - Articles du jour en priorité, fallback 48h puis général si nécessaire
+- Réponse Groq parsée en XML — robuste aux caractères spéciaux, guillemets et deux-points
 - Modèle dédié plus puissant (`llama-3.3-70b-versatile`)
 - Lecture audio complète via TTS
 - Chronologie du jour en bas (articles triés par heure)
@@ -157,6 +158,7 @@ Safari → ouvrir le site → bouton partage **↑** → **"Sur l'écran d'accue
 
 ### UX
 - Dark mode, taille de police ajustable dans le reader
+- Smooth scroll sur desktop (molette avec easing natif)
 - Pull-to-refresh sur mobile
 - Partage natif (Web Share API) sur mobile, presse-papier sur desktop
 - Badge breaking news si article importance 5 non lu
@@ -181,6 +183,11 @@ Safari → ouvrir le site → bouton partage **↑** → **"Sur l'écran d'accue
 - Les clés Groq et Unreal Speech ne quittent jamais le Worker (variables d'environnement Cloudflare)
 - Les clés Supabase `anon` sont protégées par les policies Row Level Security
 - Tout le HTML est échappé via `escapeHtml()` — pas de XSS possible
+
+**Parsing IA robuste**
+- Groq répond en XML (`<ai_title>`, `<ai_content>`, `<importance>`, `<ai_tags>`)
+- Le parser accepte les variantes de noms de balises (`<title>`, `<Titre>`, `<content>`, `<Contenu>`) et est insensible à la casse
+- Fallback si balise fermante manquante
 
 **Rate limiting Groq (free tier)**
 - `llama-3.1-8b-instant` : 14 400 req/jour · 30 req/min
