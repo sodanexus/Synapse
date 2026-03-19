@@ -786,7 +786,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   color: var(--ink);
   margin-bottom: 5px;
   line-height: 1.35;
-  transition: font-size 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: font-size 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .article-row:hover .row-title {
