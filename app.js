@@ -534,16 +534,21 @@ TITRE : ${article.title}
 SOURCE : ${article.feed_name}
 TEXTE : ${rssText}`;
 
-      const raw = await callGroq(systemPrompt, prompt, 1200);
+      const raw = await callGroq(systemPrompt, prompt, 1400);
       try {
         // Nettoyer les backticks markdown
         let cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
         // Remplacer les guillemets typographiques par des guillemets droits
-        cleaned = cleaned.replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "\'");
-        // Corriger les sauts de ligne et caractères de contrôle dans les strings JSON
+        cleaned = cleaned.replace(/[\u201C\u201D\u00AB\u00BB]/g, '"').replace(/[\u2018\u2019\u2032]/g, "\'");
+        // Corriger les sauts de ligne, caractères de contrôle et apostrophes dans les strings JSON
         cleaned = cleaned.replace(/"([^"]*?)"/g, (match) =>
           match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/[\x00-\x1F\x7F]/g, ' ')
         );
+        // Échapper les apostrophes non échappées dans les valeurs (ex: d'"implausible")
+        cleaned = cleaned.replace(/:"((?:[^"\\]|\\.)*)"/g, (match, val) => {
+          const escaped = val.replace(/(?<!\\)'/g, "\\'");
+          return ':"' + escaped + '"';
+        });
 
         // Tenter d'extraire le JSON — s'il est tronqué, tenter de le réparer
         let jsonMatch = cleaned.match(/\{[\s\S]*\}/);
