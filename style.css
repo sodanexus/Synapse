@@ -785,6 +785,38 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 .filter-btn:hover { color: var(--ink); }
 .filter-btn.active { color: var(--ink); border-bottom-color: var(--ink); }
 
+.feed-category-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 0 14px;
+}
+.feed-category-filters.hidden { display: none; }
+
+.category-chip {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: var(--border);
+  border-radius: 2px;
+  color: var(--grey-mid);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.category-chip:hover {
+  color: var(--ink);
+  border-color: var(--grey-mid);
+  background: var(--grey-wash);
+}
+.category-chip.active {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--grey-wash);
+}
+
 .btn-mark-all-read {
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -1122,8 +1154,6 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   z-index: 1;
 }
 
-
-
 /* Dark mode — fond vers --white dark (#232018) */
 body.dark .reader-title-area.has-hero::before {
   background: linear-gradient(
@@ -1219,8 +1249,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   margin-bottom: 0;
 }
 
-
-
 @keyframes readerLoading {
   0%   { left: -60%; }
   100% { left: 160%; }
@@ -1244,8 +1272,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   color: var(--ink);
   font-size: 1.3rem;
 }
-
-
 
 .spinner {
   width: 16px; height: 16px;
@@ -1486,7 +1512,7 @@ body.dark .reader-modal.hero-ready .reader-header {
   #digest-header-date { display: block; }
 
   /* Stats et topics flux — masqués sur mobile */
-  .feed-sparkline { display: inline-flex; }
+
   #feed-count { display: none; }
   .feed-row { grid-template-columns: 1fr auto auto; gap: 12px; }
   .feed-row-category { display: none; }
@@ -1688,7 +1714,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   opacity: 0;
   transition: opacity 0.16s ease;
 }
-
 
 /* Masquer aussi le skeleton pendant l'ouverture */
 .reader-modal.reader-opening .digest-empty-state {
@@ -2470,50 +2495,6 @@ body.dark .reader-modal.hero-ready .reader-header {
 .feed-search-toggle:hover { color: var(--ink); }
 
 /* Sujets dominants */
-.feed-sparkline {
-  display: inline-flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 20px;
-  margin-top: 4px;
-}
-
-.sparkline-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 24px;
-}
-
-.sparkline-bar {
-  width: 6px;
-  border-radius: 1px;
-  background: var(--grey-subtle);
-  flex-shrink: 0;
-}
-
-.sparkline-bar.today {
-  background: var(--ink);
-}
-
-.sparkline-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.sparkline-stat {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--grey-mid);
-  white-space: nowrap;
-  line-height: 1.4;
-}
-
-.sparkline-stat strong {
-  color: var(--ink);
-  font-weight: 500;
-}
 
 /* Barre de recherche avec bouton fermer */
 .search-bar {
