@@ -1446,13 +1446,10 @@ TEXTE : ${rssText}`;
       if (!AI.isEnriched(articleRef)) {
         _showContentLoader();
         enrichOnOpen(articleRef);
-      } else {
-        // Si une image est déjà connue, _applyHero va déclencher _revealContent
-        // quand l'image sera chargée — pas besoin de l'appeler ici
-        if (!article.image) {
-          _revealContent();
-        }
+        // _revealContent sera appelé par enrichOnOpen une fois terminé
       }
+      // Pour les articles enrichis, _setHeroImage (appelé dans populate)
+      // résout la promesse et déclenche _revealContent via _triggerRevealAfterHero
     }
 
     /** Masque le contenu et affiche un shimmer pendant l'enrichissement */
@@ -1693,11 +1690,11 @@ TEXTE : ${rssText}`;
       Toast.show('Quota IA atteint — remise à zéro à minuit', 'info', 5000);
     }
 
-    /** Applique l'image hero en fond de la zone titre */
+    /** Applique l'image hero puis déclenche le déroulé du contenu */
     function _setHeroImage(article) {
       const titleArea = document.getElementById('reader-title-area');
       const modal = document.getElementById('reader-modal');
-      if (!titleArea) return;
+      if (!titleArea) { _revealContent(); return; }
 
       // Reset — supprimer le hero-bg précédent
       const oldBg = titleArea.querySelector('.hero-bg');
@@ -1705,29 +1702,40 @@ TEXTE : ${rssText}`;
       titleArea.classList.remove('has-hero');
       if (modal) modal.classList.remove('hero-ready');
 
-      const img = article.image || '';
-      if (img) {
-        // Appliquer border:none immédiatement, avant le chargement de l'image
+      const imgUrl = article.image || '';
+
+      const afterHero = (hasImage) => {
+        if (!hasImage) _revealContent();
+        // Si hasImage, _revealContent est déclenché après l'injection du bg dans _applyHero
+      };
+
+      // Image déjà connue — charger puis déclencher le déroulé
+      if (imgUrl) {
         if (modal) modal.classList.add('hero-ready');
-        _applyHero(titleArea, img);
+        _applyHero(titleArea, imgUrl).then(ok => { if (!ok) _revealContent(); });
         return;
       }
 
-      // Pas d'image RSS → tenter OG scrape en arrière-plan (silencieux)
+      // Pas d'image — scrape OG avec timeout 1500ms, puis dérouler dans tous les cas
       if (article.link) {
-        fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`, {
-          signal: AbortSignal.timeout(8000),
-        })
-          .then(r => r.ok ? r.json() : null)
-          .then(data => {
-            if (!data?.ogImage) return;
-            const current = STATE.currentArticleList[STATE.currentArticleIndex];
-            if (current?.hash !== article.hash) return;
-            _persistArticleImage(article, data.ogImage);
-            if (modal) modal.classList.add('hero-ready');
-            _applyHero(titleArea, data.ogImage);
+        Promise.race([
+          fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`, {
+            signal: AbortSignal.timeout(8000),
           })
-          .catch(() => {});
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (!data?.ogImage) return false;
+              const current = STATE.currentArticleList[STATE.currentArticleIndex];
+              if (current?.hash !== article.hash) return false;
+              _persistArticleImage(article, data.ogImage);
+              if (modal) modal.classList.add('hero-ready');
+              return _applyHero(titleArea, data.ogImage);
+            })
+            .catch(() => false),
+          new Promise(resolve => setTimeout(() => resolve(false), 1500)),
+        ]).then(afterHero);
+      } else {
+        _revealContent();
       }
     }
 
@@ -1772,36 +1780,26 @@ TEXTE : ${rssText}`;
       }
     }
 
-    /** Injecte un div.hero-bg avec fade-in — le contenu reste visible en permanence */
+    /** Injecte un div.hero-bg puis déclenche le déroulé — retourne une Promise */
     function _applyHero(titleArea, url) {
-      const img = new Image();
-      img.onload = () => {
-        // Créer le div image — rester invisible, _revealContent s'occupe du fade
-        const bg = document.createElement('div');
-        bg.className = 'hero-bg';
-        bg.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
-        bg.style.opacity = '0';
-        bg.style.transform = 'translateY(24px)';
-        titleArea.insertBefore(bg, titleArea.firstChild);
-        titleArea.classList.add('has-hero');
-        void bg.offsetHeight;
-        // Attendre que la modal soit visible avant de déclencher le déroulé
-        const overlay = document.getElementById('reader-overlay');
-        if (overlay && !overlay.classList.contains('hidden')) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const bg = document.createElement('div');
+          bg.className = 'hero-bg';
+          bg.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
+          bg.style.opacity = '0';
+          bg.style.transform = 'translateY(24px)';
+          titleArea.insertBefore(bg, titleArea.firstChild);
+          titleArea.classList.add('has-hero');
+          void bg.offsetHeight;
+          resolve(true);
+          // Déclencher le déroulé complet — hero en premier
           _revealContent(0);
-        } else {
-          // La modal n'est pas encore ouverte — on attend qu'elle le soit
-          const waitForOpen = setInterval(() => {
-            if (overlay && !overlay.classList.contains('hidden')) {
-              clearInterval(waitForOpen);
-              _revealContent(0);
-            }
-          }, 30);
-          setTimeout(() => clearInterval(waitForOpen), 1500);
-        }
-      };
-      img.onerror = () => {};
-      img.src = url;
+        };
+        img.onerror = () => resolve(false);
+        img.src = url;
+      });
     }
 
     /** Ferme le reader avec animation */
