@@ -252,12 +252,27 @@ ul { list-style: none; }
   font-family: var(--font-display);
   font-size: 1.5rem;
   letter-spacing: -0.02em;
-  padding: 28px 28px 22px 28px;
+  padding: 28px 16px 22px 28px;
   border-bottom: var(--border);
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
 }
+
+.theme-toggle {
+  font-size: 0.9rem;
+  color: var(--grey-light);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.theme-toggle:hover { color: var(--ink); }
 
 .sidebar-logo .logo-wordmark { display: inline; }
 .sidebar-logo .logo-s {
@@ -287,8 +302,8 @@ ul { list-style: none; }
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 0;
-  padding: 9px 28px 9px 28px;
+  justify-content: space-between;
+  padding: 9px 16px 9px 28px;
   font-size: 0.78rem;
   font-weight: 400;
   letter-spacing: 0.08em;
@@ -310,7 +325,7 @@ ul { list-style: none; }
   background: var(--ink);
 }
 
-.nav-icon { font-size: 0.82rem; width: 18px; text-align: center; flex-shrink: 0; opacity: 0.55; position: absolute; left: 28px; }
+.nav-icon { font-size: 0.82rem; width: 18px; text-align: center; flex-shrink: 0; opacity: 0.55; }
 .nav-item.active .nav-icon { opacity: 1; }
 
 /* ── Feeds sidebar ── */
