@@ -1144,9 +1144,9 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
-  opacity: 0;
+  opacity: 1;
   clip-path: inset(0 0 100% 0);
-  transition: opacity 0.4s ease, clip-path 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: clip-path 0.75s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 0;
 }
 
@@ -1159,7 +1159,6 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 }
 
 .hero-bg.hero-visible {
-  opacity: 1;
   clip-path: inset(0 0 0% 0);
 }
 
