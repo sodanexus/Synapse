@@ -2436,6 +2436,18 @@ body.dark .reader-modal.hero-ready .reader-header {
   text-transform: uppercase;
 }
 
+.feed-welcome-counts {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  color: var(--grey-mid);
+  text-transform: uppercase;
+}
+
+.feed-welcome-counts:not(:empty)::before {
+  content: ' · ';
+}
+
 .feed-welcome-stats {
   font-family: var(--font-mono);
   font-size: 0.58rem;
