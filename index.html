@@ -9,14 +9,12 @@
   <!-- PWA / Mobile -->
   <meta name="theme-color" content="#0a0a0a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Synapse" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="favicon.png" type="image/png" />
+  <link rel="icon" href="favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Synapse" />
 
   <!-- Fonts : Bebas Neue (display brutaliste) + IBM Plex Mono (corps) + IBM Plex Sans (UI) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -47,13 +45,13 @@
 
       <div id="auth-login" class="auth-form">
         <input type="email" id="login-email" class="auth-input" placeholder="EMAIL" autocomplete="email" />
-        <input type="password" id="login-password" class="auth-input" placeholder="MOT DE PASSE" autocomplete="current-password" />
+        <input type="password" id="login-password" class="auth-input" placeholder="MOT DE PASSE" autocomplete="current-password" form="login-form" />
         <button id="btn-login" class="auth-btn">ENTRER</button>
       </div>
 
       <div id="auth-register" class="auth-form hidden">
         <input type="email" id="reg-email" class="auth-input" placeholder="EMAIL" autocomplete="email" />
-        <input type="password" id="reg-password" class="auth-input" placeholder="MOT DE PASSE" autocomplete="new-password" />
+        <input type="password" id="reg-password" class="auth-input" placeholder="MOT DE PASSE" autocomplete="new-password" form="reg-form" />
         <button id="btn-register" class="auth-btn">CRÉER UN COMPTE</button>
       </div>
 
