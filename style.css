@@ -1101,22 +1101,19 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   top: 0;
   left: 0;
   right: 0;
-  bottom: -4px;
+  bottom: 0;
   background: linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.0)  0%,
     rgba(255, 255, 255, 0.0)  35%,
     rgba(255, 255, 255, 0.75) 62%,
-    rgba(255, 255, 255, 1.0)  82%,
+    rgba(255, 255, 255, 1.0)  78%,
     rgba(255, 255, 255, 1.0)  100%
   );
   z-index: 1;
 }
 
-/* Ligne blanche de sécurité en bas de la zone hero */
-.reader-title-area.has-hero {
-  box-shadow: 0 8px 0 0 var(--white);
-}
+
 
 /* Dark mode — fond vers --white dark (#232018) */
 body.dark .reader-title-area.has-hero::before {
