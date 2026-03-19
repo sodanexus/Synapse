@@ -1242,7 +1242,7 @@ RÈGLES ABSOLUES :
         return {
       articleRow, renderFeedArticles,
       renderBookmarks, renderSidebarFeeds,
-      renderWelcome, renderCategoryFilters,
+      renderWelcome,
       escapeHtml, relativeTime, importanceBars,
     };
   })();
@@ -3332,7 +3332,6 @@ RÈGLES ABSOLUES :
       // Settings : re-render uniquement si la vue est active (évite de recalculer toute la liste à chaque sync)
       if (STATE.currentView === 'settings') Settings.renderFeedsManager(STATE.feeds);
       Render.renderSidebarFeeds(STATE.feeds);
-      Render.renderCategoryFilters();
       updateBadge();
       Render.renderWelcome();
     }
