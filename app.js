@@ -1431,21 +1431,37 @@ TEXTE : ${rssText}`;
 
       const overlay = document.getElementById('reader-overlay');
       const modal = document.getElementById('reader-modal');
-      modal.classList.add('reader-opening');
-      overlay.classList.remove('hidden');
       document.body.style.overflow = 'hidden';
-      scheduleReaderReveal();
-      document.getElementById('btn-close-reader').focus();
 
       const articleRef = STATE.currentArticleList[STATE.currentArticleIndex] || article;
 
+      // Préparer le contenu avant d'afficher la modal
       if (!AI.isEnriched(articleRef)) {
-        // Masquer titre, chapô, contenu brut — afficher shimmer
         _showContentLoader();
-        enrichOnOpen(articleRef);
+      }
+
+      // Attendre l'image OG (max 800ms) avant d'ouvrir la modal
+      const imageUrl = article.image || '';
+      const doOpen = () => {
+        modal.classList.add('reader-opening');
+        overlay.classList.remove('hidden');
+        scheduleReaderReveal();
+        document.getElementById('btn-close-reader').focus();
+        if (!AI.isEnriched(articleRef)) {
+          enrichOnOpen(articleRef);
+        } else {
+          _revealContent();
+        }
+      };
+
+      if (imageUrl) {
+        const img = new Image();
+        const timer = setTimeout(doOpen, 800);
+        img.onload = () => { clearTimeout(timer); doOpen(); };
+        img.onerror = () => { clearTimeout(timer); doOpen(); };
+        img.src = imageUrl;
       } else {
-        // Article déjà enrichi — fade in élégant de tout
-        _revealContent();
+        doOpen();
       }
     }
 
