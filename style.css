@@ -743,7 +743,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 .article-row {
   background: transparent;
   border-bottom: var(--border);
-  padding: 20px 0 20px 4px;
+  padding: 20px 0;
   cursor: pointer;
   display: grid;
   grid-template-columns: 1fr auto;
@@ -751,12 +751,19 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   align-items: start;
   position: relative;
   border-left: 1.5px solid transparent;
-  transition: border-color 0.15s, padding-left 0.15s;
+  transition: border-color 0.2s ease;
 }
 
 .article-row:hover {
   border-left-color: var(--ink);
-  padding-left: 10px;
+}
+
+.article-row .row-body {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.article-row:hover .row-body {
+  transform: translateX(6px);
 }
 
 .article-row:first-child { border-top: var(--border); }
