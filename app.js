@@ -1771,9 +1771,9 @@ TEXTE : ${rssText}`;
         bg.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
         titleArea.insertBefore(bg, titleArea.firstChild);
         titleArea.classList.add('has-hero');
-        // Forcer reflow puis fade-in
+        // Forcer reflow puis fade-in décalé — arrive avec le texte
         void bg.offsetHeight;
-        bg.classList.add('hero-visible');
+        setTimeout(() => bg.classList.add('hero-visible'), 60);
       };
       img.onerror = () => {};
       img.src = url;
