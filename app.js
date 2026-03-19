@@ -1314,22 +1314,9 @@ RÈGLES ABSOLUES :
         if (el) { el.style.opacity = '0'; el.style.transition = 'none'; }
       });
 
-      // Shimmer dans le contenu
+      // Contenu vide pendant le chargement
       if (contentEl) {
-        contentEl.innerHTML = `
-          <div class="content-shimmer">
-            <div class="shimmer-line shimmer-line--title"></div>
-            <div class="shimmer-line shimmer-line--full"></div>
-            <div class="shimmer-line shimmer-line--full"></div>
-            <div class="shimmer-line shimmer-line--partial"></div>
-            <div class="shimmer-gap"></div>
-            <div class="shimmer-line shimmer-line--full"></div>
-            <div class="shimmer-line shimmer-line--full"></div>
-            <div class="shimmer-line shimmer-line--partial"></div>
-            <div class="shimmer-gap"></div>
-            <div class="shimmer-line shimmer-line--full"></div>
-            <div class="shimmer-line shimmer-line--partial"></div>
-          </div>`;
+        contentEl.innerHTML = '';
         contentEl.style.opacity = '1';
         contentEl.style.transition = 'none';
       }
