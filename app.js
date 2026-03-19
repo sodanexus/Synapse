@@ -1483,12 +1483,12 @@ TEXTE : ${rssText}`;
 
       // Séquence : chaque élément attend le précédent
       const sequence = [
-        { el: heroEl,    d: 0,   duration: 500, y: 24 },
-        { el: titleEl,   d: 120, duration: 480, y: 18 },
-        { el: chapoEl,   d: 230, duration: 460, y: 16 },
-        { el: impEl,     d: 320, duration: 400, y: 12 },
-        { el: tagsEl,    d: 370, duration: 400, y: 12 },
-        { el: contentEl, d: 430, duration: 520, y: 14 },
+        { el: heroEl,    d: 0,   duration: 500, y: -24 },
+        { el: titleEl,   d: 120, duration: 480, y: -18 },
+        { el: chapoEl,   d: 230, duration: 460, y: -16 },
+        { el: impEl,     d: 320, duration: 400, y: -12 },
+        { el: tagsEl,    d: 370, duration: 400, y: -12 },
+        { el: contentEl, d: 430, duration: 520, y: -14 },
       ];
 
       sequence.forEach(({ el, d, duration, y }) => {
@@ -1793,7 +1793,7 @@ TEXTE : ${rssText}`;
           bg.className = 'hero-bg';
           bg.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
           bg.style.opacity = '0';
-          bg.style.transform = 'translateY(24px)';
+          bg.style.transform = 'translateY(-24px)';
           titleArea.insertBefore(bg, titleArea.firstChild);
           titleArea.classList.add('has-hero');
           void bg.offsetHeight;
