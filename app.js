@@ -62,7 +62,8 @@
     readArticles: new Set(), // IDs des articles lus
     currentView: 'feed',     // Vue active
     currentFilter: 'all',    // Filtre actif sur la vue flux
-    currentFeedFilter: null, // ID du feed sélectionné dans la sidebar (null = tous)
+    currentFeedFilter: null,    // ID du feed sélectionné dans la sidebar (null = tous)
+    currentCategoryFilter: null, // Catégorie sélectionnée (null = toutes)
     currentArticleIndex: 0,  // Index de l'article ouvert dans le reader
     currentArticleList: [],  // Liste courante pour la navigation reader
     searchQuery: '',         // Requête de recherche active
@@ -1042,6 +1043,13 @@ RÈGLES ABSOLUES :
         filtered = filtered.filter(a => a.feed_id === STATE.currentFeedFilter);
       }
 
+      // Filtre par catégorie
+      if (STATE.currentCategoryFilter && STATE.searchResults === null) {
+        filtered = filtered.filter(a =>
+          (a.feed_category || '').toLowerCase() === STATE.currentCategoryFilter.toLowerCase()
+        );
+      }
+
       // Filtres
       if (filter === 'unread') filtered = filtered.filter(a => !a.read);
 
@@ -1200,6 +1208,7 @@ RÈGLES ABSOLUES :
           `;
           li.addEventListener('click', () => {
             STATE.currentFeedFilter = feed.id;
+            STATE.currentCategoryFilter = null;
             STATE.searchResults = null;
             STATE.articlesPage = 0;
             document.querySelectorAll('#feeds-list li').forEach(l => l.classList.remove('active'));
@@ -1212,7 +1221,7 @@ RÈGLES ABSOLUES :
       });
     }
 
-    /** Rendu de l’en-tête d’accueil — date, compteurs, sparkline */
+    /** Rendu de l’en-tête d’accueil — date, compteurs */
     function renderWelcome() {
       const dateEl   = document.getElementById('feed-welcome-date');
       const countsEl = document.getElementById('feed-welcome-counts');
@@ -1228,40 +1237,14 @@ RÈGLES ABSOLUES :
       if (total > 0)  countsText += `${total} article${total > 1 ? 's' : ''}`;
       if (unread > 0) countsText += ` · ${unread} non lu${unread > 1 ? 's' : ''}`;
       if (countsEl) countsEl.textContent = countsText;
-
-      _renderSparkline();
-    }
-
-    /** Construit le sparkline des 7 derniers jours */
-    function _renderSparkline() {
-      const barsEl  = document.getElementById('sparkline-bars');
-      const todayEl = document.getElementById('sparkline-today');
-      const weekEl  = document.getElementById('sparkline-week');
-      if (!barsEl) return;
-
-      const counts = Array(7).fill(0);
-      const now = Date.now();
-      STATE.articles.forEach(a => {
-        if (!a.pub_date) return;
-        const diff = Math.floor((now - new Date(a.pub_date).getTime()) / 86400000);
-        if (diff >= 0 && diff < 7) counts[6 - diff]++;
-      });
-
-      const max = Math.max(...counts, 1);
-      barsEl.innerHTML = counts.map((count, i) => {
-        const h = Math.max(2, Math.round((count / max) * 24));
-        const isToday = i === 6;
-        return `<div class="sparkline-bar${isToday ? ' today' : ''}" style="height:${h}px" title="${count} article${count !== 1 ? 's' : ''}"></div>`;
-      }).join('');
-
-      if (todayEl) todayEl.textContent = counts[6];
-      if (weekEl)  weekEl.textContent  = counts.reduce((s, v) => s + v, 0);
     }
 
         return {
       articleRow, renderFeedArticles,
       renderBookmarks, renderSidebarFeeds,
-      renderWelcome, escapeHtml, relativeTime, importanceBars,    };
+      renderWelcome, renderCategoryFilters,
+      escapeHtml, relativeTime, importanceBars,
+    };
   })();
 
   /* ================================================================
@@ -3349,6 +3332,7 @@ RÈGLES ABSOLUES :
       // Settings : re-render uniquement si la vue est active (évite de recalculer toute la liste à chaque sync)
       if (STATE.currentView === 'settings') Settings.renderFeedsManager(STATE.feeds);
       Render.renderSidebarFeeds(STATE.feeds);
+      Render.renderCategoryFilters();
       updateBadge();
       Render.renderWelcome();
     }
