@@ -542,8 +542,12 @@ TEXTE : ${rssText}`;
         // Extraction XML — insensible à la casse, accepte les variantes de noms de balises
         const tag = (...names) => {
           for (const name of names) {
+            // Essayer avec balise fermante
             const m = raw.match(new RegExp('<' + name + '>([\\s\\S]*?)<\\/' + name + '>', 'i'));
             if (m) return m[1].trim();
+            // Fallback : prendre jusqu'à la prochaine balise ouvrante ou fin de string
+            const m2 = raw.match(new RegExp('<' + name + '>([\\s\\S]*?)(?=<[a-z]|$)', 'i'));
+            if (m2 && m2[1].trim()) return m2[1].trim();
           }
           return null;
         };
