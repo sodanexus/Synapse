@@ -112,3 +112,17 @@ CREATE POLICY "digests_user_isolation" ON digests
 -- CREATE OR REPLACE TRIGGER trigger_cleanup_articles
 --   AFTER INSERT ON articles
 --   EXECUTE FUNCTION cleanup_old_articles();
+
+
+-- ── MIGRATION : position des feeds ──
+-- À exécuter si vous avez déjà un projet Synapse existant
+ALTER TABLE feeds ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;
+
+-- Initialiser la position selon la date de création (ordre actuel)
+UPDATE feeds f
+SET position = sub.row_num
+FROM (
+  SELECT id, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) - 1 AS row_num
+  FROM feeds
+) sub
+WHERE f.id = sub.id AND f.position = 0;
