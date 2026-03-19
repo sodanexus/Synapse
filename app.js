@@ -3163,12 +3163,40 @@ TEXTE : ${rssText}`;
         return;
       }
 
-      // Trouver les articles à enrichir — uniquement ceux jamais traités
-      // (pas d'ai_content en base, pas juste non-enrichis en mémoire)
-      const toEnrich = STATE.articles
-        .filter(a => !AI.isEnriched(a)) // isEnriched() vérifie déjà ai_content
-        .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
-        .slice(0, 3); // max 3 par session bg (bridé pour préserver le quota)
+      // Sélection des articles à enrichir pour le digest :
+      // Pour chaque catégorie → round-robin entre les feeds → 5 articles max
+      // Garantit fraîcheur (triés par date) et diversité des sources
+      const unenriched = STATE.articles.filter(a => !AI.isEnriched(a));
+
+      // Grouper par catégorie
+      const byCategory = {};
+      for (const a of unenriched) {
+        const cat = a.feed_category || 'Général';
+        if (!byCategory[cat]) byCategory[cat] = {};
+        const feedId = a.feed_id || '__unknown__';
+        if (!byCategory[cat][feedId]) byCategory[cat][feedId] = [];
+        byCategory[cat][feedId].push(a);
+      }
+
+      // Pour chaque catégorie, trier chaque feed par date desc puis round-robin
+      const toEnrich = [];
+      for (const cat of Object.keys(byCategory)) {
+        const feedQueues = Object.values(byCategory[cat])
+          .map(arts => arts.sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date)));
+        let picked = 0;
+        let i = 0;
+        while (picked < 5) {
+          const active = feedQueues.filter(q => q.length > 0);
+          if (active.length === 0) break;
+          const queue = active[i % active.length];
+          toEnrich.push(queue.shift());
+          picked++;
+          i++;
+        }
+      }
+
+      // Trier la sélection finale par date desc
+      toEnrich.sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
 
       if (toEnrich.length === 0) return;
 
