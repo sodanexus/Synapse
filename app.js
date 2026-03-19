@@ -1431,37 +1431,19 @@ TEXTE : ${rssText}`;
 
       const overlay = document.getElementById('reader-overlay');
       const modal = document.getElementById('reader-modal');
+      modal.classList.add('reader-opening');
+      overlay.classList.remove('hidden');
       document.body.style.overflow = 'hidden';
+      scheduleReaderReveal();
+      document.getElementById('btn-close-reader').focus();
 
       const articleRef = STATE.currentArticleList[STATE.currentArticleIndex] || article;
 
-      // Préparer le contenu avant d'afficher la modal
       if (!AI.isEnriched(articleRef)) {
         _showContentLoader();
-      }
-
-      // Attendre l'image OG (max 800ms) avant d'ouvrir la modal
-      const imageUrl = article.image || '';
-      const doOpen = () => {
-        modal.classList.add('reader-opening');
-        overlay.classList.remove('hidden');
-        scheduleReaderReveal();
-        document.getElementById('btn-close-reader').focus();
-        if (!AI.isEnriched(articleRef)) {
-          enrichOnOpen(articleRef);
-        } else {
-          _revealContent();
-        }
-      };
-
-      if (imageUrl) {
-        const img = new Image();
-        const timer = setTimeout(doOpen, 800);
-        img.onload = () => { clearTimeout(timer); doOpen(); };
-        img.onerror = () => { clearTimeout(timer); doOpen(); };
-        img.src = imageUrl;
+        enrichOnOpen(articleRef);
       } else {
-        doOpen();
+        _revealContent();
       }
     }
 
@@ -1486,36 +1468,39 @@ TEXTE : ${rssText}`;
       }
     }
 
-    /** Révèle le contenu enrichi avec une animation fluide et gracieuse */
+    /** Déroulé séquentiel type papyrus — hero → titre → chapo → tags → contenu */
     function _revealContent(delay = 0) {
-      const modal     = document.getElementById('reader-modal');
+      const heroEl    = document.querySelector('#reader-title-area .hero-bg');
       const titleEl   = document.getElementById('reader-title');
       const chapoEl   = document.getElementById('reader-chapo');
-      const contentEl = document.getElementById('reader-content');
-      const tagsEl    = document.getElementById('reader-tags');
       const impEl     = document.getElementById('reader-imp-bars');
+      const tagsEl    = document.getElementById('reader-tags');
+      const contentEl = document.getElementById('reader-content');
 
-      const elements = [
-        { el: titleEl,   d: 0   },
-        { el: chapoEl,   d: 80  },
-        { el: impEl,     d: 120 },
-        { el: tagsEl,    d: 160 },
-        { el: contentEl, d: 200 },
+      // Séquence : chaque élément attend le précédent
+      const sequence = [
+        { el: heroEl,    d: 0,   duration: 500, y: 24 },
+        { el: titleEl,   d: 120, duration: 480, y: 18 },
+        { el: chapoEl,   d: 230, duration: 460, y: 16 },
+        { el: impEl,     d: 320, duration: 400, y: 12 },
+        { el: tagsEl,    d: 370, duration: 400, y: 12 },
+        { el: contentEl, d: 430, duration: 520, y: 14 },
       ];
 
-      elements.forEach(({ el, d }) => {
+      sequence.forEach(({ el, d, duration, y }) => {
         if (!el) return;
         el.style.opacity = '0';
-        el.style.transform = 'translateY(12px)';
+        el.style.transform = `translateY(${y}px)`;
         el.style.transition = 'none';
+        void el.offsetHeight;
         setTimeout(() => {
-          el.style.transition = 'opacity 0.5s ease, transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+          el.style.transition = `opacity ${duration}ms cubic-bezier(0.4, 0, 0.2, 1), transform ${duration}ms cubic-bezier(0.4, 0, 0.2, 1)`;
           el.style.opacity = '1';
           el.style.transform = 'translateY(0)';
           setTimeout(() => {
             el.style.transition = '';
             el.style.transform = '';
-          }, 550);
+          }, duration + 50);
         }, delay + d);
       });
     }
@@ -1781,15 +1766,17 @@ TEXTE : ${rssText}`;
     function _applyHero(titleArea, url) {
       const img = new Image();
       img.onload = () => {
-        // Créer le div image
+        // Créer le div image — rester invisible, _revealContent s'occupe du fade
         const bg = document.createElement('div');
         bg.className = 'hero-bg';
         bg.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
+        bg.style.opacity = '0';
+        bg.style.transform = 'translateY(24px)';
         titleArea.insertBefore(bg, titleArea.firstChild);
         titleArea.classList.add('has-hero');
-        // Forcer reflow puis fade-in décalé — arrive avec le texte
         void bg.offsetHeight;
-        setTimeout(() => bg.classList.add('hero-visible'), 60);
+        // Déclencher le déroulé complet depuis le hero
+        _revealContent(0);
       };
       img.onerror = () => {};
       img.src = url;
