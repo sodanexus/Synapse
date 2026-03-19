@@ -333,6 +333,7 @@ ul { list-style: none; }
 
 .feeds-list li {
   padding: 6px 16px 6px 28px;
+  position: relative;
   font-size: 0.78rem;
   color: var(--grey-mid);
   white-space: nowrap;
@@ -397,8 +398,8 @@ ul { list-style: none; }
   font-size: 0.7rem;
   color: var(--grey-light);
   cursor: grab;
-  flex-shrink: 0;
-  width: 12px;
+  position: absolute;
+  left: 12px;
   opacity: 0;
   transition: opacity 0.15s;
   user-select: none;
