@@ -1228,17 +1228,95 @@ TEXTE : ${rssText}`;
         groups[cat].push(feed);
       });
 
-      // Variable pour le drag & drop
-      let dragSrcFeed = null;
+      // Ordre des catégories — persisté dans localStorage
+      const CAT_ORDER_KEY = 'synapse_category_order';
+      let catOrder = [];
+      try { catOrder = JSON.parse(localStorage.getItem(CAT_ORDER_KEY) || '[]'); } catch {}
+      const allCats = Object.keys(groups);
+      // Fusionner : catégories sauvegardées en premier, nouvelles à la fin
+      const orderedCats = [
+        ...catOrder.filter(c => allCats.includes(c)),
+        ...allCats.filter(c => !catOrder.includes(c)),
+      ];
 
-      // Afficher chaque groupe avec son label
-      Object.entries(groups).forEach(([category, groupFeeds]) => {
-        // Label de catégorie (non draggable)
+      function saveCategoryOrder() {
+        const order = [...list.querySelectorAll('li.sidebar-category-label')]
+          .map(el => el.dataset.category);
+        localStorage.setItem(CAT_ORDER_KEY, JSON.stringify(order));
+      }
+
+      function saveAllFeedPositions() {
+        const orderedIds = [...list.querySelectorAll('li[data-feed-id]')]
+          .map(el => el.dataset.feedId);
+        orderedIds.forEach((id, pos) => {
+          const f = STATE.feeds.find(f => f.id === id);
+          if (f) f.position = pos;
+        });
+        if (STATE.user) {
+          orderedIds.forEach((id, pos) => {
+            DB.updateFeedPosition(id, pos).catch(() => {});
+          });
+        }
+      }
+
+      // État drag & drop partagé
+      let dragSrcFeed = null;
+      let dragSrcCat = null;
+
+      orderedCats.forEach(category => {
+        const groupFeeds = groups[category];
+
+        // ── Label de catégorie — draggable ──
         const catLabel = document.createElement('li');
         catLabel.className = 'sidebar-category-label';
-        catLabel.textContent = category.toUpperCase();
+        catLabel.draggable = true;
+        catLabel.dataset.category = category;
+        catLabel.innerHTML = `<span class="feed-drag-handle">⠿</span><span>${category.toUpperCase()}</span>`;
         list.appendChild(catLabel);
 
+        // Drag catégorie
+        catLabel.addEventListener('dragstart', (e) => {
+          dragSrcCat = catLabel;
+          dragSrcFeed = null;
+          catLabel.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          e.stopPropagation();
+        });
+        catLabel.addEventListener('dragend', () => {
+          catLabel.classList.remove('dragging');
+          list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+          dragSrcCat = null;
+        });
+        catLabel.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          if (!dragSrcCat || dragSrcCat === catLabel) return;
+          e.dataTransfer.dropEffect = 'move';
+          list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+          catLabel.classList.add('drag-over');
+        });
+        catLabel.addEventListener('dragleave', () => catLabel.classList.remove('drag-over'));
+        catLabel.addEventListener('drop', (e) => {
+          e.preventDefault();
+          if (!dragSrcCat || dragSrcCat === catLabel) return;
+          catLabel.classList.remove('drag-over');
+
+          // Collecter tous les éléments du groupe source (label + feeds)
+          const srcCatName = dragSrcCat.dataset.category;
+          const srcNodes = [dragSrcCat];
+          let next = dragSrcCat.nextSibling;
+          while (next && next.dataset && next.dataset.feedId) {
+            srcNodes.push(next);
+            next = next.nextSibling;
+          }
+
+          // Insérer avant la catégorie cible
+          srcNodes.forEach(node => catLabel.before(node));
+
+          saveCategoryOrder();
+          saveAllFeedPositions();
+        });
+
+        // ── Feeds du groupe ──
         groupFeeds.forEach(feed => {
           const li = document.createElement('li');
           li.className = STATE.currentFeedFilter === feed.id ? 'active' : '';
@@ -1246,7 +1324,6 @@ TEXTE : ${rssText}`;
           li.dataset.feedId = feed.id;
           li.dataset.feedCategory = feed.category || 'Général';
 
-          // Compter les articles non lus pour ce feed
           const unreadCount = STATE.articles.filter(a =>
             a.feed_id === feed.id && !STATE.readArticles.has(a.id || a.hash)
           ).length;
@@ -1270,63 +1347,41 @@ TEXTE : ${rssText}`;
             Render.renderFeedArticles(STATE.articles, STATE.currentFilter, STATE.searchQuery);
           });
 
-          // Drag & drop
+          // Drag feed
           li.addEventListener('dragstart', (e) => {
             dragSrcFeed = li;
+            dragSrcCat = null;
             li.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
+            e.stopPropagation();
           });
-
           li.addEventListener('dragend', () => {
             li.classList.remove('dragging');
-            list.querySelectorAll('li[data-feed-id]').forEach(el => el.classList.remove('drag-over'));
+            list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            dragSrcFeed = null;
           });
-
           li.addEventListener('dragover', (e) => {
             e.preventDefault();
             if (!dragSrcFeed || dragSrcFeed === li) return;
-            // Permettre seulement dans la même catégorie
             if (li.dataset.feedCategory !== dragSrcFeed.dataset.feedCategory) return;
             e.dataTransfer.dropEffect = 'move';
-            list.querySelectorAll('li[data-feed-id]').forEach(el => el.classList.remove('drag-over'));
+            list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
             li.classList.add('drag-over');
           });
-
-          li.addEventListener('dragleave', () => {
-            li.classList.remove('drag-over');
-          });
-
+          li.addEventListener('dragleave', () => li.classList.remove('drag-over'));
           li.addEventListener('drop', (e) => {
             e.preventDefault();
             if (!dragSrcFeed || dragSrcFeed === li) return;
             if (li.dataset.feedCategory !== dragSrcFeed.dataset.feedCategory) return;
             li.classList.remove('drag-over');
 
-            // Réordonner dans le DOM
-            const parent = li.parentNode;
-            const allItems = [...parent.querySelectorAll('li[data-feed-id]')];
+            const allItems = [...list.querySelectorAll('li[data-feed-id]')];
             const srcIdx = allItems.indexOf(dragSrcFeed);
             const tgtIdx = allItems.indexOf(li);
-            if (srcIdx < tgtIdx) {
-              li.after(dragSrcFeed);
-            } else {
-              li.before(dragSrcFeed);
-            }
+            if (srcIdx < tgtIdx) li.after(dragSrcFeed);
+            else li.before(dragSrcFeed);
 
-            // Recalculer les positions de tous les feeds et sauvegarder
-            const orderedIds = [...parent.querySelectorAll('li[data-feed-id]')]
-              .map(el => el.dataset.feedId);
-            orderedIds.forEach((id, pos) => {
-              const f = STATE.feeds.find(f => f.id === id);
-              if (f) f.position = pos;
-            });
-
-            // Persister en Supabase
-            if (STATE.user) {
-              orderedIds.forEach((id, pos) => {
-                DB.updateFeedPosition(id, pos).catch(() => {});
-              });
-            }
+            saveAllFeedPositions();
           });
 
           list.appendChild(li);
