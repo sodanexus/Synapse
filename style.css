@@ -744,12 +744,35 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   background: transparent;
   border-bottom: var(--border);
   padding: 20px 0;
+  padding-left: 0;
   cursor: pointer;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 20px;
   align-items: start;
   position: relative;
+  transition: padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.article-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--ink);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.article-row:hover::before {
+  transform: scaleY(1);
+}
+
+.article-row:hover {
+  padding-left: 14px;
 }
 
 .row-excerpt,
@@ -781,11 +804,11 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   color: var(--ink);
   margin-bottom: 5px;
   line-height: 1.35;
-  transition: font-size 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color 0.2s ease;
 }
 
 .article-row:hover .row-title {
-  font-size: 1.15rem;
+  color: var(--ink);
 }
 
 .article-row.read .row-title { color: var(--grey-mid); }
@@ -1710,10 +1733,7 @@ body.dark .reader-modal.hero-ready .reader-header {
 }
 .article-card:active { transform: translateY(0); }
 
-/* Rows — highlight discret sans mouvement */
-.article-row {
-  transition: background var(--t-normal);
-}
+/* Rows — accent bar au survol */
 .article-row:hover { background: transparent; }
 
 /* Nav items */
