@@ -754,7 +754,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 
 .row-excerpt,
 .row-meta {
-  transition: opacity 0.3s ease, max-height 0.35s ease, margin-top 0.3s ease;
+  transition: opacity 0.6s ease, max-height 0.7s ease, margin-top 0.6s ease;
   overflow: hidden;
   max-height: 6em;
   opacity: 1;
@@ -786,11 +786,11 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   color: var(--ink);
   margin-bottom: 5px;
   line-height: 1.35;
-  transition: font-size 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: font-size 0.7s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .article-row:hover .row-title {
-  font-size: 1.25rem;
+  font-size: 1.15rem;
 }
 
 .article-row.read .row-title { color: var(--grey-mid); }
