@@ -2200,8 +2200,11 @@ TEXTE : ${rssText}`;
             modal.style.transition = `transform 0.22s ${EASE}, opacity 0.2s ease`;
             modal.style.transform  = 'translateX(0)';
             modal.style.opacity    = '1';
-            scheduleReaderReveal();
-            setTimeout(() => { modal.style.transition = ''; }, 220);
+            // Ne pas appeler scheduleReaderReveal ici — _setHeroImage gère le reveal
+            setTimeout(() => {
+              modal.style.transition = '';
+              modal.classList.remove('reader-opening');
+            }, 220);
           });
         });
       }, 180);
