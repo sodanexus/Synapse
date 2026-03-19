@@ -1485,8 +1485,9 @@ TEXTE : ${rssText}`;
       const tagsEl    = document.getElementById('reader-tags');
       const contentEl = document.getElementById('reader-content');
 
-      // Hero : révélé via clip-path CSS (haut → bas) — géré séparément
+      // Hero : révélé via clip-path CSS (haut → bas)
       if (heroEl) {
+        heroEl.style.opacity = '';  // retirer tout style inline résiduel
         setTimeout(() => heroEl.classList.add('hero-visible'), delay);
       }
 
@@ -1800,8 +1801,6 @@ TEXTE : ${rssText}`;
           const bg = document.createElement('div');
           bg.className = 'hero-bg';
           bg.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
-          bg.style.opacity = '0';
-          bg.style.opacity = '0';
           titleArea.insertBefore(bg, titleArea.firstChild);
           titleArea.classList.add('has-hero');
           void bg.offsetHeight;
