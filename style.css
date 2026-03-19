@@ -1718,6 +1718,19 @@ body.dark .reader-modal.hero-ready .reader-header {
   transition: opacity 0.16s ease;
 }
 
+
+/* Masquer aussi le skeleton pendant l'ouverture */
+.reader-modal.reader-opening .content-loading,
+.reader-modal.reader-opening .reader-loading-indicator,
+.reader-modal.reader-opening .digest-empty-state,
+.reader-modal.reader-opening .reader-content .skeleton,
+.reader-modal.reader-opening .reader-content .skeleton-line,
+.reader-modal.reader-opening .reader-content .skeleton-block,
+.reader-modal.reader-opening [class*="skeleton"] {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
 .reader-modal:not(.reader-opening) .reader-title,
 .reader-modal:not(.reader-opening) .reader-chapo,
 .reader-modal:not(.reader-opening) .reader-summary,
