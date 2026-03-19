@@ -1704,6 +1704,31 @@ body.dark .reader-modal.hero-ready .reader-header {
   transition: transform var(--t-slow), opacity var(--t-slow);
   will-change: transform, opacity;
 }
+
+/* Masquer le contenu pendant l'ouverture de la modal */
+.reader-modal.reader-opening .reader-title,
+.reader-modal.reader-opening .reader-chapo,
+.reader-modal.reader-opening .reader-summary,
+.reader-modal.reader-opening .reader-importance,
+.reader-modal.reader-opening .reader-tags,
+.reader-modal.reader-opening .reader-content,
+.reader-modal.reader-opening .reader-related,
+.reader-modal.reader-opening .reader-footer {
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.reader-modal:not(.reader-opening) .reader-title,
+.reader-modal:not(.reader-opening) .reader-chapo,
+.reader-modal:not(.reader-opening) .reader-summary,
+.reader-modal:not(.reader-opening) .reader-importance,
+.reader-modal:not(.reader-opening) .reader-tags,
+.reader-modal:not(.reader-opening) .reader-content,
+.reader-modal:not(.reader-opening) .reader-related,
+.reader-modal:not(.reader-opening) .reader-footer {
+  opacity: 1;
+  transition: opacity 0.24s ease;
+}
 /* Ouverture — monte depuis le bas */
 .modal-overlay.hidden .reader-modal {
   transform: translateY(16px);
