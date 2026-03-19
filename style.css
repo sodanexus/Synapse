@@ -790,7 +790,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 }
 
 .article-row:hover .row-title {
-  font-size: 1.35rem;
+  font-size: 1.25rem;
 }
 
 .article-row.read .row-title { color: var(--grey-mid); }
