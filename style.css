@@ -1007,7 +1007,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 40px 24px;
+  padding: 0 24px 24px;
   overflow-y: auto;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
