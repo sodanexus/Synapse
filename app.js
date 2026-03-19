@@ -174,9 +174,19 @@
         .from('feeds')
         .select('*')
         .eq('user_id', userId)
+        .order('position', { ascending: true })
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
+    }
+
+    /** Met à jour la position d'un feed (pour le tri drag & drop) */
+    async function updateFeedPosition(feedId, position) {
+      const { error } = await client()
+        .from('feeds')
+        .update({ position })
+        .eq('id', feedId);
+      if (error) throw error;
     }
 
     /** Ajoute un feed */
@@ -337,7 +347,7 @@
       return data || [];
     }
 
-    return { getFeeds, addFeed, deleteFeed, toggleFeed, getArticles, searchArticles, getBookmarks, getReadHistory, upsertArticle, updateArticleStatus, updateArticleImage, getTodayDigest, saveDigest };
+    return { getFeeds, addFeed, deleteFeed, toggleFeed, updateFeedPosition, getArticles, searchArticles, getBookmarks, getReadHistory, upsertArticle, updateArticleStatus, updateArticleImage, getTodayDigest, saveDigest };
   })();
 
   /* ================================================================
@@ -1207,7 +1217,7 @@ TEXTE : ${rssText}`;
       });
       list.appendChild(allLi);
 
-      // Grouper les feeds actifs par catégorie
+      // Grouper les feeds actifs par catégorie (ordre conservé depuis Supabase)
       const activeFeeds = feeds.filter(f => f.active);
       const groups = {};
       activeFeeds.forEach(feed => {
@@ -1216,9 +1226,12 @@ TEXTE : ${rssText}`;
         groups[cat].push(feed);
       });
 
+      // Variable pour le drag & drop
+      let dragSrcFeed = null;
+
       // Afficher chaque groupe avec son label
       Object.entries(groups).forEach(([category, groupFeeds]) => {
-        // Label de catégorie
+        // Label de catégorie (non draggable)
         const catLabel = document.createElement('li');
         catLabel.className = 'sidebar-category-label';
         catLabel.textContent = category.toUpperCase();
@@ -1227,6 +1240,9 @@ TEXTE : ${rssText}`;
         groupFeeds.forEach(feed => {
           const li = document.createElement('li');
           li.className = STATE.currentFeedFilter === feed.id ? 'active' : '';
+          li.draggable = true;
+          li.dataset.feedId = feed.id;
+          li.dataset.feedCategory = feed.category || 'Général';
 
           // Compter les articles non lus pour ce feed
           const unreadCount = STATE.articles.filter(a =>
@@ -1234,10 +1250,14 @@ TEXTE : ${rssText}`;
           ).length;
 
           li.innerHTML = `
+            <span class="feed-drag-handle">⠿</span>
             <span class="feed-name">${feed.name || feed.url}</span>
             ${unreadCount > 0 ? `<span class="feed-unread-count">${unreadCount}</span>` : ''}
           `;
-          li.addEventListener('click', () => {
+
+          // Clic pour filtrer
+          li.addEventListener('click', (e) => {
+            if (e.target.classList.contains('feed-drag-handle')) return;
             STATE.currentFeedFilter = feed.id;
             STATE.currentCategoryFilter = null;
             STATE.searchResults = null;
@@ -1247,6 +1267,66 @@ TEXTE : ${rssText}`;
             Nav.switchView('feed');
             Render.renderFeedArticles(STATE.articles, STATE.currentFilter, STATE.searchQuery);
           });
+
+          // Drag & drop
+          li.addEventListener('dragstart', (e) => {
+            dragSrcFeed = li;
+            li.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+          });
+
+          li.addEventListener('dragend', () => {
+            li.classList.remove('dragging');
+            list.querySelectorAll('li[data-feed-id]').forEach(el => el.classList.remove('drag-over'));
+          });
+
+          li.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (!dragSrcFeed || dragSrcFeed === li) return;
+            // Permettre seulement dans la même catégorie
+            if (li.dataset.feedCategory !== dragSrcFeed.dataset.feedCategory) return;
+            e.dataTransfer.dropEffect = 'move';
+            list.querySelectorAll('li[data-feed-id]').forEach(el => el.classList.remove('drag-over'));
+            li.classList.add('drag-over');
+          });
+
+          li.addEventListener('dragleave', () => {
+            li.classList.remove('drag-over');
+          });
+
+          li.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (!dragSrcFeed || dragSrcFeed === li) return;
+            if (li.dataset.feedCategory !== dragSrcFeed.dataset.feedCategory) return;
+            li.classList.remove('drag-over');
+
+            // Réordonner dans le DOM
+            const parent = li.parentNode;
+            const allItems = [...parent.querySelectorAll('li[data-feed-id]')];
+            const srcIdx = allItems.indexOf(dragSrcFeed);
+            const tgtIdx = allItems.indexOf(li);
+            if (srcIdx < tgtIdx) {
+              li.after(dragSrcFeed);
+            } else {
+              li.before(dragSrcFeed);
+            }
+
+            // Recalculer les positions de tous les feeds et sauvegarder
+            const orderedIds = [...parent.querySelectorAll('li[data-feed-id]')]
+              .map(el => el.dataset.feedId);
+            orderedIds.forEach((id, pos) => {
+              const f = STATE.feeds.find(f => f.id === id);
+              if (f) f.position = pos;
+            });
+
+            // Persister en Supabase
+            if (STATE.user) {
+              orderedIds.forEach((id, pos) => {
+                DB.updateFeedPosition(id, pos).catch(() => {});
+              });
+            }
+          });
+
           list.appendChild(li);
         });
       });
