@@ -1624,7 +1624,8 @@ TEXTE : ${rssText}`;
           Toast.show('IA indisponible — réessayez plus tard', 'info');
         }
       } finally {
-        if (titleEl) titleEl.style.opacity = '';
+        const titleElFinal = document.getElementById('reader-title');
+        if (titleElFinal) titleElFinal.style.opacity = '';
       }
     }
 
