@@ -525,7 +525,7 @@
         return { ai_content: article.content || article.title || '', ai_tags: [] };
       }
 
-      const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris ou résumes les articles RSS en prose claire et fluide. Tu supprimes tout le bruit (publicités, appels à l'action, mentions légales). Tu réécris en 300-400 mots minimum, en plusieurs paragraphes. Si le contenu source est court, ajoute du contexte pertinent sur le sujet. Tu ne copies JAMAIS le texte original mot pour mot. Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks. Langue de sortie : français.`;
+      const systemPrompt = `Tu es un éditeur de presse expert. Tu réécris ou résumes les articles RSS en prose claire et fluide. Tu supprimes tout le bruit (publicités, appels à l'action, mentions légales). Tu réécris en 300-400 mots minimum, en plusieurs paragraphes. Si le contenu source est court, ajoute du contexte pertinent sur le sujet. Tu ne copies JAMAIS le texte original mot pour mot. Tu réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks. IMPORTANT : dans les valeurs JSON (ai_title, ai_content), n'utilise JAMAIS de guillemets droits " — remplace-les par des guillemets simples '. N'utilise pas non plus les deux-points : dans ai_title. Langue de sortie : français.`;
 
       const prompt = `Réécris ou résume cet article et retourne exactement ce JSON (et rien d'autre) :
 {"ai_title":"<titre traduit en français, concis et accrocheur, max 12 mots>","ai_content":"<réécriture ou résumé en prose fluide, jamais une copie de l'original, ajoute du contexte si le texte source est trop court>","importance":<1 à 5, 5=breaking news>,"ai_tags":["<thème1>","<thème2>","<thème3>"]}
@@ -536,90 +536,45 @@ TEXTE : ${rssText}`;
 
       const raw = await callGroq(systemPrompt, prompt, 1400);
       try {
-        // Nettoyer les backticks markdown
-        let cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+        // Extraction directe par regex sur les clés connues — insensible aux caractères spéciaux
+        const extract = (key) => {
+          const re = new RegExp('"' + key + '"\\s*:\\s*"([\\s\\S]*?)"(?=\\s*[,}])', '');
+          const m = raw.match(re);
+          if (!m) return null;
+          return m[1]
+            .replace(/[\u201C\u201D\u00AB\u00BB\u2018\u2019\u2032]/g, "'")
+            .replace(/\n+/g, ' ')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+        };
 
-        // Stratégie : parser chaque valeur string du JSON proprement
-        // 1. Extraire le bloc JSON brut
-        const jsonBlock = cleaned.match(/\{[\s\S]*\}/)?.[0] || cleaned;
+        const extractNumber = (key) => {
+          const m = raw.match(new RegExp('"' + key + '"\\s*:\\s*(\\d+)'));
+          return m ? parseInt(m[1]) : null;
+        };
 
-        // 2. Nettoyer les valeurs string du JSON de façon robuste
-        // Stratégie : identifier les valeurs string (après : ou dans []) et échapper leur contenu
-        let result = '';
-        let inString = false;
-        let escape = false;
-        let afterColon = false; // on vient de lire un ":" → la prochaine string est une valeur
+        const extractArray = (key) => {
+          const m = raw.match(new RegExp('"' + key + '"\\s*:\\s*\\[([\\s\\S]*?)\\]'));
+          if (!m) return [];
+          return (m[1].match(/"([^"]+)"/g) || []).map(s => s.replace(/"/g, ''));
+        };
 
-        for (let i = 0; i < jsonBlock.length; i++) {
-          const ch = jsonBlock[i];
-          const code = jsonBlock.charCodeAt(i);
+        const ai_title   = extract('ai_title');
+        const ai_content = extract('ai_content');
+        const importance = extractNumber('importance');
+        const ai_tags    = extractArray('ai_tags');
 
-          if (escape) { result += ch; escape = false; continue; }
-          if (ch === '\\') { result += ch; escape = true; continue; }
+        if (!ai_content) throw new Error('No ai_content found in response');
 
-          if (!inString) {
-            if (ch === ':' || ch === '[' || ch === ',') afterColon = true;
-            else if (ch !== ' ' && ch !== '\t' && ch !== '\n' && ch !== '\r') afterColon = false;
-            if (ch === '"') { inString = true; result += ch; continue; }
-            result += ch;
-            continue;
-          }
-
-          // On est dans une string
-          // Un " non échappé après une valeur (afterColon=true au début) ferme la string normalement
-          // Un " non échappé en milieu de valeur → guillemet de citation → échapper
-          if (ch === '"') {
-            // Regarder si ce " ferme vraiment la string : suivi de espace/,/}/]/"
-            let j = i + 1;
-            while (j < jsonBlock.length && (jsonBlock[j] === ' ' || jsonBlock[j] === '\t')) j++;
-            const next = jsonBlock[j];
-            const isClosing = next === ',' || next === '}' || next === ']' || next === '\n' || next === '\r' || j >= jsonBlock.length;
-            if (isClosing) {
-              inString = false;
-              result += ch;
-            } else {
-              // Guillemet de citation dans le texte → échapper
-              result += '\\"';
-            }
-            continue;
-          }
-
-          // Guillemets typographiques → apostrophe
-          if (code === 0x201C || code === 0x201D || code === 0x00AB || code === 0x00BB ||
-              code === 0x2018 || code === 0x2019 || code === 0x2032) {
-            result += "'"; continue;
-          }
-          // Sauts de ligne et contrôles → espace
-          if (ch === '\n' || ch === '\r' || code < 0x20 || code === 0x7F) {
-            result += ' '; continue;
-          }
-          result += ch;
-        }
-        cleaned = result || jsonBlock;
-
-        // Tenter d'extraire le JSON — s'il est tronqué, tenter de le réparer
-        let jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          // Tentative de réparation : fermer le JSON tronqué
-          const partial = cleaned.match(/\{[\s\S]*/);
-          if (partial) {
-            try { JSON.parse(partial[0] + '"}'); jsonMatch = [partial[0] + '"}']; } catch {}
-            if (!jsonMatch) { try { JSON.parse(partial[0] + '"}]}'); jsonMatch = [partial[0] + '"}]}']; } catch {} }
-          }
-        }
-        if (!jsonMatch) throw new Error('No JSON found in response');
-
-        const parsed = JSON.parse(jsonMatch[0]);
-        const aiText = parsed.ai_content || '';
-        const isDistinct = aiText.length > 50 && aiText !== article.content;
+        const isDistinct = ai_content.length > 50 && ai_content !== article.content;
         return {
-          ai_title:   parsed.ai_title || null,
-          ai_content: isDistinct ? aiText : (article.content || article.title),
-          importance: Math.min(5, Math.max(1, parseInt(parsed.importance) || 1)),
-          ai_tags:    Array.isArray(parsed.ai_tags) ? parsed.ai_tags.slice(0, 5) : [],
+          ai_title:   ai_title || null,
+          ai_content: isDistinct ? ai_content : (article.content || article.title),
+          importance: Math.min(5, Math.max(1, importance || 1)),
+          ai_tags:    ai_tags.slice(0, 5),
         };
       } catch (err) {
-        console.warn(`Parsing JSON échoué pour "${article.title}":`, err, '\nRaw:', raw);
+        console.warn(`Parsing échoué pour "${article.title}":`, err, '\nRaw:', raw);
         return { ai_title: null, ai_content: article.content, importance: 1, ai_tags: [] };
       }
     }
