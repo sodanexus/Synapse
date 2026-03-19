@@ -1485,9 +1485,13 @@ TEXTE : ${rssText}`;
       const tagsEl    = document.getElementById('reader-tags');
       const contentEl = document.getElementById('reader-content');
 
-      // Séquence : chaque élément attend le précédent
+      // Hero : révélé via clip-path CSS (haut → bas) — géré séparément
+      if (heroEl) {
+        setTimeout(() => heroEl.classList.add('hero-visible'), delay);
+      }
+
+      // Séquence texte : chaque élément descend légèrement en apparaissant
       const sequence = [
-        { el: heroEl,    d: 0,   duration: 500, y: 0 },
         { el: titleEl,   d: 120, duration: 480, y: -18 },
         { el: chapoEl,   d: 230, duration: 460, y: -16 },
         { el: impEl,     d: 320, duration: 400, y: -12 },
@@ -1797,7 +1801,7 @@ TEXTE : ${rssText}`;
           bg.className = 'hero-bg';
           bg.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
           bg.style.opacity = '0';
-          bg.style.transform = 'scale(1.06)';
+          bg.style.opacity = '0';
           titleArea.insertBefore(bg, titleArea.firstChild);
           titleArea.classList.add('has-hero');
           void bg.offsetHeight;
