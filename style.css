@@ -750,20 +750,21 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   gap: 20px;
   align-items: start;
   position: relative;
-  border-left: 1.5px solid transparent;
-  transition: border-color 0.2s ease;
 }
 
-.article-row:hover {
-  border-left-color: var(--ink);
+.row-excerpt,
+.row-meta {
+  transition: opacity 0.3s ease, max-height 0.35s ease, margin-top 0.3s ease;
+  overflow: hidden;
+  max-height: 6em;
+  opacity: 1;
 }
 
-.article-row .row-body {
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.article-row:hover .row-body {
-  transform: translateX(6px);
+.article-row:hover .row-excerpt,
+.article-row:hover .row-meta {
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
 }
 
 .article-row:first-child { border-top: var(--border); }
