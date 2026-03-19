@@ -1035,7 +1035,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 /* Titre reader */
 .reader-title {
   font-family: var(--font-display);
-  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-size: clamp(1.75rem, 3.5vw, 2.6rem);
   font-weight: 400;
   letter-spacing: -0.03em;
   line-height: 1.15;
@@ -1056,12 +1056,13 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 }
 
 .reader-title-area.has-hero {
-  min-height: 360px;
+min-height: 360px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   background-color: var(--white);
   overflow: hidden;
+  padding-bottom: 48px;
 }
 
 /* Div image injectée par JS — fade-in indépendant du contenu */
@@ -1114,9 +1115,9 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   background: linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.0)  0%,
-    rgba(255, 255, 255, 0.0)  45%,
-    rgba(255, 255, 255, 0.5)  75%,
-    rgba(255, 255, 255, 0.9)  90%,
+    rgba(255, 255, 255, 0.0)  25%,
+    rgba(255, 255, 255, 0.6)  50%,
+    rgba(255, 255, 255, 1.0)  65%,
     rgba(255, 255, 255, 1.0)  100%
   );
   z-index: 1;
@@ -1129,16 +1130,16 @@ body.dark .reader-title-area.has-hero::before {
   background: linear-gradient(
     to bottom,
     rgba(35, 32, 24, 0.0)  0%,
-    rgba(35, 32, 24, 0.0)  45%,
-    rgba(35, 32, 24, 0.5)  75%,
-    rgba(35, 32, 24, 0.9)  90%,
+    rgba(35, 32, 24, 0.0)  25%,
+    rgba(35, 32, 24, 0.6)  50%,
+    rgba(35, 32, 24, 1.0)  65%,
     rgba(35, 32, 24, 1.0)  100%
   );
 }
 
 /* ── Zone hero active — titre pleine hauteur ── */
 .reader-title-area.has-hero .reader-title {
-  padding-top: 40px;
+  padding-top: 20px;
   padding-bottom: 36px;
 }
 
