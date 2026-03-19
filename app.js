@@ -539,16 +539,19 @@ TEXTE : ${rssText}`;
 
       const raw = await callGroq(systemPrompt, prompt, 1400);
       try {
-        // Extraction XML — robuste à tous les caractères spéciaux
-        const tag = (name) => {
-          const m = raw.match(new RegExp('<' + name + '>([\\s\\S]*?)<\\/' + name + '>'));
-          return m ? m[1].trim() : null;
+        // Extraction XML — insensible à la casse, accepte les variantes de noms de balises
+        const tag = (...names) => {
+          for (const name of names) {
+            const m = raw.match(new RegExp('<' + name + '>([\\s\\S]*?)<\\/' + name + '>', 'i'));
+            if (m) return m[1].trim();
+          }
+          return null;
         };
 
-        const ai_title   = tag('ai_title');
-        const ai_content = tag('ai_content');
+        const ai_title   = tag('ai_title', 'title', 'titre');
+        const ai_content = tag('ai_content', 'content', 'contenu');
         const importance = parseInt(tag('importance') || '1');
-        const tagsRaw    = tag('ai_tags') || '';
+        const tagsRaw    = tag('ai_tags', 'tags') || '';
         const ai_tags    = tagsRaw.split(',').map(t => t.trim()).filter(Boolean).slice(0, 5);
 
         if (!ai_content) throw new Error('No ai_content found in response');
