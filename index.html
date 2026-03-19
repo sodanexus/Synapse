@@ -146,14 +146,7 @@
           <span class="feed-welcome-counts" id="feed-welcome-counts"></span>
         </div>
 
-        <!-- Sparkline 7 jours -->
-        <div class="feed-sparkline" id="feed-sparkline">
-          <div class="sparkline-bars" id="sparkline-bars"></div>
-          <div class="sparkline-stats">
-            <span class="sparkline-stat"><strong id="sparkline-today"></strong> aujourd'hui</span>
-            <span class="sparkline-stat"><strong id="sparkline-week"></strong> cette semaine</span>
-          </div>
-        </div>
+
 
         <!-- Barre de recherche — masquée par défaut -->
         <div class="search-bar hidden" id="search-bar">
@@ -167,6 +160,9 @@
           <button class="filter-btn active" data-filter="all">TOUT</button>
           <button class="filter-btn" data-filter="unread">NON LUS</button>
         </div>
+
+        <!-- Filtres catégories — injectés dynamiquement -->
+        <div class="feed-category-filters hidden" id="feed-category-filters"></div>
 
         <div class="articles-list" id="feed-articles">
           <!-- Injecté dynamiquement -->
