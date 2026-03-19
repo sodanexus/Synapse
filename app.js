@@ -1206,7 +1206,7 @@ TEXTE : ${rssText}`;
 
       // Item "Tous les feeds"
       const allLi = document.createElement('li');
-      allLi.textContent = 'Tous les feeds';
+      allLi.innerHTML = '<span class="feed-drag-handle" style="visibility:hidden">⠿</span><span>Tous les feeds</span>';
       allLi.className = STATE.currentFeedFilter === null ? 'active' : '';
       allLi.addEventListener('click', () => {
         STATE.currentFeedFilter = null;
