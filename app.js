@@ -538,17 +538,41 @@ TEXTE : ${rssText}`;
       try {
         // Nettoyer les backticks markdown
         let cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
-        // Remplacer les guillemets typographiques par des guillemets droits
-        cleaned = cleaned.replace(/[\u201C\u201D\u00AB\u00BB]/g, '"').replace(/[\u2018\u2019\u2032]/g, "\'");
-        // Corriger les sauts de ligne, caractères de contrôle et apostrophes dans les strings JSON
-        cleaned = cleaned.replace(/"([^"]*?)"/g, (match) =>
-          match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/[\x00-\x1F\x7F]/g, ' ')
-        );
-        // Échapper les apostrophes non échappées dans les valeurs (ex: d'"implausible")
-        cleaned = cleaned.replace(/:"((?:[^"\\]|\\.)*)"/g, (match, val) => {
-          const escaped = val.replace(/(?<!\\)'/g, "\\'");
-          return ':"' + escaped + '"';
-        });
+
+        // Stratégie : parser chaque valeur string du JSON proprement
+        // 1. Extraire le bloc JSON brut
+        const jsonBlock = cleaned.match(/\{[\s\S]*\}/)?.[0] || cleaned;
+
+        // 2. Nettoyer caractère par caractère les valeurs string
+        // Remplacer guillemets français «» et typographiques "" à l'intérieur des valeurs par des guillemets échappés
+        // On ne touche pas aux guillemets structurels du JSON
+        let result = '';
+        let inString = false;
+        let escape = false;
+        for (let i = 0; i < jsonBlock.length; i++) {
+          const ch = jsonBlock[i];
+          const code = jsonBlock.charCodeAt(i);
+          if (escape) { result += ch; escape = false; continue; }
+          if (ch === '\\') { result += ch; escape = true; continue; }
+          if (ch === '"' && !inString) { inString = true; result += ch; continue; }
+          if (ch === '"' && inString) { inString = false; result += ch; continue; }
+          if (inString) {
+            // Guillemets typographiques → remplacer par apostrophe ou espace
+            if (code === 0x201C || code === 0x201D || code === 0x00AB || code === 0x00BB) {
+              result += "'"; continue;
+            }
+            // Apostrophes typographiques → apostrophe droite
+            if (code === 0x2018 || code === 0x2019 || code === 0x2032) {
+              result += "'"; continue;
+            }
+            // Sauts de ligne → espace
+            if (ch === '\n' || ch === '\r') { result += ' '; continue; }
+            // Caractères de contrôle → espace
+            if (code < 0x20 || code === 0x7F) { result += ' '; continue; }
+          }
+          result += ch;
+        }
+        cleaned = result || jsonBlock;
 
         // Tenter d'extraire le JSON — s'il est tronqué, tenter de le réparer
         let jsonMatch = cleaned.match(/\{[\s\S]*\}/);
