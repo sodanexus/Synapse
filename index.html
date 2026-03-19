@@ -43,17 +43,17 @@
         <button class="auth-tab" data-tab="register">INSCRIPTION</button>
       </div>
 
-      <div id="auth-login" class="auth-form">
+      <form id="auth-login" class="auth-form" onsubmit="return false">
         <input type="email" id="login-email" class="auth-input" placeholder="EMAIL" autocomplete="email" />
-        <input type="password" id="login-password" class="auth-input" placeholder="MOT DE PASSE" autocomplete="current-password" form="login-form" />
-        <button id="btn-login" class="auth-btn">ENTRER</button>
-      </div>
+        <input type="password" id="login-password" class="auth-input" placeholder="MOT DE PASSE" autocomplete="current-password" />
+        <button id="btn-login" class="auth-btn" type="button">ENTRER</button>
+      </form>
 
-      <div id="auth-register" class="auth-form hidden">
+      <form id="auth-register" class="auth-form hidden" onsubmit="return false">
         <input type="email" id="reg-email" class="auth-input" placeholder="EMAIL" autocomplete="email" />
-        <input type="password" id="reg-password" class="auth-input" placeholder="MOT DE PASSE" autocomplete="new-password" form="reg-form" />
-        <button id="btn-register" class="auth-btn">CRÉER UN COMPTE</button>
-      </div>
+        <input type="password" id="reg-password" class="auth-input" placeholder="MOT DE PASSE" autocomplete="new-password" />
+        <button id="btn-register" class="auth-btn" type="button">CRÉER UN COMPTE</button>
+      </form>
 
       <p id="auth-error" class="auth-error hidden"></p>
     </div>
