@@ -1282,8 +1282,10 @@ RÈGLES ABSOLUES :
       updateNavLabels();
 
       const overlay = document.getElementById('reader-overlay');
+      modal.classList.add('reader-opening');
       overlay.classList.remove('hidden');
       document.body.style.overflow = 'hidden';
+      scheduleReaderReveal();
       document.getElementById('btn-close-reader').focus();
 
       const articleRef = STATE.currentArticleList[STATE.currentArticleIndex] || article;
@@ -1948,6 +1950,15 @@ RÈGLES ABSOLUES :
       }
     }
 
+    function scheduleReaderReveal() {
+      const modal = document.getElementById('reader-modal');
+      if (!modal) return;
+      clearTimeout(scheduleReaderReveal._timer);
+      scheduleReaderReveal._timer = setTimeout(() => {
+        modal.classList.remove('reader-opening');
+      }, 360);
+    }
+
     /**
      * Animation de transition entre articles.
      * dir = 1  → sortie à gauche (article suivant)
@@ -1964,6 +1975,7 @@ RÈGLES ABSOLUES :
       const EASE = 'cubic-bezier(0.4, 0.0, 0.2, 1)';
 
       // Phase 1 — sortie
+      modal.classList.add('reader-opening');
       modal.style.transition = `transform 0.18s ${EASE}, opacity 0.18s ease`;
       modal.style.transform  = `translateX(${dir * -60}px)`;
       modal.style.opacity    = '0';
@@ -1984,6 +1996,7 @@ RÈGLES ABSOLUES :
             modal.style.transition = `transform 0.22s ${EASE}, opacity 0.2s ease`;
             modal.style.transform  = 'translateX(0)';
             modal.style.opacity    = '1';
+            scheduleReaderReveal();
             setTimeout(() => { modal.style.transition = ''; }, 220);
           });
         });
