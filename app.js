@@ -562,30 +562,61 @@ TEXTE : ${rssText}`;
       }
     }
 
-    function getDigestArticles(articles) {
+    /**
+     * Regroupe les articles enrichis par catégorie de feed.
+     * Pour chaque catégorie : articles du jour en priorité,
+     * fallback 48h si vide, fallback général en dernier recours.
+     * Retourne un objet { [category]: article[] }
+     */
+    function getDigestArticlesByCategory(articles) {
       const today = new Date().toISOString().split('T')[0];
+      const since48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
 
-      let topArticles = articles
-        .filter(a => a.pub_date && a.pub_date.startsWith(today) && isEnriched(a))
-        .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
-        .slice(0, 10);
-
-      if (topArticles.length < 3) {
-        const since = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
-        topArticles = articles
-          .filter(a => a.pub_date && a.pub_date >= since && isEnriched(a))
-          .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
-          .slice(0, 10);
-      }
-
-      if (topArticles.length === 0) {
-        topArticles = articles
+      // Collecter toutes les catégories présentes
+      const categories = [...new Set(
+        articles
           .filter(a => isEnriched(a))
+          .map(a => a.feed_category || 'Général')
+      )];
+
+      const byCategory = {};
+
+      for (const cat of categories) {
+        const pool = articles.filter(a => isEnriched(a) && (a.feed_category || 'Général') === cat);
+
+        // 1. Articles du jour
+        let selection = pool
+          .filter(a => a.pub_date && a.pub_date.startsWith(today))
           .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
-          .slice(0, 10);
+          .slice(0, 5);
+
+        // 2. Fallback 48h si pas assez
+        if (selection.length < 2) {
+          selection = pool
+            .filter(a => a.pub_date && a.pub_date >= since48h)
+            .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
+            .slice(0, 5);
+        }
+
+        // 3. Fallback général
+        if (selection.length === 0) {
+          selection = pool
+            .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
+            .slice(0, 5);
+        }
+
+        if (selection.length > 0) {
+          byCategory[cat] = selection;
+        }
       }
 
-      return topArticles;
+      return byCategory;
+    }
+
+    /** Retourne une liste plate pour la compatibilité (ex: affichage timeline) */
+    function getDigestArticles(articles) {
+      const byCategory = getDigestArticlesByCategory(articles);
+      return Object.values(byCategory).flat();
     }
 
 
@@ -593,31 +624,32 @@ TEXTE : ${rssText}`;
      * Génère le digest du jour à partir des articles importants
      * Retourne du texte structuré (HTML simple)
      */
+    /**
+     * Génère le digest du jour structuré par catégorie de feed.
+     * Chaque catégorie devient une section <h2> dans le briefing.
+     */
     async function generateDailyDigest(articles) {
-      const topArticles = getDigestArticles(articles);
+      const byCategory = getDigestArticlesByCategory(articles);
+      const categories = Object.keys(byCategory);
 
-      if (topArticles.length === 0) {
+      if (categories.length === 0) {
         throw new Error('Aucun article enrichi disponible. Ouvrez quelques articles d\'abord.');
       }
 
-      // Envoyer ai_content si disponible, sinon le titre
-      const articlesText = topArticles.map((a, i) => {
-        const titre = a.ai_title || a.title || '';
-        const contenu = (a.ai_content || '').substring(0, 400);
-        return `[${i + 1}] ${titre} (${a.feed_name})\n${contenu}`;
+      // Construire le texte d'input structuré par catégorie
+      const articlesText = categories.map(cat => {
+        const catArticles = byCategory[cat];
+        const lines = catArticles.map((a, i) => {
+          const titre = a.ai_title || a.title || '';
+          const contenu = (a.ai_content || '').substring(0, 350);
+          return `  [${i + 1}] ${titre} (${a.feed_name})\n  ${contenu}`;
+        }).join('\n\n');
+        return `=== CATÉGORIE : ${cat.toUpperCase()} ===\n${lines}`;
       }).join('\n\n');
 
       const digest = await callGroq(
-        `Tu es un éditeur de presse senior. Tu rédiges des briefings synthétiques.
-RÈGLES ABSOLUES :
-- Réponds UNIQUEMENT en HTML valide, JAMAIS en markdown
-- N'utilise JAMAIS #, ##, ###, **, *, - pour formater
-- N'utilise JAMAIS <strong>, <b>, <em>, <i> — aucun texte en gras ou italique
-- Utilise UNIQUEMENT ces balises : <h2>, <p>, <ul>, <li>
-- Pas d'introduction, pas de conclusion, pas de titre général
-- Langue : français
-- Cite les sources entre parenthèses dans le texte`,
-        `Rédige un briefing très court et dense. 3 thèmes maximum. Pour chaque thème : un <h2> avec le nom du thème, un <p> de synthèse d'1 phrase maximum, et une <ul> avec 2 points clés maximum. Sois concis, va à l'essentiel.\n\n${articlesText}`,
+        `Tu es un éditeur de presse senior. Tu rédiges des briefings synthétiques par catégorie.\nRÈGLES ABSOLUES :\n- Réponds UNIQUEMENT en HTML valide, JAMAIS en markdown\n- N'utilise JAMAIS #, ##, ###, **, *, - pour formater\n- N'utilise JAMAIS <strong>, <b>, <em>, <i> — aucun texte en gras ou italique\n- Utilise UNIQUEMENT ces balises : <h2>, <p>, <ul>, <li>\n- Pas d'introduction, pas de conclusion, pas de titre général\n- Langue : français\n- Cite les sources entre parenthèses dans le texte`,
+        `Rédige un briefing structuré par catégorie. Pour CHAQUE catégorie fournie : un <h2> avec le nom exact de la catégorie, un <p> de synthèse d'1 phrase maximum, et une <ul> avec 2-3 points clés issus des articles de cette catégorie uniquement. Sois concis, va à l'essentiel.\n\n${articlesText}`,
         1500,
         0,
         CONFIG.GROQ_MODEL_DIGEST
@@ -625,8 +657,7 @@ RÈGLES ABSOLUES :
 
       return digest;
     }
-
-    return { enrichArticle, generateDailyDigest, callGroq, isEnriched, getDigestArticles };
+    return { enrichArticle, generateDailyDigest, callGroq, isEnriched, getDigestArticles, getDigestArticlesByCategory };
   })();
 
   /* ================================================================
