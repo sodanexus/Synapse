@@ -1420,6 +1420,9 @@ TEXTE : ${rssText}`;
      ================================================================ */
   const Reader = (() => {
 
+    // Flag anti-double-render — reset à chaque ouverture
+    let _revealDone = false;
+
     /** Ouvre le reader pour un article */
     function open(article, index, articleList) {
       STATE.currentArticleIndex = index;
@@ -1431,6 +1434,7 @@ TEXTE : ${rssText}`;
 
       const overlay = document.getElementById('reader-overlay');
       const modal = document.getElementById('reader-modal');
+      _revealDone = false;
       modal.classList.add('reader-opening');
       overlay.classList.remove('hidden');
       document.body.style.overflow = 'hidden';
@@ -1474,6 +1478,8 @@ TEXTE : ${rssText}`;
 
     /** Déroulé séquentiel type papyrus — hero → titre → chapo → tags → contenu */
     function _revealContent(delay = 0) {
+      if (_revealDone) return;
+      _revealDone = true;
       const heroEl    = document.querySelector('#reader-title-area .hero-bg');
       const titleEl   = document.getElementById('reader-title');
       const chapoEl   = document.getElementById('reader-chapo');
@@ -2170,6 +2176,7 @@ TEXTE : ${rssText}`;
     function goNext() {
       const list = STATE.currentArticleList;
       if (STATE.currentArticleIndex >= list.length - 1) return;
+      _revealDone = false;
       _animateTransition(1, () => {
         STATE.currentArticleIndex++;
         const article = list[STATE.currentArticleIndex];
@@ -2188,6 +2195,7 @@ TEXTE : ${rssText}`;
     function goPrev() {
       const list = STATE.currentArticleList;
       if (STATE.currentArticleIndex <= 0) return;
+      _revealDone = false;
       _animateTransition(-1, () => {
         STATE.currentArticleIndex--;
         const article = list[STATE.currentArticleIndex];
