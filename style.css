@@ -342,8 +342,8 @@ ul { list-style: none; }
   transition: color 0.15s;
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 6px;
   border-bottom: 1px solid transparent;
 }
 
@@ -363,6 +363,7 @@ ul { list-style: none; }
   letter-spacing: 0.04em;
   color: var(--grey-light);
   flex-shrink: 0;
+  margin-left: auto;
   transition: color 0.15s;
 }
 
@@ -380,12 +381,14 @@ ul { list-style: none; }
   font-size: 0.5rem;
   letter-spacing: 0.18em;
   color: var(--grey-light);
-  cursor: default;
-  pointer-events: none;
+  cursor: grab;
+  pointer-events: all;
   border-bottom: none;
+  gap: 6px;
 }
 
-.feeds-list li.sidebar-category-label:hover { color: var(--grey-light); }
+.feeds-list li.sidebar-category-label:hover { color: var(--ink); }
+.feeds-list li.sidebar-category-label:hover .feed-drag-handle { opacity: 1; }
 
 .feeds-list li:hover { color: var(--ink); }
 
