@@ -4150,4 +4150,36 @@ TEXTE : ${rssText}`;
   // Démarrage
   document.addEventListener('DOMContentLoaded', init);
 
+  // Smooth scroll sur desktop uniquement (souris détectée)
+  if (window.matchMedia('(pointer: fine)').matches) {
+    const smoothTargets = () => document.querySelectorAll('.main-content, .sidebar-feeds');
+    document.addEventListener('DOMContentLoaded', () => {
+      smoothTargets().forEach(el => {
+        let current = 0;
+        let target = 0;
+        let rafId = null;
+        const ease = 0.1;
+
+        el.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          target += e.deltaY;
+          target = Math.max(0, Math.min(target, el.scrollHeight - el.clientHeight));
+          if (!rafId) animate();
+        }, { passive: false });
+
+        function animate() {
+          current += (target - current) * ease;
+          el.scrollTop = current;
+          if (Math.abs(target - current) > 0.5) {
+            rafId = requestAnimationFrame(animate);
+          } else {
+            el.scrollTop = target;
+            current = target;
+            rafId = null;
+          }
+        }
+      });
+    });
+  }
+
 })();
