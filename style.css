@@ -785,38 +785,6 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 .filter-btn:hover { color: var(--ink); }
 .filter-btn.active { color: var(--ink); border-bottom-color: var(--ink); }
 
-.feed-category-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px 0 14px;
-}
-.feed-category-filters.hidden { display: none; }
-
-.category-chip {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  border: var(--border);
-  border-radius: 2px;
-  color: var(--grey-mid);
-  background: transparent;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.category-chip:hover {
-  color: var(--ink);
-  border-color: var(--grey-mid);
-  background: var(--grey-wash);
-}
-.category-chip.active {
-  color: var(--ink);
-  border-color: var(--ink);
-  background: var(--grey-wash);
-}
-
 .btn-mark-all-read {
   font-family: var(--font-mono);
   font-size: 0.75rem;
