@@ -1341,27 +1341,6 @@ RÈGLES ABSOLUES :
       const tagsEl    = document.getElementById('reader-tags');
       const impEl     = document.getElementById('reader-imp-bars');
 
-      // Animer l'agrandissement de la modal
-      if (modal) {
-        const fromH = modal.scrollHeight;
-        modal.style.height = fromH + 'px';
-        modal.style.overflow = 'hidden';
-
-        // Laisser le DOM se mettre à jour avec le nouveau contenu
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            const toH = modal.scrollHeight;
-            modal.style.transition = 'height 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
-            modal.style.height = toH + 'px';
-            setTimeout(() => {
-              modal.style.height = '';
-              modal.style.overflow = '';
-              modal.style.transition = '';
-            }, 520);
-          });
-        });
-      }
-
       const elements = [
         { el: titleEl,   d: 0   },
         { el: chapoEl,   d: 80  },
@@ -1451,14 +1430,38 @@ RÈGLES ABSOLUES :
 
         const currentArticle = STATE.currentArticleList[STATE.currentArticleIndex];
         if (currentArticle && currentArticle.hash === article.hash) {
-          // Enrichissement terminé — masquer instantanément avant populate pour éviter le flash
-          const _els = ['reader-title','reader-chapo','reader-content','reader-tags','reader-imp-bars']
-            .map(id => document.getElementById(id)).filter(Boolean);
-          _els.forEach(el => { el.style.transition = 'none'; el.style.opacity = '0'; });
+          const modal = document.getElementById('reader-modal');
 
-          // Populate puis reveal animé
+          // 1. Mesurer la hauteur AVANT populate (modal encore petite)
+          const fromH = modal ? modal.scrollHeight : 0;
+
+          // 2. Fixer la hauteur actuelle pour bloquer le saut
+          if (modal) {
+            modal.style.transition = 'none';
+            modal.style.height = fromH + 'px';
+            modal.style.overflow = 'hidden';
+          }
+
+          // 3. Populate remplit le DOM (invisible car éléments à opacity 0)
           populate(article, false);
-          _revealContent(50);
+
+          // 4. Après deux frames — DOM rendu, mesurer la nouvelle hauteur
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              if (modal) {
+                const toH = modal.scrollHeight;
+                modal.style.transition = 'height 0.55s cubic-bezier(0.4, 0, 0.2, 1)';
+                modal.style.height = toH + 'px';
+                setTimeout(() => {
+                  modal.style.height = '';
+                  modal.style.overflow = '';
+                  modal.style.transition = '';
+                }, 580);
+              }
+              // 5. Reveal les éléments en stagger
+              _revealContent(30);
+            });
+          });
         }
 
         // Mettre à jour la row dans le feed sans re-render complet
