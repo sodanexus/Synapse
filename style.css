@@ -1140,8 +1140,8 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
   background-position: center center;
   background-repeat: no-repeat;
   opacity: 0;
-  transform: scale(1.04);
-  transition: opacity 0.7s ease, transform 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(18px) scale(1.02);
+  transition: opacity 0.55s ease, transform 0.65s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 0;
   clip-path: inset(0 0 1px 0);
 }
@@ -1156,7 +1156,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 
 .hero-bg.hero-visible {
   opacity: 1;
-  transform: scale(1);
+  transform: translateY(0) scale(1);
 }
 
 /* S'assurer que le contenu passe au-dessus de hero-bg et des pseudo-éléments */
