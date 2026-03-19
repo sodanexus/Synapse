@@ -2157,7 +2157,12 @@ TEXTE : ${rssText}`;
         markRead(article);
         populate(article);
         updateNavLabels();
-        if (!AI.isEnriched(article)) enrichOnOpen(article);
+        if (!AI.isEnriched(article)) {
+          _showContentLoader();
+          enrichOnOpen(article);
+        } else {
+          _revealContent(40);
+        }
       });
     }
 
@@ -2170,7 +2175,12 @@ TEXTE : ${rssText}`;
         markRead(article);
         populate(article);
         updateNavLabels();
-        if (!AI.isEnriched(article)) enrichOnOpen(article);
+        if (!AI.isEnriched(article)) {
+          _showContentLoader();
+          enrichOnOpen(article);
+        } else {
+          _revealContent(40);
+        }
       });
     }
 
