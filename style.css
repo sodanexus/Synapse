@@ -1215,7 +1215,6 @@ body.dark .reader-modal.hero-ready .reader-header {
   line-height: 1.6;
   color: var(--ink-2);
   font-style: italic;
-  border-bottom: var(--border);
   padding-bottom: 20px;
   margin-bottom: 0;
 }
