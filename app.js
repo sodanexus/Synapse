@@ -1282,6 +1282,7 @@ RÈGLES ABSOLUES :
       updateNavLabels();
 
       const overlay = document.getElementById('reader-overlay');
+      const modal = document.getElementById('reader-modal');
       modal.classList.add('reader-opening');
       overlay.classList.remove('hidden');
       document.body.style.overflow = 'hidden';
