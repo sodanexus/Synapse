@@ -2903,7 +2903,7 @@ TEXTE : ${rssText}`;
 
         STATE.digestArticles = AI.getDigestArticles(STATE.articles);
         const heroArticle = _getDigestHeroSource();
-        const html = await AI.generateDailyDigest(STATE.digestArticles);
+        const html = await AI.generateDailyDigest(STATE.articles);
         const heroImage = await _resolveDigestHeroImage(heroArticle);
         stopAnimation();
 
