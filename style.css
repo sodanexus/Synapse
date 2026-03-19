@@ -1138,7 +1138,7 @@ body.dark .reader-title-area.has-hero::before {
 
 /* ── Zone hero active — titre pleine hauteur ── */
 .reader-title-area.has-hero .reader-title {
-  padding-top: 20px;
+  padding-top: 40px;
   padding-bottom: 36px;
 }
 
