@@ -1035,7 +1035,7 @@ body.dark .sentiment-negative { background: rgba(180, 40, 40, 0.2); color: #e060
 /* Titre reader */
 .reader-title {
   font-family: var(--font-display);
-  font-size: clamp(1.5rem, 2.8vw, 2rem);
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
   font-weight: 400;
   letter-spacing: -0.03em;
   line-height: 1.15;
