@@ -995,7 +995,7 @@ TEXTE : ${rssText}`;
           <div class="row-title">${escapeHtml(article.ai_title || article.title || '')}</div>
           ${(() => {
             const excerpt = article.ai_content || article.description || article.content || '';
-            return excerpt ? `<div class="row-excerpt">${escapeHtml(excerpt.substring(0, 120))}…</div>` : '';
+            return excerpt ? `<div class="row-excerpt">${escapeHtml(excerpt.substring(0, 180))}…</div>` : '';
           })()}
           <div class="row-meta">${(article.ai_tags || []).slice(0, 3).join(' · ')}</div>
         </div>
@@ -1655,14 +1655,14 @@ TEXTE : ${rssText}`;
           if (metaEl)  metaEl.textContent  = (article.ai_tags || []).slice(0, 3).join(' · ');
           if (article.ai_content) {
             if (excerptEl) {
-              excerptEl.textContent = article.ai_content.substring(0, 120) + '…';
+              excerptEl.textContent = article.ai_content.substring(0, 180) + '…';
             } else {
               // Créer l'excerpt s'il n'existait pas (article sans résumé au départ)
               const rowBody = row.querySelector('.row-body');
               if (rowBody) {
                 const div = document.createElement('div');
                 div.className = 'row-excerpt';
-                div.textContent = article.ai_content.substring(0, 120) + '…';
+                div.textContent = article.ai_content.substring(0, 180) + '…';
                 // Insérer après le titre
                 const titleInBody = rowBody.querySelector('.row-title');
                 if (titleInBody && titleInBody.nextSibling) {
