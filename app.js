@@ -3184,69 +3184,107 @@ TEXTE : ${rssText}`;
      ================================================================ */
   /* ================================================================
      SHARECARD — Génération d'une carte image partageable
-     Utilise <canvas> pour composer la carte, puis Web Share API.
-     Fallback : téléchargement PNG si Web Share non supporté.
+     Structure : Image → Source/Date → Titre → Chapô → Texte → Tags → Footer
+     Canvas à hauteur dynamique selon le contenu.
+     Image chargée via le worker Cloudflare pour éviter les blocages CORS.
      ================================================================ */
 
   const ShareCard = (() => {
 
-    /* ── Dimensions de la carte (format portrait story-like) ── */
-    const W = 1080;
-    const H = 1350;
+    const W   = 1080;   // Largeur fixe (format "story")
+    const PAD = 72;     // Padding latéral
 
-    /* ── Palette — synchronisée avec les CSS vars de Synapse ── */
+    /* ── Palette selon le thème actif ── */
     function palette(isDark) {
       return isDark ? {
         bg:        '#0f0f0f',
         surface:   '#1a1a1a',
         ink:       '#f0ede6',
-        grey:      '#888880',
-        greyLight: '#555550',
-        accent:    '#f0ede6',
+        grey:      '#999990',
+        greyLight: '#444440',
         tag:       '#2a2a2a',
         tagText:   '#aaa99a',
-        border:    'rgba(255,255,255,0.08)',
+        border:    'rgba(255,255,255,0.10)',
+        chapo:     '#ccc9c0',
       } : {
         bg:        '#f5f2eb',
         surface:   '#ffffff',
         ink:       '#1a1a18',
-        grey:      '#888880',
-        greyLight: '#ccc9c0',
-        accent:    '#1a1a18',
-        tag:       '#eeebe4',
+        grey:      '#777770',
+        greyLight: '#d0cdc6',
+        tag:       '#e8e5de',
         tagText:   '#666660',
         border:    'rgba(0,0,0,0.10)',
+        chapo:     '#555550',
       };
     }
 
-    /* ── Chargement d'une image cross-origin ── */
-    function loadImage(url) {
-      return new Promise((resolve) => {
-        if (!url) { resolve(null); return; }
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload  = () => resolve(img);
-        img.onerror = () => resolve(null);
-        setTimeout(() => resolve(null), 5000);
-        img.src = url;
-      });
+    /* ── Charge l'image via le worker (contourne le CORS) ── */
+    async function loadImageViaWorker(url) {
+      if (!url) return null;
+      try {
+        // Tenter d'abord en direct avec crossOrigin (cache navigateur)
+        const direct = await new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload  = () => resolve(img);
+          img.onerror = () => resolve(null);
+          setTimeout(() => resolve(null), 3000);
+          img.src = url;
+        });
+        if (direct) return direct;
+
+        // Fallback : fetch via le worker pour contourner CORS
+        const proxyUrl = `${CONFIG.WORKER_URL}/rss?url=${encodeURIComponent(url)}`;
+        const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+        // Le worker /rss ne sert pas d'images, on fetch l'image directement
+        // mais via un fetch() normal qui ignore le CORS côté JS
+        const imgRes = await fetch(url, { mode: 'no-cors', signal: AbortSignal.timeout(8000) });
+        const blob   = await imgRes.blob();
+        if (!blob.size) return null;
+        const blobUrl = URL.createObjectURL(blob);
+        return await new Promise((resolve) => {
+          const img = new Image();
+          img.onload  = () => { URL.revokeObjectURL(blobUrl); resolve(img); };
+          img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(null); };
+          setTimeout(() => resolve(null), 3000);
+          img.src = blobUrl;
+        });
+      } catch {
+        return null;
+      }
     }
 
-    /* ── Dessine une image en cover (object-fit: cover) ── */
+    /* ── Scrape l'OG image via le worker si l'article n'en a pas ── */
+    async function resolveImage(article) {
+      if (article.image) return loadImageViaWorker(article.image);
+      if (!article.link) return null;
+      try {
+        const res  = await fetch(`${CONFIG.WORKER_URL}/scrape?url=${encodeURIComponent(article.link)}`, {
+          signal: AbortSignal.timeout(8000),
+        });
+        const data = res.ok ? await res.json() : null;
+        if (data?.ogImage) {
+          article.image = data.ogImage; // Mise en cache mémoire
+          return loadImageViaWorker(data.ogImage);
+        }
+      } catch {}
+      return null;
+    }
+
+    /* ── object-fit: cover sur canvas ── */
     function drawImageCover(ctx, img, x, y, w, h) {
       const ratio = Math.max(w / img.naturalWidth, h / img.naturalHeight);
       const dw = img.naturalWidth  * ratio;
       const dh = img.naturalHeight * ratio;
-      const dx = x + (w - dw) / 2;
-      const dy = y + (h - dh) / 2;
-      ctx.drawImage(img, dx, dy, dw, dh);
+      ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
     }
 
-    /* ── Wrap de texte sur canvas, retourne le nb de lignes ── */
-    function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-      const words = text.split(' ');
-      let line  = '';
-      let lines = [];
+    /* ── Wrap de texte — retourne les lignes sans dessiner ── */
+    function computeLines(ctx, text, maxWidth) {
+      const words = (text || '').split(' ').filter(Boolean);
+      const lines = [];
+      let line    = '';
       for (const word of words) {
         const test = line ? line + ' ' + word : word;
         if (ctx.measureText(test).width > maxWidth && line) {
@@ -3257,8 +3295,13 @@ TEXTE : ${rssText}`;
         }
       }
       if (line) lines.push(line);
+      return lines;
+    }
+
+    /* ── Dessine des lignes pré-calculées et retourne la hauteur utilisée ── */
+    function drawLines(ctx, lines, x, y, lineHeight) {
       lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
-      return lines.length;
+      return lines.length * lineHeight;
     }
 
     /* ── Rectangle arrondi ── */
@@ -3277,23 +3320,92 @@ TEXTE : ${rssText}`;
       ctx.fill();
     }
 
-    /* ── Génère le canvas et retourne un Blob PNG ── */
+    /* ── Calcule la hauteur totale nécessaire (passe sèche) ── */
+    function computeHeight(ctx, article, heroH, chapo, bodyText, tags) {
+      let h = heroH + 60; // hero + marge top
+
+      // Source + date
+      h += 52;
+
+      // Titre
+      ctx.font = `bold 58px Georgia, serif`;
+      const titleLines = computeLines(ctx, article.ai_title || article.title || '', W - PAD * 2);
+      h += titleLines.length * 74 + 48;
+
+      // Trait
+      h += 32;
+
+      // Chapô
+      if (chapo) {
+        ctx.font = `italic 30px Georgia, serif`;
+        const chapoLines = computeLines(ctx, chapo, W - PAD * 2);
+        h += chapoLines.length * 44 + 48;
+      }
+
+      // Texte complet
+      if (bodyText) {
+        ctx.font = `26px Georgia, serif`;
+        const paragraphs = bodyText.split(/\n{1,}/);
+        for (const para of paragraphs) {
+          if (!para.trim()) continue;
+          const ls = computeLines(ctx, para.trim(), W - PAD * 2);
+          h += ls.length * 40 + 20; // inter-para
+        }
+        h += 48;
+      }
+
+      // Tags
+      if (tags.length > 0) h += 44 + 52;
+
+      // Footer
+      h += 80 + 48;
+
+      return Math.max(h, 900);
+    }
+
+    /* ── Génère le canvas à hauteur dynamique et retourne un Blob PNG ── */
     async function generateBlob(article) {
       const isDark = document.body.classList.contains('dark');
       const p      = palette(isDark);
 
+      // Résoudre l'image en parallèle avec la préparation du texte
+      const heroImgPromise = resolveImage(article);
+
+      // Préparer le contenu textuel
+      const fullText = (article.ai_content || article.content || '').trim();
+      let chapo    = '';
+      let bodyText = fullText;
+
+      if (fullText.length > 80) {
+        const match = fullText.match(/^.{40,250}?[.!?](?=\s|$)/);
+        if (match) {
+          chapo    = match[0].trim();
+          bodyText = fullText.slice(chapo.length).trim();
+        }
+      }
+
+      const tags = (article.ai_tags || []).slice(0, 5);
+      const HERO_H = 560;
+
+      // Passe sèche sur un canvas temporaire pour mesurer la hauteur
+      const tmp    = document.createElement('canvas');
+      tmp.width    = W;
+      tmp.height   = 100;
+      const tmpCtx = tmp.getContext('2d');
+      const totalH = computeHeight(tmpCtx, article, HERO_H, chapo, bodyText, tags);
+
+      // Canvas final à hauteur dynamique
       const canvas  = document.createElement('canvas');
       canvas.width  = W;
-      canvas.height = H;
+      canvas.height = totalH;
       const ctx     = canvas.getContext('2d');
 
-      /* 1. Fond général */
+      /* ── 1. Fond général ── */
       ctx.fillStyle = p.bg;
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, W, totalH);
 
-      /* 2. Hero image (partie haute) */
-      const HERO_H  = 520;
-      const heroImg = await loadImage(article.image || '');
+      /* ── 2. Hero image ── */
+      const heroImg = await heroImgPromise;
 
       if (heroImg) {
         ctx.save();
@@ -3301,155 +3413,148 @@ TEXTE : ${rssText}`;
         ctx.rect(0, 0, W, HERO_H);
         ctx.clip();
         drawImageCover(ctx, heroImg, 0, 0, W, HERO_H);
-        // Gradient overlay bas → haut pour lisibilité
-        const grad = ctx.createLinearGradient(0, HERO_H * 0.3, 0, HERO_H);
+        // Gradient overlay en bas pour lisibilité
+        const grad = ctx.createLinearGradient(0, HERO_H * 0.5, 0, HERO_H);
         grad.addColorStop(0, 'rgba(0,0,0,0)');
-        grad.addColorStop(1, isDark ? 'rgba(15,15,15,0.92)' : 'rgba(245,242,235,0.92)');
+        grad.addColorStop(1, isDark ? 'rgba(15,15,15,0.85)' : 'rgba(245,242,235,0.85)');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, W, HERO_H);
         ctx.restore();
       } else {
-        /* Pas d'image — fond surface avec motif de points + grand S décoratif */
+        // Fallback sans image — fond texturé avec S décoratif
         ctx.fillStyle = p.surface;
         ctx.fillRect(0, 0, W, HERO_H);
         ctx.fillStyle = p.border;
-        const STEP = 40;
-        for (let gx = STEP; gx < W; gx += STEP) {
-          for (let gy = STEP; gy < HERO_H; gy += STEP) {
+        for (let gx = 40; gx < W; gx += 40) {
+          for (let gy = 40; gy < HERO_H; gy += 40) {
             ctx.beginPath();
             ctx.arc(gx, gy, 1.5, 0, Math.PI * 2);
             ctx.fill();
           }
         }
-        ctx.font = `bold ${W * 0.55}px serif`;
-        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)';
-        ctx.textAlign = 'center';
+        ctx.font         = `bold 560px serif`;
+        ctx.fillStyle    = isDark ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.03)';
+        ctx.textAlign    = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('S', W / 2, HERO_H / 2);
-        ctx.textAlign = 'left';
+        ctx.textAlign    = 'left';
         ctx.textBaseline = 'alphabetic';
       }
 
-      /* 3. Ligne de séparation hero / corps */
+      // Ligne séparatrice hero / corps
       ctx.fillStyle = p.border;
       ctx.fillRect(0, HERO_H, W, 1);
 
-      /* 4. Zone corps */
-      const PAD  = 72;
-      let   curY = HERO_H + 52;
+      /* ── 3. Corps — curseur vertical ── */
+      let curY = HERO_H + 60;
 
-      /* 4a. Source + date */
+      /* Source + date */
       const sourceStr = [
         (article.feed_name || '').toUpperCase(),
         article.pub_date
           ? new Date(article.pub_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
           : '',
       ].filter(Boolean).join('  ·  ');
-
-      ctx.font      = `500 28px Arial, sans-serif`;
+      ctx.font      = `500 26px Arial, sans-serif`;
       ctx.fillStyle = p.grey;
       ctx.fillText(sourceStr, PAD, curY);
       curY += 52;
 
-      /* 4b. Titre */
-      const title = article.ai_title || article.title || '';
-      ctx.font      = `bold 62px Georgia, serif`;
+      /* Titre */
+      ctx.font      = `bold 58px Georgia, serif`;
       ctx.fillStyle = p.ink;
-      const titleLines = wrapText(ctx, title, PAD, curY, W - PAD * 2, 78);
-      curY += titleLines * 78 + 40;
+      const titleLines = computeLines(ctx, article.ai_title || article.title || '', W - PAD * 2);
+      curY += drawLines(ctx, titleLines, PAD, curY, 74);
+      curY += 32;
 
-      /* 4c. Trait décoratif sous le titre */
+      /* Trait décoratif */
       ctx.fillStyle = p.greyLight;
       ctx.fillRect(PAD, curY, 80, 2);
-      curY += 36;
+      curY += 32;
 
-      /* 4d. Extrait — ~3 premières phrases, max 420 caractères */
-      const fullText = (article.ai_content || article.content || '').trim();
-      let excerpt = '';
-      if (fullText) {
-        const sentences = fullText.match(/[^.!?]+[.!?]+/g) || [];
-        let buf = '';
-        for (const s of sentences) {
-          if ((buf + s).length > 420) break;
-          buf += s + ' ';
-        }
-        excerpt = (buf.trim() || fullText.substring(0, 420)).trim();
-        if (excerpt.length < fullText.length) excerpt += '…';
+      /* Chapô */
+      if (chapo) {
+        ctx.font      = `italic 30px Georgia, serif`;
+        ctx.fillStyle = p.chapo;
+        const chapoLines = computeLines(ctx, chapo, W - PAD * 2);
+        curY += drawLines(ctx, chapoLines, PAD, curY, 44);
+        curY += 48;
       }
 
-      if (excerpt) {
-        ctx.font      = `22px Georgia, serif`;
+      /* Texte complet — paragraphe par paragraphe */
+      if (bodyText) {
+        ctx.font      = `26px Georgia, serif`;
         ctx.fillStyle = p.grey;
-        const excerptLines = wrapText(ctx, excerpt, PAD, curY, W - PAD * 2, 36);
-        curY += excerptLines * 36 + 44;
+        const paragraphs = bodyText.split(/\n+/).filter(p => p.trim());
+        for (const para of paragraphs) {
+          const ls = computeLines(ctx, para.trim(), W - PAD * 2);
+          curY += drawLines(ctx, ls, PAD, curY, 40);
+          curY += 20; // inter-paragraphe
+        }
+        curY += 28;
       }
 
-      /* 4e. Tags */
-      const tags = (article.ai_tags || []).slice(0, 4);
+      /* Tags */
       if (tags.length > 0) {
-        ctx.font = `500 24px Arial, sans-serif`;
+        ctx.font = `500 22px Arial, sans-serif`;
         let tagX = PAD;
-        const TAG_H     = 44;
-        const TAG_PAD_X = 20;
-        const TAG_GAP   = 12;
+        const TAG_H = 42, TAG_PX = 18, TAG_GAP = 10;
         tags.forEach(tag => {
           const label = tag.toUpperCase();
-          const tagW  = ctx.measureText(label).width + TAG_PAD_X * 2;
+          const tagW  = ctx.measureText(label).width + TAG_PX * 2;
           ctx.fillStyle = p.tag;
           roundRect(ctx, tagX, curY, tagW, TAG_H, 4);
           ctx.fillStyle = p.tagText;
-          ctx.fillText(label, tagX + TAG_PAD_X, curY + TAG_H * 0.68);
+          ctx.fillText(label, tagX + TAG_PX, curY + TAG_H * 0.68);
           tagX += tagW + TAG_GAP;
         });
-        curY += TAG_H + 44;
+        curY += TAG_H + 52;
       }
 
-      /* 5. Footer — branding Synapse */
-      const FOOTER_Y = H - 80;
-      ctx.fillStyle  = p.border;
-      ctx.fillRect(PAD, FOOTER_Y - 24, W - PAD * 2, 1);
+      /* ── 4. Footer branding ── */
+      ctx.fillStyle = p.border;
+      ctx.fillRect(PAD, curY, W - PAD * 2, 1);
+      curY += 32;
 
-      ctx.font      = `bold 32px Arial, sans-serif`;
+      ctx.font      = `bold 30px Arial, sans-serif`;
       ctx.fillStyle = p.ink;
-      ctx.fillText('SYNAPSE', PAD, FOOTER_Y + 18);
+      ctx.fillText('SYNAPSE', PAD, curY + 20);
 
       ctx.font      = `500 22px Arial, sans-serif`;
       ctx.fillStyle = p.grey;
       ctx.textAlign = 'right';
-      ctx.fillText('Intelligence RSS', W - PAD, FOOTER_Y + 18);
+      ctx.fillText('Intelligence RSS', W - PAD, curY + 20);
       ctx.textAlign = 'left';
 
-      /* 6. Barre colorée gauche si importance >= 4 */
+      /* ── 5. Barre importance gauche ── */
       if ((article.importance || 0) >= 4) {
         ctx.fillStyle = article.importance === 5 ? '#e05555' : '#e08855';
-        ctx.fillRect(0, HERO_H + 1, 5, H - HERO_H - 1);
+        ctx.fillRect(0, HERO_H + 1, 5, totalH - HERO_H - 1);
       }
 
       return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     }
 
-    /* ── Point d'entrée public : génère et partage la carte ── */
+    /* ── Point d'entrée : génère et partage ── */
     async function show(article) {
       const shareBtn = document.getElementById('btn-share-menu');
       const origText = shareBtn?.textContent;
       if (shareBtn) { shareBtn.textContent = '…'; shareBtn.disabled = true; }
 
       try {
-        Toast.show('Génération de la carte…', 'info', 2000);
-        const blob = await generateBlob(article);
-        const file = new File([blob], 'synapse-article.png', { type: 'image/png' });
+        Toast.show('Génération de la carte…', 'info', 3000);
+        const blob   = await generateBlob(article);
+        const file   = new File([blob], 'synapse-article.png', { type: 'image/png' });
         const title  = article.ai_title || article.title || 'Article Synapse';
         const source = article.feed_name ? `Via ${article.feed_name}` : 'Synapse';
 
-        /* Web Share API avec fichier (mobile natif) */
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({ title, text: source, files: [file] });
           Toast.show('Carte partagée ✓', 'success');
         } else if (navigator.share) {
-          /* Fallback : partage URL article sans image */
           await navigator.share({ title, text: source, url: article.link || '' });
         } else {
-          /* Fallback desktop : téléchargement PNG direct */
+          // Fallback desktop : téléchargement PNG
           const url = URL.createObjectURL(blob);
           const a   = document.createElement('a');
           a.href    = url;
