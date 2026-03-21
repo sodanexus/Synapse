@@ -47,10 +47,6 @@ export default {
         return await handleTTS(request, env, corsHeaders);
       }
 
-      if (request.method === 'GET' && url.pathname === '/image-proxy') {
-        return await handleImageProxy(url, corsHeaders);
-      }
-
       return jsonResponse({ error: 'Route not found' }, 404, corsHeaders);
 
     } catch (err) {
@@ -430,60 +426,6 @@ function extractArticleText(html) {
    /speech : ≤3000 chars, ~1s/700 chars, retourne une URL MP3
    Variable requise : UNREALSPEECH_API_KEY dans les secrets Worker
    ================================================================ */
-/* ================================================================
-   HANDLER IMAGE PROXY — Fetch une image et la renvoie avec headers CORS
-   Permet au canvas de dessiner des images cross-origin sans blocage.
-   GET /image-proxy?url=<encoded>
-   ================================================================ */
-async function handleImageProxy(url, corsHeaders) {
-  const imageUrl = url.searchParams.get('url');
-
-  if (!imageUrl) {
-    return new Response('Missing ?url parameter', { status: 400, headers: corsHeaders });
-  }
-
-  let parsedUrl;
-  try {
-    parsedUrl = new URL(imageUrl);
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Protocol not allowed');
-    const hostname = parsedUrl.hostname.toLowerCase();
-    if (hostname === 'localhost' || hostname === '127.0.0.1' ||
-        hostname.startsWith('192.168.') || hostname.startsWith('10.') ||
-        hostname.startsWith('172.16.') || hostname === '::1') {
-      throw new Error('Private addresses not allowed');
-    }
-  } catch {
-    return new Response('Invalid URL', { status: 400, headers: corsHeaders });
-  }
-
-  const response = await fetch(imageUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-      'Referer': parsedUrl.origin + '/',
-    },
-    redirect: 'follow',
-    cf: { cacheTtl: 3600 },
-    signal: AbortSignal.timeout(10000),
-  });
-
-  if (!response.ok) {
-    return new Response(`Image fetch failed: ${response.status}`, { status: response.status, headers: corsHeaders });
-  }
-
-  const contentType = response.headers.get('content-type') || 'image/jpeg';
-  const imageBuffer = await response.arrayBuffer();
-
-  return new Response(imageBuffer, {
-    status: 200,
-    headers: {
-      'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=3600',
-      ...corsHeaders,
-    },
-  });
-}
-
 async function handleTTS(request, env, corsHeaders) {
   if (!env.UNREALSPEECH_API_KEY) {
     return jsonResponse({ error: 'UNREALSPEECH_API_KEY not configured' }, 500, corsHeaders);
