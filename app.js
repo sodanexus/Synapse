@@ -2316,21 +2316,10 @@ TEXTE : ${rssText}`;
       });
 
       // Partager
-      document.getElementById('btn-share-menu').addEventListener('click', async () => {
+      document.getElementById('btn-share-menu').addEventListener('click', () => {
         const article = STATE.currentArticleList[STATE.currentArticleIndex];
         if (!article) return;
-        const title = article.ai_title || article.title || '';
-        const text = (article.ai_content || '').substring(0, 300) + '...';
-        const url = article.link || '';
-        if (navigator.share) {
-          try { await navigator.share({ title, text, url }); }
-          catch (err) { if (err.name !== 'AbortError') Toast.show('Erreur partage', 'error'); }
-        } else {
-          try {
-            await navigator.clipboard.writeText(`${title}\n\n${text}\n\n${url}`);
-            Toast.show('Copié ✓', 'success');
-          } catch { Toast.show('Impossible de copier', 'error'); }
-        }
+        ShareCard.show(article);
       });
 
       // Ouvrir l'article — bouton direct dans la toolbar
@@ -3193,6 +3182,295 @@ TEXTE : ${rssText}`;
   /* ================================================================
      12. UI — Toasts & Loader
      ================================================================ */
+  /* ================================================================
+     SHARECARD — Génération d'une carte image partageable
+     Utilise <canvas> pour composer la carte, puis Web Share API.
+     Fallback : téléchargement PNG si Web Share non supporté.
+     ================================================================ */
+
+  const ShareCard = (() => {
+
+    /* ── Dimensions de la carte (format portrait story-like) ── */
+    const W = 1080;
+    const H = 1350;
+
+    /* ── Palette — synchronisée avec les CSS vars de Synapse ── */
+    function palette(isDark) {
+      return isDark ? {
+        bg:        '#0f0f0f',
+        surface:   '#1a1a1a',
+        ink:       '#f0ede6',
+        grey:      '#888880',
+        greyLight: '#555550',
+        accent:    '#f0ede6',
+        tag:       '#2a2a2a',
+        tagText:   '#aaa99a',
+        border:    'rgba(255,255,255,0.08)',
+      } : {
+        bg:        '#f5f2eb',
+        surface:   '#ffffff',
+        ink:       '#1a1a18',
+        grey:      '#888880',
+        greyLight: '#ccc9c0',
+        accent:    '#1a1a18',
+        tag:       '#eeebe4',
+        tagText:   '#666660',
+        border:    'rgba(0,0,0,0.10)',
+      };
+    }
+
+    /* ── Chargement d'une image cross-origin ── */
+    function loadImage(url) {
+      return new Promise((resolve) => {
+        if (!url) { resolve(null); return; }
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload  = () => resolve(img);
+        img.onerror = () => resolve(null);
+        setTimeout(() => resolve(null), 5000);
+        img.src = url;
+      });
+    }
+
+    /* ── Dessine une image en cover (object-fit: cover) ── */
+    function drawImageCover(ctx, img, x, y, w, h) {
+      const ratio = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+      const dw = img.naturalWidth  * ratio;
+      const dh = img.naturalHeight * ratio;
+      const dx = x + (w - dw) / 2;
+      const dy = y + (h - dh) / 2;
+      ctx.drawImage(img, dx, dy, dw, dh);
+    }
+
+    /* ── Wrap de texte sur canvas, retourne le nb de lignes ── */
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+      const words = text.split(' ');
+      let line  = '';
+      let lines = [];
+      for (const word of words) {
+        const test = line ? line + ' ' + word : word;
+        if (ctx.measureText(test).width > maxWidth && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+      if (line) lines.push(line);
+      lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
+      return lines.length;
+    }
+
+    /* ── Rectangle arrondi ── */
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    /* ── Génère le canvas et retourne un Blob PNG ── */
+    async function generateBlob(article) {
+      const isDark = document.body.classList.contains('dark');
+      const p      = palette(isDark);
+
+      const canvas  = document.createElement('canvas');
+      canvas.width  = W;
+      canvas.height = H;
+      const ctx     = canvas.getContext('2d');
+
+      /* 1. Fond général */
+      ctx.fillStyle = p.bg;
+      ctx.fillRect(0, 0, W, H);
+
+      /* 2. Hero image (partie haute) */
+      const HERO_H  = 520;
+      const heroImg = await loadImage(article.image || '');
+
+      if (heroImg) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, W, HERO_H);
+        ctx.clip();
+        drawImageCover(ctx, heroImg, 0, 0, W, HERO_H);
+        // Gradient overlay bas → haut pour lisibilité
+        const grad = ctx.createLinearGradient(0, HERO_H * 0.3, 0, HERO_H);
+        grad.addColorStop(0, 'rgba(0,0,0,0)');
+        grad.addColorStop(1, isDark ? 'rgba(15,15,15,0.92)' : 'rgba(245,242,235,0.92)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, HERO_H);
+        ctx.restore();
+      } else {
+        /* Pas d'image — fond surface avec motif de points + grand S décoratif */
+        ctx.fillStyle = p.surface;
+        ctx.fillRect(0, 0, W, HERO_H);
+        ctx.fillStyle = p.border;
+        const STEP = 40;
+        for (let gx = STEP; gx < W; gx += STEP) {
+          for (let gy = STEP; gy < HERO_H; gy += STEP) {
+            ctx.beginPath();
+            ctx.arc(gx, gy, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.font = `bold ${W * 0.55}px serif`;
+        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('S', W / 2, HERO_H / 2);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+      }
+
+      /* 3. Ligne de séparation hero / corps */
+      ctx.fillStyle = p.border;
+      ctx.fillRect(0, HERO_H, W, 1);
+
+      /* 4. Zone corps */
+      const PAD  = 72;
+      let   curY = HERO_H + 52;
+
+      /* 4a. Source + date */
+      const sourceStr = [
+        (article.feed_name || '').toUpperCase(),
+        article.pub_date
+          ? new Date(article.pub_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+          : '',
+      ].filter(Boolean).join('  ·  ');
+
+      ctx.font      = `500 28px Arial, sans-serif`;
+      ctx.fillStyle = p.grey;
+      ctx.fillText(sourceStr, PAD, curY);
+      curY += 52;
+
+      /* 4b. Titre */
+      const title = article.ai_title || article.title || '';
+      ctx.font      = `bold 62px Georgia, serif`;
+      ctx.fillStyle = p.ink;
+      const titleLines = wrapText(ctx, title, PAD, curY, W - PAD * 2, 78);
+      curY += titleLines * 78 + 40;
+
+      /* 4c. Trait décoratif sous le titre */
+      ctx.fillStyle = p.greyLight;
+      ctx.fillRect(PAD, curY, 80, 2);
+      curY += 36;
+
+      /* 4d. Extrait — ~3 premières phrases, max 420 caractères */
+      const fullText = (article.ai_content || article.content || '').trim();
+      let excerpt = '';
+      if (fullText) {
+        const sentences = fullText.match(/[^.!?]+[.!?]+/g) || [];
+        let buf = '';
+        for (const s of sentences) {
+          if ((buf + s).length > 420) break;
+          buf += s + ' ';
+        }
+        excerpt = (buf.trim() || fullText.substring(0, 420)).trim();
+        if (excerpt.length < fullText.length) excerpt += '…';
+      }
+
+      if (excerpt) {
+        ctx.font      = `22px Georgia, serif`;
+        ctx.fillStyle = p.grey;
+        const excerptLines = wrapText(ctx, excerpt, PAD, curY, W - PAD * 2, 36);
+        curY += excerptLines * 36 + 44;
+      }
+
+      /* 4e. Tags */
+      const tags = (article.ai_tags || []).slice(0, 4);
+      if (tags.length > 0) {
+        ctx.font = `500 24px Arial, sans-serif`;
+        let tagX = PAD;
+        const TAG_H     = 44;
+        const TAG_PAD_X = 20;
+        const TAG_GAP   = 12;
+        tags.forEach(tag => {
+          const label = tag.toUpperCase();
+          const tagW  = ctx.measureText(label).width + TAG_PAD_X * 2;
+          ctx.fillStyle = p.tag;
+          roundRect(ctx, tagX, curY, tagW, TAG_H, 4);
+          ctx.fillStyle = p.tagText;
+          ctx.fillText(label, tagX + TAG_PAD_X, curY + TAG_H * 0.68);
+          tagX += tagW + TAG_GAP;
+        });
+        curY += TAG_H + 44;
+      }
+
+      /* 5. Footer — branding Synapse */
+      const FOOTER_Y = H - 80;
+      ctx.fillStyle  = p.border;
+      ctx.fillRect(PAD, FOOTER_Y - 24, W - PAD * 2, 1);
+
+      ctx.font      = `bold 32px Arial, sans-serif`;
+      ctx.fillStyle = p.ink;
+      ctx.fillText('SYNAPSE', PAD, FOOTER_Y + 18);
+
+      ctx.font      = `500 22px Arial, sans-serif`;
+      ctx.fillStyle = p.grey;
+      ctx.textAlign = 'right';
+      ctx.fillText('Intelligence RSS', W - PAD, FOOTER_Y + 18);
+      ctx.textAlign = 'left';
+
+      /* 6. Barre colorée gauche si importance >= 4 */
+      if ((article.importance || 0) >= 4) {
+        ctx.fillStyle = article.importance === 5 ? '#e05555' : '#e08855';
+        ctx.fillRect(0, HERO_H + 1, 5, H - HERO_H - 1);
+      }
+
+      return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    }
+
+    /* ── Point d'entrée public : génère et partage la carte ── */
+    async function show(article) {
+      const shareBtn = document.getElementById('btn-share-menu');
+      const origText = shareBtn?.textContent;
+      if (shareBtn) { shareBtn.textContent = '…'; shareBtn.disabled = true; }
+
+      try {
+        Toast.show('Génération de la carte…', 'info', 2000);
+        const blob = await generateBlob(article);
+        const file = new File([blob], 'synapse-article.png', { type: 'image/png' });
+        const title  = article.ai_title || article.title || 'Article Synapse';
+        const source = article.feed_name ? `Via ${article.feed_name}` : 'Synapse';
+
+        /* Web Share API avec fichier (mobile natif) */
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ title, text: source, files: [file] });
+          Toast.show('Carte partagée ✓', 'success');
+        } else if (navigator.share) {
+          /* Fallback : partage URL article sans image */
+          await navigator.share({ title, text: source, url: article.link || '' });
+        } else {
+          /* Fallback desktop : téléchargement PNG direct */
+          const url = URL.createObjectURL(blob);
+          const a   = document.createElement('a');
+          a.href    = url;
+          a.download = `synapse-${Date.now()}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+          Toast.show('Image téléchargée ✓', 'success');
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.warn('ShareCard error:', err);
+          Toast.show('Impossible de partager la carte', 'error');
+        }
+      } finally {
+        if (shareBtn) { shareBtn.textContent = origText; shareBtn.disabled = false; }
+      }
+    }
+
+    return { show, generateBlob };
+  })();
+
   const Toast = (() => {
     /** Affiche un toast (success | error | info) */
     function show(message, type = 'info', duration = 3500) {
