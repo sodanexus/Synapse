@@ -3219,11 +3219,11 @@ TEXTE : ${rssText}`;
       };
     }
 
-    /* ── Charge l'image via le worker (contourne le CORS) ── */
+    /* ── Charge l'image via le proxy worker (contourne le CORS) ── */
     async function loadImageViaWorker(url) {
       if (!url) return null;
       try {
-        // Tenter d'abord en direct avec crossOrigin (cache navigateur)
+        // 1. Tentative directe avec crossOrigin (fonctionne si le serveur envoie CORS)
         const direct = await new Promise((resolve) => {
           const img = new Image();
           img.crossOrigin = 'anonymous';
@@ -3234,13 +3234,11 @@ TEXTE : ${rssText}`;
         });
         if (direct) return direct;
 
-        // Fallback : fetch via le worker pour contourner CORS
-        const proxyUrl = `${CONFIG.WORKER_URL}/rss?url=${encodeURIComponent(url)}`;
-        const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
-        // Le worker /rss ne sert pas d'images, on fetch l'image directement
-        // mais via un fetch() normal qui ignore le CORS côté JS
-        const imgRes = await fetch(url, { mode: 'no-cors', signal: AbortSignal.timeout(8000) });
-        const blob   = await imgRes.blob();
+        // 2. Fallback : passer par le proxy /image-proxy du worker Cloudflare
+        const proxyUrl = `${CONFIG.WORKER_URL}/image-proxy?url=${encodeURIComponent(url)}`;
+        const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+        if (!res.ok) return null;
+        const blob    = await res.blob();
         if (!blob.size) return null;
         const blobUrl = URL.createObjectURL(blob);
         return await new Promise((resolve) => {
@@ -3535,6 +3533,138 @@ TEXTE : ${rssText}`;
       return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     }
 
+    /* ── Modale d'aperçu desktop ── */
+    function showPreviewModal(blob, article) {
+      // Nettoyer une modale existante
+      document.getElementById('sharecard-modal')?.remove();
+
+      const blobUrl = URL.createObjectURL(blob);
+      const title   = article.ai_title || article.title || 'Article Synapse';
+
+      const overlay = document.createElement('div');
+      overlay.id    = 'sharecard-modal';
+      overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 10000;
+        background: rgba(0,0,0,0.75);
+        display: flex; align-items: center; justify-content: center;
+        padding: 24px;
+        backdrop-filter: blur(4px);
+        animation: scOverlayIn 0.2s ease;
+      `;
+
+      overlay.innerHTML = `
+        <style>
+          @keyframes scOverlayIn { from { opacity:0 } to { opacity:1 } }
+          @keyframes scModalIn   { from { opacity:0; transform:translateY(16px) scale(0.97) } to { opacity:1; transform:none } }
+          #sharecard-modal .sc-modal {
+            background: var(--white, #fff);
+            border-radius: 6px;
+            padding: 24px;
+            max-width: 480px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            animation: scModalIn 0.25s cubic-bezier(0.4,0,0.2,1);
+            box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+          }
+          body.dark #sharecard-modal .sc-modal {
+            background: var(--surface, #1a1a1a);
+          }
+          #sharecard-modal .sc-header {
+            display: flex; align-items: center; justify-content: space-between;
+            font-family: var(--font-mono, monospace);
+            font-size: 0.6rem; letter-spacing: 0.15em;
+            color: var(--grey-mid, #888);
+          }
+          #sharecard-modal .sc-close {
+            cursor: pointer; background: none; border: none;
+            color: var(--grey-mid, #888); font-size: 1rem; line-height: 1;
+            padding: 4px 8px;
+          }
+          #sharecard-modal .sc-preview {
+            width: 100%; border-radius: 4px;
+            display: block; object-fit: contain;
+            max-height: 55vh;
+            border: 1px solid var(--border, rgba(0,0,0,0.1));
+          }
+          #sharecard-modal .sc-actions {
+            display: flex; gap: 10px;
+          }
+          #sharecard-modal .sc-btn {
+            flex: 1; padding: 12px 16px; border-radius: 3px;
+            font-family: var(--font-mono, monospace);
+            font-size: 0.65rem; letter-spacing: 0.12em;
+            cursor: pointer; border: none; transition: opacity 0.15s;
+          }
+          #sharecard-modal .sc-btn:hover { opacity: 0.8; }
+          #sharecard-modal .sc-btn-copy {
+            background: var(--ink, #1a1a18);
+            color: var(--white, #f5f2eb);
+          }
+          #sharecard-modal .sc-btn-dl {
+            background: var(--grey-wash, #eee);
+            color: var(--ink, #1a1a18);
+          }
+          body.dark #sharecard-modal .sc-btn-dl {
+            background: var(--surface-alt, #2a2a2a);
+            color: var(--ink, #f0ede6);
+          }
+        </style>
+        <div class="sc-modal">
+          <div class="sc-header">
+            <span>APERÇU — CARTE PARTAGEABLE</span>
+            <button class="sc-close" id="sc-close-btn">✕</button>
+          </div>
+          <img class="sc-preview" src="${blobUrl}" alt="${title}" />
+          <div class="sc-actions">
+            <button class="sc-btn sc-btn-copy" id="sc-copy-btn">⎘ COPIER L'IMAGE</button>
+            <button class="sc-btn sc-btn-dl"   id="sc-dl-btn">↓ TÉLÉCHARGER</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      // Fermeture
+      const close = () => {
+        overlay.style.animation = 'scOverlayIn 0.15s ease reverse';
+        setTimeout(() => { overlay.remove(); URL.revokeObjectURL(blobUrl); }, 150);
+      };
+      document.getElementById('sc-close-btn').addEventListener('click', close);
+      overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+      document.addEventListener('keydown', function onKey(e) {
+        if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); }
+      });
+
+      // Copier dans le presse-papier
+      document.getElementById('sc-copy-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('sc-copy-btn');
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob }),
+          ]);
+          btn.textContent = '✓ COPIÉ';
+          setTimeout(() => { btn.textContent = '⎘ COPIER L\'IMAGE'; }, 2000);
+        } catch {
+          // Clipboard API non supportée — fallback téléchargement
+          Toast.show('Copie non supportée — téléchargement lancé', 'info');
+          document.getElementById('sc-dl-btn').click();
+        }
+      });
+
+      // Télécharger
+      document.getElementById('sc-dl-btn').addEventListener('click', () => {
+        const a   = document.createElement('a');
+        a.href    = blobUrl;
+        a.download = `synapse-${Date.now()}.png`;
+        a.click();
+        Toast.show('Image téléchargée ✓', 'success');
+      });
+    }
+
     /* ── Point d'entrée : génère et partage ── */
     async function show(article) {
       const shareBtn = document.getElementById('btn-share-menu');
@@ -3548,20 +3678,16 @@ TEXTE : ${rssText}`;
         const title  = article.ai_title || article.title || 'Article Synapse';
         const source = article.feed_name ? `Via ${article.feed_name}` : 'Synapse';
 
+        // Mobile natif — Web Share API avec fichier
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({ title, text: source, files: [file] });
           Toast.show('Carte partagée ✓', 'success');
-        } else if (navigator.share) {
+        } else if (navigator.share && /Mobi|Android|iPhone/i.test(navigator.userAgent)) {
+          // Mobile sans support fichier — partage URL
           await navigator.share({ title, text: source, url: article.link || '' });
         } else {
-          // Fallback desktop : téléchargement PNG
-          const url = URL.createObjectURL(blob);
-          const a   = document.createElement('a');
-          a.href    = url;
-          a.download = `synapse-${Date.now()}.png`;
-          a.click();
-          URL.revokeObjectURL(url);
-          Toast.show('Image téléchargée ✓', 'success');
+          // Desktop — modale d'aperçu avec Copier + Télécharger
+          showPreviewModal(blob, article);
         }
       } catch (err) {
         if (err.name !== 'AbortError') {
