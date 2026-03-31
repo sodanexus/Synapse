@@ -2892,7 +2892,7 @@ TEXTE : ${rssText}`;
       footer.style.display = 'block';
     }
 
-    /** Génère le digest et met à jour l'interface */
+    /** Génère la vue "chronologie du jour" et met à jour l'interface */
     async function generateAndRender(btnEl) {
       const fsBody = document.getElementById('digest-fullscreen-body');
       const listenBtn = document.getElementById('btn-digest-listen');
@@ -2908,92 +2908,53 @@ TEXTE : ${rssText}`;
       fsBody.innerHTML = `
         <div class="digest-empty-state" id="digest-empty-state">
           <div class="digest-empty-glyph">⬡</div>
-          <div class="digest-empty-label">BRIEFING DU JOUR</div>
-          <p class="digest-empty-desc">Votre synthèse IA est en cours de génération.<br>Les articles importants sont analysés et regroupés par thème.</p>
+          <div class="digest-empty-label">CHRONOLOGIE DU JOUR</div>
+          <p class="digest-empty-desc">Chargement des articles publiés aujourd'hui.</p>
           <div class="digest-loading-steps" id="digest-loading-steps">
-            <div class="digest-step" id="digest-step-1">Analyse des articles...</div>
-            <div class="digest-step" id="digest-step-2">Regroupement par thèmes...</div>
-            <div class="digest-step" id="digest-step-3">Rédaction du briefing...</div>
+            <div class="digest-step" id="digest-step-1">Chargement des articles du jour...</div>
+            <div class="digest-step" id="digest-step-2">Tri chronologique...</div>
+            <div class="digest-step" id="digest-step-3">Prêt.</div>
           </div>
         </div>
       `;
       const stopAnimation = animateLoadingSteps();
 
       try {
-        // Pré-enrichir les articles manquants
-        const enrichedCount = STATE.articles.filter(a => AI.isEnriched(a)).length;
-        const quotaRemaining = QuotaTracker.remaining(CONFIG.GROQ_MODEL_ENRICH);
-        const maxPreEnrich = Math.min(
-          Math.max(0, 10 - enrichedCount),
-          quotaRemaining,
-          5
-        );
-
-        const toEnrich = maxPreEnrich > 0
-          ? STATE.articles
-              .filter(a => !AI.isEnriched(a))
-              .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date))
-              .slice(0, maxPreEnrich)
-          : [];
-
-        if (toEnrich.length === 0 && enrichedCount === 0) {
-          throw new Error('Aucun article enrichi disponible et quota insuffisant. Ouvrez quelques articles d\'abord.');
-        }
-
-        for (let i = 0; i < toEnrich.length; i++) {
-          try {
-            const result = await AI.enrichArticle(toEnrich[i]);
-            toEnrich[i].ai_content = result.ai_content;
-            toEnrich[i].ai_title = result.ai_title || null;
-              toEnrich[i].ai_tags = result.ai_tags;
-          } catch {}
-          if (i < toEnrich.length - 1) await new Promise(r => setTimeout(r, CONFIG.GROQ_DIGEST_DELAY));
-        }
-
-        STATE.digestArticles = AI.getDigestArticles(STATE.articles);
         const heroArticle = _getDigestHeroSource();
-        const html = await AI.generateDailyDigest(STATE.articles);
         const heroImage = await _resolveDigestHeroImage(heroArticle);
         stopAnimation();
-
-        const cleanedHtml = cleanDigestHtml(html);
-        const rendered = `<div class="feed-digest-text">${cleanedHtml}</div>`;
-        fsBody.innerHTML = rendered;
+        fsBody.innerHTML = `<div class="feed-digest-text"></div>`;
 
         // Méta-infos footer
-        const analyzedCount = STATE.articles.filter(a => AI.isEnriched(a)).length;
+        const today = new Date().toISOString().split('T')[0];
+        const analyzedCount = STATE.articles.filter(a => a.pub_date && a.pub_date.startsWith(today)).length;
         updateFooter(analyzedCount, new Date());
 
-        // Réactiver le bouton TTS avec le texte extrait
+        // TTS désactivé (plus de texte IA pour le digest)
         if (listenBtn) {
-          listenBtn.style.display = '';
-          listenBtn._digestText = extractTextForTTS(cleanedHtml);
+          listenBtn.style.display = 'none';
+          listenBtn._digestText = '';
         }
 
-        if (STATE.user) DB.saveDigest(STATE.user.id, html, heroImage).catch(() => {});
         _setDigestHeroImage(heroImage);
 
         // Timeline chronologique en bas
         renderTimeline(fsBody);
 
-        Toast.show('Digest généré ✓', 'success');
+        Toast.show('Chronologie du jour mise à jour ✓', 'success');
 
       } catch (err) {
         stopAnimation();
-        const isQuota = err.message === 'QUOTA_EXHAUSTED' || err.message?.includes('Aucun article enrichi');
         fsBody.innerHTML = `
           <div class="digest-empty-state">
             <div class="digest-empty-glyph" style="animation:none;opacity:0.2">⊘</div>
-            <div class="digest-empty-label">${isQuota ? 'QUOTA ATTEINT' : 'ERREUR'}</div>
-            <p class="digest-empty-desc">${isQuota
-              ? 'Quota IA atteint pour aujourd\'hui.<br>Remise à zéro à minuit UTC.'
-              : 'Une erreur est survenue.<br>Réessayez dans quelques instants.'
-            }</p>
+            <div class="digest-empty-label">ERREUR</div>
+            <p class="digest-empty-desc">Une erreur est survenue.<br>Réessayez dans quelques instants.</p>
           </div>
         `;
         if (listenBtn) listenBtn.style.display = 'none';
         document.getElementById('digest-footer').style.display = 'none';
-        Toast.show(isQuota ? 'Quota IA atteint — remise à zéro à minuit' : 'Erreur digest IA', isQuota ? 'info' : 'error', 5000);
+        Toast.show('Erreur chronologie du jour', 'error', 5000);
       } finally {
         btnEl.disabled = false;
         btnEl.innerHTML = origLabel;
@@ -3001,10 +2962,11 @@ TEXTE : ${rssText}`;
     }
 
     function _getDigestHeroSource() {
-      const digestArticles = (STATE.digestArticles && STATE.digestArticles.length)
-        ? STATE.digestArticles
-        : AI.getDigestArticles(STATE.articles);
-      return digestArticles[0] || null;
+      const today = new Date().toISOString().split('T')[0];
+      const todayArticles = STATE.articles
+        .filter(a => a.pub_date && a.pub_date.startsWith(today))
+        .sort((a, b) => new Date(b.pub_date) - new Date(a.pub_date));
+      return todayArticles[0] || STATE.articles[0] || null;
     }
 
     async function _resolveDigestHeroImage(article) {
@@ -3089,7 +3051,7 @@ TEXTE : ${rssText}`;
 
       const listenBtn = document.getElementById('btn-digest-listen');
       if (listenBtn) {
-        listenBtn.style.display = 'none'; // caché jusqu'à génération
+        listenBtn.style.display = 'none'; // désactivé : pas de texte IA dans la chronologie
         listenBtn.addEventListener('click', () => {
           const text = listenBtn._digestText || '';
           if (!text) return;
@@ -3106,40 +3068,8 @@ TEXTE : ${rssText}`;
         updateHeaderDate();
 
         const fsBody = document.getElementById('digest-fullscreen-body');
-        const isEmpty = fsBody.querySelector('.digest-empty-state') ||
-                        fsBody.querySelector('.feed-digest-placeholder') ||
-                        fsBody.innerHTML.trim() === '';
-
-        if (isEmpty) {
-          const regenBtn = document.getElementById('btn-digest-fullscreen-regen');
-
-          // Tenter de charger le digest du jour depuis Supabase
-          if (STATE.user) {
-            try {
-              const cached = await DB.getTodayDigest(STATE.user.id);
-              if (cached && cached.content) {
-                const cleanedHtml = cleanDigestHtml(cached.content);
-                fsBody.innerHTML = `<div class="feed-digest-text">${cleanedHtml}</div>`;
-                const analyzedCount = STATE.articles.filter(a => AI.isEnriched(a)).length;
-                updateFooter(analyzedCount, cached.created_at);
-                // Activer le bouton TTS
-                if (listenBtn) {
-                  listenBtn.style.display = '';
-                  listenBtn._digestText = extractTextForTTS(cleanedHtml);
-                }
-                // Générer la timeline depuis les articles en mémoire
-                renderTimeline(fsBody);
-                _setDigestHeroImage(cached.hero_image || null);
-                return;
-              }
-            } catch (e) {
-              console.warn('Digest cache load failed:', e);
-            }
-          }
-
-          // Pas de cache — générer
-          generateAndRender(regenBtn || openBtn);
-        }
+        const regenBtn = document.getElementById('btn-digest-fullscreen-regen');
+        generateAndRender(regenBtn || openBtn);
       });
 
       // Fermer plein écran — animation identique au reader
@@ -3175,7 +3105,7 @@ TEXTE : ${rssText}`;
         }, 280);
       });
 
-      // ↺ Régénérer
+      // ↺ Rafraîchir
       const regenBtn = document.getElementById('btn-digest-fullscreen-regen');
       if (regenBtn) regenBtn.addEventListener('click', () => {
         TTS.stop();
@@ -3551,8 +3481,7 @@ TEXTE : ${rssText}`;
           'success'
         );
 
-        // Enrichissement silencieux en arrière-plan
-        setTimeout(() => BackgroundEnrich.run(), 3000);
+        // Pas d'enrichissement automatique : l'IA ne se lance qu'à l'ouverture d'un article
 
       } catch (err) {
         console.error('Erreur de sync:', err);
