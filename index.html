@@ -127,7 +127,7 @@
         <header class="view-header">
           <h1 class="view-title">FLUX</h1>
           <div style="display:flex;align-items:center;gap:10px;">
-            <button class="feed-digest-btn" id="btn-open-digest" title="Générer le digest IA"><span class="digest-btn-icon">✦</span><span class="digest-btn-label"> DIGEST</span></button>
+            <button class="feed-digest-btn" id="btn-open-digest" title="Ouvrir la chronologie du jour"><span class="digest-btn-icon">✦</span><span class="digest-btn-label"> CHRONO</span></button>
             <button class="feed-search-toggle" id="btn-search-toggle" title="Rechercher">⌕</button>
             <button class="btn-mark-all-read" id="btn-mark-all-read" title="Tout marquer comme lu">✓</button>
             <button class="sidebar-toggle-inline" id="sidebar-toggle-inline" aria-label="Ouvrir le menu">
@@ -329,19 +329,19 @@
 
       <!-- Hero image + Titre digest -->
       <div class="reader-title-area" id="digest-title-area">
-        <h1 class="reader-title" id="digest-hero-title">BRIEFING DU JOUR</h1>
+        <h1 class="reader-title" id="digest-hero-title">CHRONOLOGIE DU JOUR</h1>
       </div>
 
       <!-- Corps du digest -->
       <div class="digest-fullscreen-body reader-content" id="digest-fullscreen-body">
         <div class="digest-empty-state" id="digest-empty-state">
           <div class="digest-empty-glyph">⬡</div>
-          <div class="digest-empty-label">BRIEFING DU JOUR</div>
-          <p class="digest-empty-desc">Votre synthèse IA est en cours de génération.<br>Les articles importants sont analysés et regroupés par thème.</p>
+          <div class="digest-empty-label">CHRONOLOGIE DU JOUR</div>
+          <p class="digest-empty-desc">Les derniers articles du jour apparaissent ici, classés par heure.</p>
           <div class="digest-loading-steps" id="digest-loading-steps">
-            <div class="digest-step" id="digest-step-1">Analyse des articles...</div>
-            <div class="digest-step" id="digest-step-2">Regroupement par thèmes...</div>
-            <div class="digest-step" id="digest-step-3">Rédaction du briefing...</div>
+            <div class="digest-step" id="digest-step-1">Chargement des articles du jour...</div>
+            <div class="digest-step" id="digest-step-2">Tri chronologique...</div>
+            <div class="digest-step" id="digest-step-3">Prêt.</div>
           </div>
         </div>
       </div>
