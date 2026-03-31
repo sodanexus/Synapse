@@ -612,7 +612,7 @@ ul { list-style: none; }
 
 /* Label flottant au-dessus de la bordure */
 .digest-zone::before {
-  content: 'Digest IA';
+  content: 'Chronologie du jour';
   position: absolute;
   top: -10px;
   left: 32px;
