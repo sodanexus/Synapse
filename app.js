@@ -35,7 +35,7 @@
     // Modèles Groq — split selon la tâche
     // llama-3.1-8b-instant : 14.4K req/jour → enrichissement articles (rapide, suffisant)
     // llama-3.3-70b-versatile : 1K req/jour  → digest uniquement (complexe, rare)
-    GROQ_MODEL_ENRICH: 'llama-3.1-8b-instant',
+    GROQ_MODEL_ENRICH: 'llama-3.3-70b-versatile',
     GROQ_MODEL_DIGEST: 'llama-3.3-70b-versatile',
     // Nombre d'articles max à charger par fetch
     MAX_ARTICLES_PER_FEED: 20,
